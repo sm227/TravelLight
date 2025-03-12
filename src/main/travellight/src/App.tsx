@@ -1,36 +1,60 @@
-import {useEffect, useState} from "react";
-import axios from "axios";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import Home from './pages/Home';
+import './App.css';
+
+// 테마 설정
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+      light: '#63a4ff',
+      dark: '#004ba0',
+    },
+    secondary: {
+      main: '#f50057',
+      light: '#ff5983',
+      dark: '#bb002f',
+    },
+    background: {
+      default: '#f5f5f5',
+      paper: '#ffffff',
+    },
+  },
+  typography: {
+    fontFamily: [
+      'Noto Sans KR',
+      'Roboto',
+      '"Helvetica Neue"',
+      'Arial',
+      'sans-serif',
+    ].join(','),
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 600,
+        },
+      },
+    },
+  },
+});
 
 function App() {
-    const [hello, setHello] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-
-    useEffect(() => {
-        setLoading(true);
-        axios.get('/api/test')
-            .then((res) => {
-                setHello(res.data);
-                setLoading(false);
-            })
-            .catch((err) => {
-                console.error('API 요청 오류:', err);
-                setError('데이터를 불러오는데 실패했습니다.');
-                setLoading(false);
-            });
-    }, []);
-    
-    return (
-        <div className="App">
-            {loading ? (
-                <p>로딩 중...</p>
-            ) : error ? (
-                <p>오류: {error}</p>
-            ) : (
-                <p>백엔드 데이터: {hello}</p>
-            )}
-        </div>
-    );
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          {/* 추가 라우트는 여기에 정의할 수 있습니다 */}
+        </Routes>
+      </Router>
+    </ThemeProvider>
+  );
 }
 
 export default App;
