@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import Home from './pages/Home';
+import Map from "./pages/Map";
 import './App.css';
 
 // 테마 설정
@@ -50,7 +51,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Home />} />
-          {/* 추가 라우트는 여기에 정의할 수 있습니다 */}
+          <Route path="/map" element={<Map />} />
         </Routes>
       </Router>
     </ThemeProvider>
