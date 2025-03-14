@@ -9,17 +9,30 @@ import {
   Link, 
   Grid,
   InputAdornment,
-  IconButton
+  IconButton,
+  Snackbar,
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { userService } from '../services/api';
+import { useAuth } from '../services/AuthContext';
 
 const Login = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
+  });
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -35,7 +48,11 @@ const Login = () => {
     setShowPassword(!showPassword);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleCloseSnackbar = () => {
+    setSnackbar({...snackbar, open: false});
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let isValid = true;
 
@@ -54,9 +71,36 @@ const Login = () => {
     }
 
     if (isValid) {
-      // 여기서는 백엔드 구현 없이 콘솔에만 출력
-      console.log('로그인 시도:', { email, password });
-      alert('로그인 기능은 백엔드 연동 후 구현될 예정입니다.');
+      setIsLoading(true);
+      try {
+        const response = await userService.login({
+          email,
+          password
+        });
+        
+        // 로그인 성공 시 사용자 정보 저장
+        login(response.data);
+        
+        setSnackbar({
+          open: true,
+          message: '로그인이 완료되었습니다.',
+          severity: 'success'
+        });
+        
+        // 홈 페이지로 이동
+        setTimeout(() => {
+          navigate('/');
+        }, 1000);
+      } catch (error: any) {
+        console.error('로그인 오류:', error);
+        setSnackbar({
+          open: true,
+          message: error.response?.data?.message || '로그인 중 오류가 발생했습니다.',
+          severity: 'error'
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -95,6 +139,7 @@ const Login = () => {
               onChange={handleEmailChange}
               error={!!emailError}
               helperText={emailError}
+              disabled={isLoading}
             />
             <TextField
               margin="normal"
@@ -109,6 +154,7 @@ const Login = () => {
               onChange={handlePasswordChange}
               error={!!passwordError}
               helperText={passwordError}
+              disabled={isLoading}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -116,6 +162,7 @@ const Login = () => {
                       aria-label="toggle password visibility"
                       onClick={handleClickShowPassword}
                       edge="end"
+                      disabled={isLoading}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
@@ -128,8 +175,13 @@ const Login = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2, py: 1.5 }}
+              disabled={isLoading}
             >
-              로그인
+              {isLoading ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                '로그인'
+              )}
             </Button>
             <Grid container justifyContent="space-between">
               <Grid item>
@@ -146,6 +198,16 @@ const Login = () => {
           </Box>
         </Paper>
       </Box>
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

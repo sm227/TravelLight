@@ -12,19 +12,42 @@ import {
   ListItem, 
   ListItemText,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Avatar,
+  Menu,
+  MenuItem,
+  Divider
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import LuggageIcon from '@mui/icons-material/Luggage';
-import { Link as RouterLink } from 'react-router-dom';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../services/AuthContext';
 
 const Navbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { user, isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    logout();
+    handleMenuClose();
+    navigate('/');
   };
 
   const menuItems = [
@@ -47,22 +70,64 @@ const Navbar: React.FC = () => {
             <ListItemText primary={item.text} />
           </ListItem>
         ))}
-        <ListItem 
-          component={RouterLink} 
-          to="/login" 
-          sx={{ textAlign: 'center', textDecoration: 'none', color: 'primary.main', fontWeight: 'bold' }}
-        >
-          <ListItemText primary="로그인" />
-        </ListItem>
-        <ListItem 
-          component={RouterLink} 
-          to="/register" 
-          sx={{ textAlign: 'center', textDecoration: 'none', color: 'secondary.main', fontWeight: 'bold' }}
-        >
-          <ListItemText primary="회원가입" />
-        </ListItem>
+        {isAuthenticated ? (
+          <>
+            <ListItem sx={{ textAlign: 'center', color: 'primary.main' }}>
+              <ListItemText primary={`안녕하세요, ${user?.name}님`} />
+            </ListItem>
+            <ListItem 
+              button 
+              onClick={handleLogout}
+              sx={{ textAlign: 'center', color: 'error.main' }}
+            >
+              <ListItemText primary="로그아웃" />
+            </ListItem>
+          </>
+        ) : (
+          <>
+            <ListItem 
+              component={RouterLink} 
+              to="/login" 
+              sx={{ textAlign: 'center', textDecoration: 'none', color: 'primary.main', fontWeight: 'bold' }}
+            >
+              <ListItemText primary="로그인" />
+            </ListItem>
+            <ListItem 
+              component={RouterLink} 
+              to="/register" 
+              sx={{ textAlign: 'center', textDecoration: 'none', color: 'secondary.main', fontWeight: 'bold' }}
+            >
+              <ListItemText primary="회원가입" />
+            </ListItem>
+          </>
+        )}
       </List>
     </Box>
+  );
+
+  const isMenuOpen = Boolean(anchorEl);
+  const menuId = 'primary-search-account-menu';
+  const renderMenu = (
+    <Menu
+      anchorEl={anchorEl}
+      anchorOrigin={{
+        vertical: 'bottom',
+        horizontal: 'right',
+      }}
+      id={menuId}
+      keepMounted
+      transformOrigin={{
+        vertical: 'top',
+        horizontal: 'right',
+      }}
+      open={isMenuOpen}
+      onClose={handleMenuClose}
+    >
+      <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>내 프로필</MenuItem>
+      <MenuItem onClick={() => { handleMenuClose(); navigate('/settings'); }}>설정</MenuItem>
+      <Divider />
+      <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>로그아웃</MenuItem>
+    </Menu>
   );
 
   return (
@@ -137,34 +202,66 @@ const Navbar: React.FC = () => {
           )}
 
           <Box sx={{ flexGrow: 0, display: { xs: 'none', md: 'flex' } }}>
-            <Button 
-              component={RouterLink}
-              to="/login"
-              variant="outlined" 
-              color="primary"
-              sx={{ 
-                borderRadius: '24px',
-                px: 2,
-                mr: 1
-              }}
-            >
-              로그인
-            </Button>
-            <Button 
-              component={RouterLink}
-              to="/register"
-              variant="contained" 
-              color="primary"
-              sx={{ 
-                borderRadius: '24px',
-                px: 2
-              }}
-            >
-              회원가입
-            </Button>
+            {isAuthenticated ? (
+              <>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    mr: 2,
+                    color: 'text.primary'
+                  }}
+                >
+                  안녕하세요, {user?.name}님
+                </Typography>
+                <IconButton
+                  size="large"
+                  edge="end"
+                  aria-label="account of current user"
+                  aria-controls={menuId}
+                  aria-haspopup="true"
+                  onClick={handleProfileMenuOpen}
+                  color="inherit"
+                >
+                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                    {user?.name.charAt(0)}
+                  </Avatar>
+                </IconButton>
+              </>
+            ) : (
+              <>
+                <Button 
+                  component={RouterLink}
+                  to="/login"
+                  variant="outlined" 
+                  color="primary"
+                  sx={{ 
+                    borderRadius: '24px',
+                    px: 2,
+                    mr: 1
+                  }}
+                >
+                  로그인
+                </Button>
+                <Button 
+                  component={RouterLink}
+                  to="/register"
+                  variant="contained" 
+                  color="primary"
+                  sx={{ 
+                    borderRadius: '24px',
+                    px: 2
+                  }}
+                >
+                  회원가입
+                </Button>
+              </>
+            )}
           </Box>
         </Toolbar>
       </Container>
+      {renderMenu}
     </AppBar>
   );
 };

@@ -11,12 +11,18 @@ import {
   InputAdornment,
   IconButton,
   Checkbox,
-  FormControlLabel
+  FormControlLabel,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { userService } from '../services/api';
+import { useAuth } from '../services/AuthContext';
 
 const Register = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -35,6 +41,12 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreeTermsError, setAgreeTermsError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -61,6 +73,10 @@ const Register = () => {
   const handleAgreeTerms = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAgreeTerms(e.target.checked);
     setAgreeTermsError('');
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({...snackbar, open: false});
   };
 
   const validateForm = () => {
@@ -110,13 +126,41 @@ const Register = () => {
     return isValid;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
-      // 여기서는 백엔드 구현 없이 콘솔에만 출력
-      console.log('회원가입 시도:', formData);
-      alert('회원가입 기능은 백엔드 연동 후 구현될 예정입니다.');
+      setIsLoading(true);
+      try {
+        const response = await userService.register({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password
+        });
+        
+        // 회원가입 성공 시 로그인 처리
+        login(response.data);
+        
+        setSnackbar({
+          open: true,
+          message: '회원가입이 완료되었습니다.',
+          severity: 'success'
+        });
+        
+        // 홈 페이지로 이동
+        setTimeout(() => {
+          navigate('/');
+        }, 1500);
+      } catch (error: any) {
+        console.error('회원가입 오류:', error);
+        setSnackbar({
+          open: true,
+          message: error.response?.data?.message || '회원가입 중 오류가 발생했습니다.',
+          severity: 'error'
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -156,6 +200,7 @@ const Register = () => {
               onChange={handleChange}
               error={!!errors.name}
               helperText={errors.name}
+              disabled={isLoading}
             />
             <TextField
               margin="normal"
@@ -169,6 +214,7 @@ const Register = () => {
               onChange={handleChange}
               error={!!errors.email}
               helperText={errors.email}
+              disabled={isLoading}
             />
             <TextField
               margin="normal"
@@ -183,6 +229,7 @@ const Register = () => {
               onChange={handleChange}
               error={!!errors.password}
               helperText={errors.password}
+              disabled={isLoading}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -190,6 +237,7 @@ const Register = () => {
                       aria-label="toggle password visibility"
                       onClick={handleClickShowPassword}
                       edge="end"
+                      disabled={isLoading}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
@@ -210,6 +258,7 @@ const Register = () => {
               onChange={handleChange}
               error={!!errors.confirmPassword}
               helperText={errors.confirmPassword}
+              disabled={isLoading}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -217,6 +266,7 @@ const Register = () => {
                       aria-label="toggle password visibility"
                       onClick={handleClickShowConfirmPassword}
                       edge="end"
+                      disabled={isLoading}
                     >
                       {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
@@ -230,6 +280,7 @@ const Register = () => {
                   checked={agreeTerms}
                   onChange={handleAgreeTerms}
                   color="primary"
+                  disabled={isLoading}
                 />
               }
               label="서비스 이용약관 및 개인정보 처리방침에 동의합니다"
@@ -244,8 +295,9 @@ const Register = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2, py: 1.5 }}
+              disabled={isLoading}
             >
-              회원가입
+              {isLoading ? '처리 중...' : '회원가입'}
             </Button>
             <Grid container justifyContent="center">
               <Grid item>
@@ -257,6 +309,16 @@ const Register = () => {
           </Box>
         </Paper>
       </Box>
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
