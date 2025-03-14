@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import LuggageIcon from '@mui/icons-material/Luggage';
+import { Link as RouterLink } from 'react-router-dom';
 
 const Navbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -46,6 +47,20 @@ const Navbar: React.FC = () => {
             <ListItemText primary={item.text} />
           </ListItem>
         ))}
+        <ListItem 
+          component={RouterLink} 
+          to="/login" 
+          sx={{ textAlign: 'center', textDecoration: 'none', color: 'primary.main', fontWeight: 'bold' }}
+        >
+          <ListItemText primary="로그인" />
+        </ListItem>
+        <ListItem 
+          component={RouterLink} 
+          to="/register" 
+          sx={{ textAlign: 'center', textDecoration: 'none', color: 'secondary.main', fontWeight: 'bold' }}
+        >
+          <ListItemText primary="회원가입" />
+        </ListItem>
       </List>
     </Box>
   );
@@ -123,14 +138,29 @@ const Navbar: React.FC = () => {
 
           <Box sx={{ flexGrow: 0, display: { xs: 'none', md: 'flex' } }}>
             <Button 
+              component={RouterLink}
+              to="/login"
+              variant="outlined" 
+              color="primary"
+              sx={{ 
+                borderRadius: '24px',
+                px: 2,
+                mr: 1
+              }}
+            >
+              로그인
+            </Button>
+            <Button 
+              component={RouterLink}
+              to="/register"
               variant="contained" 
               color="primary"
               sx={{ 
                 borderRadius: '24px',
-                px: 3
+                px: 2
               }}
             >
-              로그인
+              회원가입
             </Button>
           </Box>
         </Toolbar>
