@@ -21,6 +21,7 @@ const Map = () => {
         let bankMarkers: any[] = [];
         let bankOverlays: any[] = [];
         let currentInfoOverlay: any = null;
+        let selectedMarkerElement: HTMLElement | null = null; //마커 선택 요소 추적
 
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -130,6 +131,21 @@ const Map = () => {
 
             // 클릭 이벤트 처리
             markerElement.addEventListener('click', function() {
+                // 선택된 마커가 있으면 원래 색상으로 돌리기
+                if(selectedMarkerElement){
+                    const prevMarker = selectedMarkerElement.querySelector('.bank-marker');
+                    if(prevMarker){
+                        prevMarker.classList.remove('selected');
+                    }
+                }
+                // 현재 마커를 선택 상태로 변경
+                const currentMarker = markerElement.querySelector('.bank-marker');
+                if(currentMarker){
+                    currentMarker.classList.add('selected');
+                }
+                // 현재 마커를 선택된 마커로 설정
+                selectedMarkerElement = markerElement;
+
                 if (currentInfoOverlay) {
                     currentInfoOverlay.setMap(null);
                 }
@@ -158,6 +174,8 @@ const Map = () => {
                 currentInfoOverlay.setMap(null);
                 currentInfoOverlay = null;
             }
+            // 선택된 마커 초기화
+            selectedMarkerElement = null;
         }
 
         window.kakao.maps.event.addListener(map, "dragend", () => {
@@ -169,6 +187,14 @@ const Map = () => {
             if (currentInfoOverlay) {
                 currentInfoOverlay.setMap(null);
                 currentInfoOverlay = null;
+            }
+            // 선택된 마커 스타일 초기화
+            if (selectedMarkerElement) {
+                const marker = selectedMarkerElement.querySelector('.bank-marker');
+                if(marker){
+                    marker.classList.remove('selected');
+                }
+                selectedMarkerElement = null;
             }
         });
     }, []);
@@ -219,7 +245,14 @@ const Map = () => {
                         align-items: center;
                         justify-content: center;
                         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+                        transition: background-color 0.2s ease; /* 부드러운 색상 전환 효과 */
                     }
+                    
+                    .bank-marker.selected { /*선택된 마커 색상 변경 */
+                    background-color: #ff4136;
+                    box-shadow: 0 2px 8px rgba(255, 65, 54, 0.5);
+                    }
+                    
                     .bank-icon {
                         display: block;
                         width: 14px;
