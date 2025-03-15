@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Box, 
   Container, 
@@ -67,7 +68,7 @@ const Hero: React.FC = () => {
               sx={{ fontWeight: 700 }}
             >
               여행은 가볍게,<br />
-              <Box component="span" sx={{ color: 'primary.main' }}>
+              <Box component="span" sx={{ color: 'primary.main', display: 'block', whiteSpace: 'nowrap' }}>
                 짐은 TravelLight에게
               </Box>
             </Typography>
@@ -85,6 +86,8 @@ const Hero: React.FC = () => {
                 variant="contained"
                 size="large"
                 color="primary"
+                component={Link}
+                to="/map"
                 sx={{ 
                   borderRadius: '28px',
                   px: 4,
