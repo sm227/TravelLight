@@ -20,6 +20,8 @@ const Map = () => {
         // const infowindow = new window.kakao.maps.InfoWindow({ zIndex: 1 });
         let bankMarkers: any[] = [];
         let bankOverlays: any[] = [];
+        let storeMarkers: any[] = [];
+        let storeOverlays: any[] = [];
         let currentInfoOverlay: any = null;
         let selectedMarkerElement: HTMLElement | null = null; //마커 선택 요소 추적
 
@@ -32,13 +34,16 @@ const Map = () => {
                     displayUserMarker(locPosition);
                     map.setCenter(locPosition);
                     searchBanks(map);
+                    searchStores(map);
                 },
                 () => {
                     searchBanks(map);
+                    searchStores(map);
                 }
             );
         } else {
             searchBanks(map);
+            searchStores(map);
         }
 
         function displayUserMarker(locPosition: any) {
@@ -178,8 +183,120 @@ const Map = () => {
             selectedMarkerElement = null;
         }
 
+        function searchStores(map: any) {
+            const ps = new window.kakao.maps.services.Places(map);
+            ps.categorySearch("CS2", storesSearchCB, { useMapBounds: true });
+        }
+
+        function storesSearchCB(data: any, status: any) {
+            if (status === window.kakao.maps.services.Status.OK) {
+                clearStoreMarkers();
+                for (let i = 0; i < data.length; i++) {
+                    displayStoreMarker(data[i]);
+                }
+            }
+        }
+
+        function displayStoreMarker(place: any) {
+            const markerPosition = new window.kakao.maps.LatLng(place.y, place.x);
+
+            // 기본 마커 대신 커스텀 오버레이 사용
+            const markerElement = document.createElement("div");
+            markerElement.className = "store-marker-container";
+            markerElement.innerHTML = `
+                <div class="store-marker">
+                    <span class="store-icon"></span>
+                </div>
+            `;
+
+            // 커스텀 오버레이 생성
+            const markerOverlay = new window.kakao.maps.CustomOverlay({
+                position: markerPosition,
+                content: markerElement,
+                yAnchor: 1,
+                zIndex: 1
+            });
+
+            // 맵에 오버레이 표시
+            markerOverlay.setMap(map);
+            storeOverlays.push(markerOverlay);
+
+            // 편의점명 처리 - 길이 제한
+            let storeName = place.place_name;
+            if (storeName.length > 20) {
+                storeName = storeName.substring(0, 19) + '...';
+            }
+
+            // 편의점의 상세 정보 오버레이
+            const infoContent = document.createElement("div");
+            infoContent.className = "store-info-overlay";
+            infoContent.innerHTML = `
+                <div class="info-window">
+                    <div class="info-content">
+                        <div class="title">
+                            <span class="store-name">${storeName}</span>
+                            <div class="close" onclick="this.parentElement.parentElement.parentElement.parentElement.style.display='none'" title="닫기">×</div>
+                        </div>
+                        <div class="body">
+                            <div class="desc">
+                                <div class="ellipsis">${place.address_name}</div>
+                                <div class="phone">${place.phone || '전화번호 정보 없음'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="info-tail"></div>
+                </div>
+            `;
+
+            const infoOverlay = new window.kakao.maps.CustomOverlay({
+                content: infoContent,
+                position: markerPosition,
+                yAnchor: 1.5,
+                zIndex: 2
+            });
+
+            // 클릭 이벤트 처리
+            markerElement.addEventListener('click', function() {
+                // 선택된 마커가 있으면 원래 색상으로 돌리기
+                if(selectedMarkerElement){
+                    const prevMarker = selectedMarkerElement.querySelector('.bank-marker, .store-marker');
+                    if(prevMarker){
+                        prevMarker.classList.remove('selected');
+                    }
+                }
+                // 현재 마커를 선택 상태로 변경
+                const currentMarker = markerElement.querySelector('.store-marker');
+                if(currentMarker){
+                    currentMarker.classList.add('selected');
+                }
+                // 현재 마커를 선택된 마커로 설정
+                selectedMarkerElement = markerElement;
+
+                if (currentInfoOverlay) {
+                    currentInfoOverlay.setMap(null);
+                }
+                infoOverlay.setMap(map);
+                currentInfoOverlay = infoOverlay;
+            });
+        }
+
+        function clearStoreMarkers() {
+            // 오버레이 제거
+            for (let overlay of storeOverlays) {
+                overlay.setMap(null);
+            }
+            storeOverlays = [];
+
+            // 기존 마커도 제거 (혹시 남아있을 경우)
+            for (let marker of storeMarkers) {
+                marker.setMap(null);
+            }
+            storeMarkers = [];
+        }
+
         window.kakao.maps.event.addListener(map, "dragend", () => {
             searchBanks(map);
+            searchStores(map);
         });
 
         // 지도 클릭 시 열려있는 오버레이 닫기
@@ -190,7 +307,7 @@ const Map = () => {
             }
             // 선택된 마커 스타일 초기화
             if (selectedMarkerElement) {
-                const marker = selectedMarkerElement.querySelector('.bank-marker');
+                const marker = selectedMarkerElement.querySelector('.bank-marker, .store-marker');
                 if(marker){
                     marker.classList.remove('selected');
                 }
@@ -334,6 +451,44 @@ const Map = () => {
                     @keyframes waveEffect {
                         0% { transform: scale(1); opacity: 0.7; }
                         100% { transform: scale(2); opacity: 0; }
+                    }
+
+                    .store-marker-container {
+                        cursor: pointer;
+                    }
+                    .store-marker {
+                        width: 24px;
+                        height: 24px;
+                        background-color: #28A745;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+                        transition: background-color 0.2s ease;
+                    }
+                    .store-marker.selected {
+                        background-color: #ff4136;
+                        box-shadow: 0 2px 8px rgba(255, 65, 54, 0.5);
+                    }
+                    .store-icon {
+                        display: block;
+                        width: 14px;
+                        height: 14px;
+                        background-color: white;
+                        clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
+                    }
+                    .store-name {
+                        display: inline-block;
+                        width: 200px;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                    }
+                    
+                    /* Overlay with pointer */
+                    .store-info-overlay {
+                        position: relative;
                     }
                 `}
             </style>
