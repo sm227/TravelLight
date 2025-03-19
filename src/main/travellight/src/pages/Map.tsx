@@ -1,7 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Box } from "@mui/material";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import "../MapButton.css";
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 declare global {
     interface Window {
@@ -9,7 +11,22 @@ declare global {
     }
 }
 
+interface KakaoLatLng {
+    getLat(): number;
+    getLng(): number;
+}
+
+interface KakaoMap {
+    setCenter(position: KakaoLatLng): void;
+    panTo(position: KakaoLatLng): void;
+    getCenter(): KakaoLatLng;
+}
+
 const Map = () => {
+    const [userPosition, setUserPosition] = useState<KakaoLatLng | null>(null);
+    const [isMapMoved, setIsMapMoved] = useState(false);
+    const [mapInstance, setMapInstance] = useState<KakaoMap | null>(null);
+
     useEffect(() => {
         const container = document.getElementById("map") as HTMLElement;
         const options = {
@@ -17,6 +34,7 @@ const Map = () => {
             level: 3,
         };
         const map = new window.kakao.maps.Map(container, options);
+        setMapInstance(map);
         // const infowindow = new window.kakao.maps.InfoWindow({ zIndex: 1 });
         let bankMarkers: any[] = [];
         let bankOverlays: any[] = [];
@@ -31,6 +49,7 @@ const Map = () => {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
                     const locPosition = new window.kakao.maps.LatLng(lat, lon);
+                    setUserPosition(locPosition);
                     displayUserMarker(locPosition);
                     map.setCenter(locPosition);
                     searchBanks(map);
@@ -295,6 +314,7 @@ const Map = () => {
         }
 
         window.kakao.maps.event.addListener(map, "dragend", () => {
+            setIsMapMoved(true);
             searchBanks(map);
             searchStores(map);
         });
@@ -314,13 +334,37 @@ const Map = () => {
                 selectedMarkerElement = null;
             }
         });
+
+        // Cleanup 함수 추가
+        return () => {
+            if (currentInfoOverlay) {
+                currentInfoOverlay.setMap(null);
+            }
+            clearBankMarkers();
+            clearStoreMarkers();
+        };
     }, []);
+
+    // 현재 위치로 돌아가는 함수를 useCallback으로 메모이제이션
+    const returnToMyLocation = useCallback(() => {
+        if (userPosition && mapInstance) {
+            mapInstance.panTo(userPosition);
+            setIsMapMoved(false);
+        }
+    }, [userPosition, mapInstance]);
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
             <Navbar />
-            <Box component="main" sx={{ flexGrow: 1 }}>
+            <Box component="main" sx={{ flexGrow: 1, position: "relative" }}>
                 <div id="map" style={{ width: "100vw", height: "100vh" }} />
+                {isMapMoved && (
+                    <div className="map-button-container">
+                        <button className="map-button" onClick={returnToMyLocation}>
+                            <LocationOnIcon className="map-button-icon" />
+                        </button>
+                    </div>
+                )}
             </Box>
             <Footer />
             <style>
