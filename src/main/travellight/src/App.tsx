@@ -55,7 +55,7 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
-          <Navbar />
+          {/*<Navbar />*/}
           <Box sx={{ pt: 8 }}> {/* 네비게이션 바 높이만큼 상단 패딩 추가 */}
             <Routes>
               <Route path="/" element={<Home />} />
