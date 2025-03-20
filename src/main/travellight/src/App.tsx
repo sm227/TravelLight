@@ -9,6 +9,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Navbar from './components/Navbar';
 import { AuthProvider } from './services/AuthContext';
 import './App.css';
+import StoragePartnership from './pages/StoragePartnership';
 
 // 테마 설정
 const theme = createTheme({
@@ -63,6 +64,8 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/StoragePartnership" element={<StoragePartnership />} />
+              {/*<Route path="/event-storage" element={<EventStorage />} />*/}
             </Routes>
           </Box>
         </Router>
