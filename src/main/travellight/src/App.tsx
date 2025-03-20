@@ -10,6 +10,13 @@ import Navbar from './components/Navbar';
 import { AuthProvider } from './services/AuthContext';
 import './App.css';
 import StoragePartnership from './pages/StoragePartnership';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminProducts from './pages/admin/AdminProducts';
+import AdminOrders from './pages/admin/AdminOrders';
+import AdminLayout from './components/admin/AdminLayout';
+import ProtectedAdminRoute from './components/admin/ProtectedAdminRoute';
 
 // 테마 설정
 const theme = createTheme({
@@ -56,18 +63,29 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
-          <Navbar />
-          <Box sx={{ pt: 8 }}> {/* 네비게이션 바 높이만큼 상단 패딩 추가 */}
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/map" element={<Map />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/StoragePartnership" element={<StoragePartnership />} />
-              {/*<Route path="/event-storage" element={<EventStorage />} />*/}
-            </Routes>
-          </Box>
+          <Routes>
+            {/* 일반 사용자 라우트 */}
+            <Route path="/" element={<Home />} />
+            <Route path="/map" element={<Map />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/StoragePartnership" element={<StoragePartnership />} />
+            {/*<Route path="/event-storage" element={<EventStorage />} />*/}
+
+            {/* 관리자 라우트 */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin" element={
+              <ProtectedAdminRoute>
+                <AdminLayout />
+              </ProtectedAdminRoute>
+            }>
+              <Route index element={<AdminDashboard />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="products" element={<AdminProducts />} />
+              <Route path="orders" element={<AdminOrders />} />
+            </Route>
+          </Routes>
         </Router>
       </AuthProvider>
     </ThemeProvider>
