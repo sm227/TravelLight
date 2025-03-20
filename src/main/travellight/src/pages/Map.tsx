@@ -38,6 +38,7 @@ const Map = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [startTime, setStartTime] = useState("09:30");
     const [endTime, setEndTime] = useState("17:00");
+    const [bankOverlays, setBankOverlays] = useState<any[]>([]);
 
     // 공통 스크롤바 스타일 정의
     const scrollbarStyle = {
@@ -145,7 +146,7 @@ const Map = () => {
             markerElement.className = "bank-marker-container";
             markerElement.innerHTML = `
                 <div class="bank-marker">
-                    <span class="bank-icon"></span>
+                    <span class="bank-icon">🏦</span>
                 </div>
             `;
 
@@ -159,7 +160,9 @@ const Map = () => {
 
             // 맵에 오버레이 표시
             markerOverlay.setMap(map);
-            bankOverlays.push(markerOverlay);
+            
+            // 상태 업데이트로 오버레이 배열 관리
+            setBankOverlays(prev => [...prev, markerOverlay]);
 
             // 은행명 처리 - 길이 제한 증가
             let bankName = place.place_name;
@@ -230,10 +233,8 @@ const Map = () => {
 
         function clearBankMarkers() {
             // 오버레이 제거
-            for (let overlay of bankOverlays) {
-                overlay.setMap(null);
-            }
-            bankOverlays = [];
+            bankOverlays.forEach(overlay => overlay.setMap(null));
+            setBankOverlays([]);
 
             // 기존 마커도 제거 (혹시 남아있을 경우)
             for (let marker of bankMarkers) {
