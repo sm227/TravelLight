@@ -9,6 +9,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Navbar from './components/Navbar';
 import { AuthProvider } from './services/AuthContext';
 import './App.css';
+import StoragePartnership from './pages/StoragePartnership';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
@@ -69,6 +70,8 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/StoragePartnership" element={<StoragePartnership />} />
+            {/*<Route path="/event-storage" element={<EventStorage />} />*/}
 
             {/* 관리자 라우트 */}
             <Route path="/admin/login" element={<AdminLogin />} />
