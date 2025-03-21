@@ -6,6 +6,7 @@ import Map from "./pages/Map";
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import Carry from './pages/Carry';
 import Navbar from './components/Navbar';
 import { AuthProvider } from './services/AuthContext';
 import './App.css';
@@ -71,6 +72,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/StoragePartnership" element={<StoragePartnership />} />
+            <Route path="/carry" element={<Carry />}/>
             {/*<Route path="/event-storage" element={<EventStorage />} />*/}
 
             {/* 관리자 라우트 */}
