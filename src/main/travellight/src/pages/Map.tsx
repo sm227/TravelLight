@@ -146,7 +146,7 @@ const Map = () => {
             markerElement.className = "bank-marker-container";
             markerElement.innerHTML = `
                 <div class="bank-marker">
-                    <span class="bank-icon">🏦</span>
+                    <img src="/carrier.png" alt="은행" class="marker-icon" />
                 </div>
             `;
 
@@ -273,7 +273,7 @@ const Map = () => {
             markerElement.className = "store-marker-container";
             markerElement.innerHTML = `
                 <div class="store-marker">
-                    <span class="store-icon"></span>
+                    <img src="/carrier.png" alt="편의점" class="marker-icon" />
                 </div>
             `;
 
@@ -872,6 +872,13 @@ const Map = () => {
                                     textTransform: 'none',
                                     '&:hover': {
                                         backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                                    },
+                                    // 테두리 제거
+                                    '&:focus': {
+                                        outline: 'none',
+                                    },
+                                    '&.Mui-focusVisible': {
+                                        outline: 'none',
                                     }
                                 }}
                                 onClick={() => setSelectedPlace(null)}
@@ -974,6 +981,14 @@ const Map = () => {
                         width: '48px',
                         height: '24px',
                         borderRadius: '12px 12px 0 0',
+                    },
+                    
+                    // 테두리 제거
+                    '&:focus': {
+                        outline: 'none',
+                    },
+                    '&.Mui-focusVisible': {
+                        outline: 'none',
                     }
                 }}
             >
