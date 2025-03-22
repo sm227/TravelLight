@@ -13,7 +13,9 @@ import {
     Select,
     MenuItem,
     FormControl,
-    InputLabel
+    InputLabel,
+    Snackbar,
+    Alert
 } from "@mui/material";
 import {Typography} from "@mui/material";
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -23,6 +25,8 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import {AdapterDateFns} from '@mui/x-date-pickers/AdapterDateFns';
 import {LocalizationProvider, TimePicker} from '@mui/x-date-pickers';
 import {ko} from 'date-fns/locale';
+import { useAuth } from "../services/AuthContext";
+import axios from 'axios';
 
 declare global {
     interface Window {
@@ -45,6 +49,16 @@ interface KakaoMap {
 }
 
 const Map = () => {
+    // useAuth 훅을 사용하여 사용자 정보 가져오기
+    const { user, isAuthenticated } = useAuth();
+    
+    // 개발자 도구에 로그 출력
+    useEffect(() => {
+        console.log('Map 컴포넌트 마운트: 사용자 인증 상태 확인');
+        console.log('로그인 상태:', isAuthenticated);
+        console.log('사용자 정보:', user);
+    }, [user, isAuthenticated]);
+
     const [userPosition, setUserPosition] = useState<KakaoLatLng | null>(null);
     const [isMapMoved, setIsMapMoved] = useState(false);
     const [mapInstance, setMapInstance] = useState<KakaoMap | null>(null);
@@ -78,6 +92,29 @@ const Map = () => {
     const [isTimeValid, setIsTimeValid] = useState(true);
     // 종료 날짜 상태 추가
     const [storageEndDate, setStorageEndDate] = useState("");
+    
+    // 예약 관련 상태
+    const [reservationError, setReservationError] = useState("");
+    const [reservationSuccess, setReservationSuccess] = useState(false);
+    const [submittedReservation, setSubmittedReservation] = useState<{
+        id?: number;
+        userId?: number;
+        userEmail?: string;
+        userName?: string;
+        placeName?: string;
+        placeAddress?: string;
+        reservationNumber?: string;
+        storageDate?: string;
+        storageEndDate?: string | null;
+        storageStartTime?: string;
+        storageEndTime?: string;
+        smallBags?: number;
+        mediumBags?: number;
+        largeBags?: number;
+        totalPrice?: number;
+        storageType?: string;
+        status?: string;
+    } | null>(null);
 
     // 공통 스크롤바 스타일 정의
     const scrollbarStyle = {
@@ -825,9 +862,93 @@ const Map = () => {
         const datePart = new Date().getTime().toString().slice(-6);
         return `${randomPart}-${datePart}`;
     };
+    
+    // 예약 정보를 서버로 전송하는 함수
+    const submitReservation = async () => {
+        if (!isAuthenticated || !user) {
+            console.error("로그인이 필요합니다.");
+            setReservationError("로그인이 필요합니다. 예약을 저장하려면 로그인 상태여야 합니다.");
+            return false;
+        }
+        
+        try {
+            const reservationNumber = generateReservationNumber();
+            
+            // 사용자 정보 확인
+            console.log("현재 로그인된 사용자 정보:", user);
+            
+            // 날짜 형식 변환 (yyyy-MM-dd)
+            const formatDateForServer = (dateString: string) => {
+                const date = new Date(dateString);
+                return date.toISOString().split('T')[0]; // yyyy-MM-dd 형식으로 변환
+            };
+            
+            // 시간 형식 변환 (HH:mm:ss)
+            const formatTimeForServer = (timeString: string) => {
+                // 이미 HH:mm 형식이면 :00 초를 추가
+                return timeString + ":00";
+            };
+            
+            // 예약 데이터 구성
+            const reservationData = {
+                userId: typeof user.id === 'string' ? parseInt(user.id, 10) : user.id,
+                userEmail: user.email,
+                userName: user.name,
+                placeName: selectedPlace.place_name,
+                placeAddress: selectedPlace.address_name,
+                reservationNumber: reservationNumber,
+                storageDate: formatDateForServer(storageDate),
+                storageEndDate: storageDuration === "period" ? formatDateForServer(storageEndDate) : null,
+                storageStartTime: formatTimeForServer(storageStartTime),
+                storageEndTime: formatTimeForServer(storageEndTime),
+                smallBags: bagSizes.small,
+                mediumBags: bagSizes.medium,
+                largeBags: bagSizes.large,
+                totalPrice: totalPrice,
+                storageType: storageDuration,
+                status: "RESERVED"
+            };
+            
+            console.log("예약 데이터 전송:", reservationData);
+            
+            // 백엔드 서버 주소로 직접 호출
+            const response = await axios.post('http://localhost:8080/api/reservations', reservationData);
+            
+            console.log("예약 저장 성공:", response.data);
+            setSubmittedReservation(response.data);
+            setReservationSuccess(true);
+            return true;
+            
+        } catch (error) {
+            console.error("예약 저장 중 오류 발생:", error);
+            
+            if (axios.isAxiosError(error) && error.response) {
+                console.error("서버 응답 오류:", error.response.data);
+                setReservationError(`예약 정보를 저장하는 중 오류가 발생했습니다: ${JSON.stringify(error.response.data)}`);
+            } else {
+                setReservationError("예약 정보를 저장하는 중 오류가 발생했습니다. 다시 시도해주세요.");
+            }
+            
+            return false;
+        }
+    };
+    
+    // 수정: 결제 완료 버튼 클릭 시 서버에 예약 정보 저장
+    const completePayment = async () => {
+        if (isPaymentFormValid()) {
+            const result = await submitReservation();
+            
+            if (result) {
+                // 결제 및 예약 성공
+                setIsPaymentComplete(true);
+                setIsPaymentOpen(false);
+            }
+        }
+    };
 
     return (
         <>
+            <Navbar />
             {/* 지도 전체 영역 - Box 헤더와 함께 제거 */}
             <div id="map" style={{
                 position: "fixed",
@@ -864,10 +985,10 @@ const Map = () => {
 
                     // 데스크톱
                     '@media (min-width: 768px)': {
-                        top: 16,
-                        left: 16,
-                        maxHeight: "calc(100vh - 32px)", // 최대 높이 설정
-                        height: "calc(100vh - 32px)",
+                        top: '90px', // 110px에서 90px로 변경하여 더 위쪽으로 배치
+                        left: '16px',
+                        maxHeight: "calc(90vh - 60px)", // 높이 증가 (85vh → 90vh)
+                        height: "calc(90vh - 60px)",    // 높이 증가 (85vh → 90vh)
                         width: isSidebarOpen ? '400px' : '0px',
                         borderRadius: '24px',
                     },
@@ -878,8 +999,8 @@ const Map = () => {
                         right: 0,
                         bottom: 0,
                         width: '100%',
-                        maxHeight: isSidebarOpen ? '60vh' : '0px', // 최대 높이를 vh로 설정
-                        height: isSidebarOpen ? '60vh' : '0px',
+                        maxHeight: isSidebarOpen ? '75vh' : '0px', // 최대 높이를 vh로 설정 (60vh → 75vh)
+                        height: isSidebarOpen ? '75vh' : '0px',    // 높이 설정 (60vh → 75vh)
                         borderTopLeftRadius: '24px',
                         borderTopRightRadius: '24px',
                     }
@@ -1112,10 +1233,10 @@ const Map = () => {
                     paddingRight: isReservationOpen || isPaymentOpen || isPaymentComplete ? 0 : '7px', // 기존 패딩 + 스크롤바 너비
                     // 명시적인 최대 높이 설정
                     '@media (min-width: 768px)': {
-                        maxHeight: 'calc(100vh - 32px)', // 검색 영역 제거 시 높이 조정
+                        maxHeight: 'calc(90vh - 60px)', // 검색 영역 제거 시 높이 조정 (85vh → 90vh)
                     },
                     '@media (max-width: 767px)': {
-                        maxHeight: 'calc(60vh - 20px)', // 검색 영역 제거 시 높이 조정
+                        maxHeight: 'calc(75vh - 20px)', // 검색 영역 제거 시 높이 조정 (60vh → 75vh)
                     }
                 }}>
                     {selectedPlace ? (
@@ -1294,9 +1415,13 @@ const Map = () => {
                                                         const value = e.target.value.replace(/[^\d]/g, '');
                                                         let formatted = value;
 
-                                                        // 2자리 이상이면 MM/YY 포맷으로 변경
+                                                        // MM 값이 12를 넘지 않도록 검증
                                                         if (value.length >= 2) {
-                                                            formatted = value.substring(0, 2) + '/' + value.substring(2, 4);
+                                                            const month = parseInt(value.substring(0, 2));
+                                                            if (month > 12) {
+                                                                formatted = '12' + value.substring(2);
+                                                            }
+                                                            formatted = formatted.substring(0, 2) + '/' + formatted.substring(2, 4);
                                                         }
 
                                                         // 5자리(MM/YY)로 제한
@@ -1347,7 +1472,11 @@ const Map = () => {
                                                 fullWidth
                                                 placeholder="카드에 표시된 이름"
                                                 value={cardInfo.name}
-                                                onChange={(e) => setCardInfo({...cardInfo, name: e.target.value})}
+                                                onChange={(e) => {
+                                                    // 숫자와 특수문자를 제외한 문자만 허용 (한글, 영문, 공백만 가능)
+                                                    const onlyLettersAndSpace = e.target.value.replace(/[^가-힣a-zA-Z\s]/g, '');
+                                                    setCardInfo({...cardInfo, name: onlyLettersAndSpace});
+                                                }}
                                                 sx={{
                                                     '& .MuiOutlinedInput-root': {
                                                         borderRadius: '12px',
@@ -1388,13 +1517,7 @@ const Map = () => {
                                             }
                                         }}
                                         disabled={!isPaymentFormValid()}
-                                        onClick={() => {
-                                            if (isPaymentFormValid()) {
-                                                // alert 대신 상태 변경으로 처리
-                                                setIsPaymentComplete(true);
-                                                setIsPaymentOpen(false);
-                                            }
-                                        }}
+                                        onClick={completePayment} // 기존 onClick 함수를 새로운 함수로 교체
                                     >
                                         {totalPrice.toLocaleString()}원 결제하기
                                     </Button>
@@ -1518,7 +1641,7 @@ const Map = () => {
                                             예약 번호
                                         </Typography>
                                         <Typography sx={{fontSize: '20px', fontWeight: 600, letterSpacing: '1px'}}>
-                                            {generateReservationNumber()}
+                                            {submittedReservation ? submittedReservation.reservationNumber : generateReservationNumber()}
                                         </Typography>
                                     </Box>
 
@@ -2333,7 +2456,7 @@ const Map = () => {
                     '@media (max-width: 767px)': {
                         left: '50%',
                         transform: 'translateX(-50%)',
-                        bottom: isSidebarOpen ? '60vh' : '0px', // 사이드바 경계선에 정확히 맞춤
+                        bottom: isSidebarOpen ? '75vh' : '0px', // 사이드바 경계선에 정확히 맞춤 (60vh → 75vh)
                         width: '48px',
                         height: '24px',
                         borderRadius: '12px 12px 0 0',
@@ -2354,6 +2477,22 @@ const Map = () => {
                     isSidebarOpen ? <KeyboardArrowDownIcon/> : <KeyboardArrowUpIcon/>
                 )}
             </Button>
+
+            {/* 에러 메시지 스낵바 */}
+            <Snackbar 
+                open={!!reservationError} 
+                autoHideDuration={6000} 
+                onClose={() => setReservationError("")}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert 
+                    onClose={() => setReservationError("")} 
+                    severity="error" 
+                    sx={{ width: '100%' }}
+                >
+                    {reservationError}
+                </Alert>
+            </Snackbar>
         </>
     );
 };
