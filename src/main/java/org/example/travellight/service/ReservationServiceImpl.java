@@ -1,6 +1,5 @@
 package org.example.travellight.service;
 
-import lombok.RequiredArgsConstructor;
 import org.example.travellight.dto.ReservationDto;
 import org.example.travellight.entity.Reservation;
 import org.example.travellight.entity.User;
@@ -8,6 +7,7 @@ import org.example.travellight.repository.ReservationRepository;
 import org.example.travellight.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,13 +18,22 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class ReservationServiceImpl implements ReservationService {
     
     private static final Logger logger = LoggerFactory.getLogger(ReservationServiceImpl.class);
     
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
+    private final EmailService emailService;
+    
+    @Autowired
+    public ReservationServiceImpl(ReservationRepository reservationRepository,
+                                 UserRepository userRepository,
+                                 EmailService emailService) {
+        this.reservationRepository = reservationRepository;
+        this.userRepository = userRepository;
+        this.emailService = emailService;
+    }
     
     @Override
     @Transactional
@@ -73,6 +82,21 @@ public class ReservationServiceImpl implements ReservationService {
             
             // DTO 반환
             ReservationDto resultDto = mapToDto(savedReservation);
+            
+            // 예약 확인 이메일 전송
+            try {
+                logger.info("예약이 성공적으로 생성되었습니다. 이메일 전송을 시도합니다. 이메일: {}", resultDto.getUserEmail());
+                boolean emailSent = emailService.sendReservationConfirmationEmail(resultDto);
+                if (emailSent) {
+                    logger.info("예약 확인 이메일이 {}에게 성공적으로 전송되었습니다.", resultDto.getUserEmail());
+                } else {
+                    logger.warn("예약 확인 이메일 전송이 실패했습니다. 사용자 이메일: {}", resultDto.getUserEmail());
+                }
+            } catch (Exception e) {
+                // 이메일 발송이 실패해도 예약은 성공적으로 처리되어야 하므로 여기서는 예외를 던지지 않습니다
+                logger.error("예약 확인 이메일 전송 중 오류 발생: {}", e.getMessage(), e);
+            }
+            
             return resultDto;
         } catch (Exception e) {
             logger.error("예약 엔티티 생성 중 오류: {}", e.getMessage(), e);
