@@ -71,7 +71,7 @@ const Navbar: React.FC = () => {
 
   const navigateToEventStorage = () => {
     handlePartnerMenuClose();
-    navigate('/event-storage');
+    navigate('/EventStorage');
   };
 
   const menuItems = [
