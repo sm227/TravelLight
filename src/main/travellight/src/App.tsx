@@ -19,6 +19,7 @@ import AdminOrders from './pages/admin/AdminOrders';
 import AdminLayout from './components/admin/AdminLayout';
 import ProtectedAdminRoute from './components/admin/ProtectedAdminRoute';
 import MyPage from './pages/MyPage';
+import EventStorage from "./pages/EventStorage.tsx";
 
 // 테마 설정
 const theme = createTheme({
@@ -75,7 +76,7 @@ function App() {
             <Route path="/StoragePartnership" element={<StoragePartnership />} />
             <Route path="/carry" element={<Carry />}/>
             <Route path="/mypage" element={<MyPage />} />
-            {/*<Route path="/event-storage" element={<EventStorage />} />*/}
+            <Route path="/Eventstorage" element={<EventStorage />} />
 
             {/* 관리자 라우트 */}
             <Route path="/admin/login" element={<AdminLogin />} />
