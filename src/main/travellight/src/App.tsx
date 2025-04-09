@@ -18,6 +18,7 @@ import AdminProducts from './pages/admin/AdminProducts';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminLayout from './components/admin/AdminLayout';
 import ProtectedAdminRoute from './components/admin/ProtectedAdminRoute';
+import MyPage from './pages/MyPage';
 
 // 테마 설정
 const theme = createTheme({
@@ -73,6 +74,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/StoragePartnership" element={<StoragePartnership />} />
             <Route path="/carry" element={<Carry />}/>
+            <Route path="/mypage" element={<MyPage />} />
             {/*<Route path="/event-storage" element={<EventStorage />} />*/}
 
             {/* 관리자 라우트 */}

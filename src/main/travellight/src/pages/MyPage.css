@@ -1,0 +1,119 @@
+.mypage-container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.mypage-header {
+  margin-bottom: 24px;
+}
+
+.mypage-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.mypage-description {
+  color: #666;
+  font-size: 14px;
+}
+
+.tab-buttons {
+  display: flex;
+  margin-bottom: 24px;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.tab-button.active {
+  background-color: #3F51B5;
+  color: white;
+}
+
+.tab-button.inactive {
+  background-color: transparent;
+  color: #333;
+  border: 1px solid #e0e0e0;
+}
+
+.filter-container {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.trip-card {
+  position: relative;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background-color: white;
+  overflow: hidden;
+}
+
+.trip-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: #3F51B5;
+}
+
+.trip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.trip-title {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.status-chip {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: bold;
+  display: inline-block;
+}
+
+.status-completed {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+}
+
+.trip-details {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #666;
+}
+
+.trip-detail-item {
+  margin-bottom: 4px;
+}
+
+.detail-button {
+  border: 1px solid #e0e0e0;
+  background-color: white;
+  color: #333;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  float: right;
+  cursor: pointer;
+}
+
+.detail-button:hover {
+  background-color: #f5f5f5;
+} 
