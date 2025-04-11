@@ -21,6 +21,8 @@ import AdminLayout from './components/admin/AdminLayout';
 import ProtectedAdminRoute from './components/admin/ProtectedAdminRoute';
 import MyPage from './pages/MyPage';
 import EventStorage from "./pages/EventStorage.tsx";
+import FAQ from './pages/FAQ';
+import Inquiry from './pages/Inquiry';
 
 // 테마 설정
 const theme = createTheme({
@@ -75,6 +77,8 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/StoragePartnership" element={<StoragePartnership />} />
+            <Route path="/FAQ" element={<FAQ />} />"
+            <Route path="/Inquiry" element={<Inquiry />} />
             <Route path="/carry" element={<Carry />}/>
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/Eventstorage" element={<EventStorage />} />

@@ -74,6 +74,16 @@ const Navbar: React.FC = () => {
     navigate('/EventStorage');
   };
 
+  const navigateToInquiry = () => {
+      handlePartnerMenuClose();
+      navigate('/Inquiry');
+  }
+
+  const navigateToFAQ = () => {
+        handlePartnerMenuClose();
+        navigate('/FAQ');
+  };
+
   const menuItems = [
     { text: '홈', href: '#home' },
     { text: '서비스', href: '#services' },
@@ -83,8 +93,10 @@ const Navbar: React.FC = () => {
   ];
 
   const partnerSubMenuItems = [
+    { text: 'FAQ',onClick: navigateToFAQ },
     { text: '짐보관 서비스 제휴 신청', onClick: navigateToStoragePartnership },
     { text: '콘서트 및 행사 전용 이동식 짐보관 신청', onClick: navigateToEventStorage },
+    { text: '1:1 문의', onClick: navigateToInquiry },
   ];
 
   const drawer = (
