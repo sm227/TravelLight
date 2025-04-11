@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Container,
@@ -25,13 +25,21 @@ import {
     DialogTitle,
     DialogContent,
     DialogContentText,
-    DialogActions
+    DialogActions,
+    InputAdornment
 } from '@mui/material';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+
+// 카카오 주소 검색 타입 선언 (TypeScript 지원을 위해)
+declare global {
+    interface Window {
+        daum: any;
+    }
+}
 
 const StoragePartnership: React.FC = () => {
     const theme = useTheme();
@@ -63,6 +71,39 @@ const StoragePartnership: React.FC = () => {
     const [successDialogOpen, setSuccessDialogOpen] = useState(false);
     const [error, setError] = useState('');
     const [submissionId, setSubmissionId] = useState('');
+    // const [isAddressModalOpen, setAddressModalOpen] = useState(false);
+
+    // 카카오 주소 검색 스크립트 로드
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+        script.async = true;
+        document.body.appendChild(script);
+
+        return () => {
+            document.body.removeChild(script);
+        };
+    }, []);
+
+    // 주소 검색 모달 열기
+    const handleAddressSearch = () => {
+        if (window.daum && window.daum.Postcode) {
+            new window.daum.Postcode({
+                oncomplete: function(data: any) {
+                    // 선택한 주소 데이터 활용
+                    const fullAddress = data.address;
+                    const extraAddress = data.buildingName ? ` (${data.buildingName})` : '';
+
+                    setFormData({
+                        ...formData,
+                        address: fullAddress + extraAddress
+                    });
+                }
+            }).open();
+        } else {
+            setError('주소 검색 서비스를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+        }
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -386,6 +427,21 @@ const StoragePartnership: React.FC = () => {
                                             name="address"
                                             value={formData.address}
                                             onChange={handleChange}
+                                            InputProps={{
+                                                readOnly: true,
+                                                endAdornment: (
+                                                    <InputAdornment position="end">
+                                                        <Button
+                                                            variant="contained"
+                                                            color="primary"
+                                                            onClick={handleAddressSearch}
+                                                            size="small"
+                                                        >
+                                                            주소 검색
+                                                        </Button>
+                                                    </InputAdornment>
+                                                ),
+                                            }}
                                         />
                                     </Grid>
 
@@ -609,6 +665,9 @@ const StoragePartnership: React.FC = () => {
                     </Grid>
                 </Grid>
             </Container>
+
+            {/* 주소 검색 결과를 위한 숨겨진 div */}
+            <div id="addressSearchContainer" style={{ display: 'none' }}></div>
 
             {/* 신청 완료 모달 대화상자 */}
             <Dialog

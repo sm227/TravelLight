@@ -18,9 +18,19 @@ public class PartnershipService {
     @Autowired
     private PartnershipRepository partnershipRepository;
 
+    private final AddressTsService addressTsService;
+
+    public PartnershipService(PartnershipRepository partnershipRepository, AddressTsService addressTsService) {
+        this.addressTsService = addressTsService;
+    }
+
     @Transactional
     public Partnership createPartnership(PartnershipDto dto) {
         Partnership partnership = new Partnership();
+
+        // 주소 → 위도/경도 변환
+        double[] latLng = addressTsService.getCoordinatesFromAddress(dto.getAddress());
+        System.out.println("변환된 좌표: [" + latLng[0] + ", " + latLng[1] + "]");
 
         // 기본 정보 설정
         partnership.setBusinessName(dto.getBusinessName());
@@ -28,11 +38,28 @@ public class PartnershipService {
         partnership.setEmail(dto.getEmail());
         partnership.setPhone(dto.getPhone());
         partnership.setAddress(dto.getAddress());
+
+        // 좌표 설정
+        partnership.setLatitude(latLng[0]); // 위도
+        partnership.setLongitude(latLng[1]); // 경도
+
         partnership.setBusinessType(dto.getBusinessType());
         partnership.setSpaceSize(dto.getSpaceSize());
         partnership.setAdditionalInfo(dto.getAdditionalInfo());
         partnership.setAgreeTerms(dto.isAgreeTerms());
         partnership.setIs24Hours(dto.isIs24Hours());
+
+        // 좌표 설정 전에 배열 길이 확인
+        if (latLng.length >= 2) {
+            partnership.setLatitude(latLng[0]);
+            partnership.setLongitude(latLng[1]);
+        } else {
+            // 좌표를 얻지 못한 경우 기본값 설정이나 오류 처리
+            partnership.setLatitude(0.0);  // 기본값 또는 적절한 처리
+            partnership.setLongitude(0.0); // 기본값 또는 적절한 처리
+            // 또는 오류 처리
+            // throw new RuntimeException("주소에서 좌표를 얻을 수 없습니다: " + dto.getAddress());
+        }
 
         // 영업시간 정보 변환 및 설정
         Map<String, String> businessHoursMap = new HashMap<>();
@@ -69,5 +96,17 @@ public class PartnershipService {
     public Partnership getPartnershipBySubmissionId(String submissionId) {
         return partnershipRepository.findBySubmissionId(submissionId)
                 .orElseThrow(() -> new RuntimeException("제휴 신청 정보를 찾을 수 없습니다: " + submissionId));
+    }
+
+    public Partnership registerPartnership(PartnershipDto dto) {
+        // 주소 → 좌표 변환은 AddressTsService에게 맡김
+        double[] latLng = addressTsService.getCoordinatesFromAddress(dto.getAddress());
+
+        Partnership partnership = new Partnership();
+        partnership.setAddress(dto.getAddress());
+        partnership.setLatitude(latLng[0]);
+        partnership.setLongitude(latLng[1]);
+
+        return partnershipRepository.save(partnership);
     }
 }
