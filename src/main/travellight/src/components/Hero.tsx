@@ -13,10 +13,12 @@ import {
 import LuggageIcon from '@mui/icons-material/Luggage';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import StorefrontIcon from '@mui/icons-material/Storefront';
+import { useTranslation } from 'react-i18next';
 
 const Hero: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { t } = useTranslation();
 
   return (
     <Box
@@ -67,9 +69,9 @@ const Hero: React.FC = () => {
               gutterBottom
               sx={{ fontWeight: 700 }}
             >
-              여행은 가볍게,<br />
+              {t('heroTitle1')}<br />
               <Box component="span" sx={{ color: 'primary.main', display: 'block', whiteSpace: 'nowrap' }}>
-                짐은 TravelLight에게
+                {t('heroTitle2')}
               </Box>
             </Typography>
             <Typography
@@ -78,8 +80,7 @@ const Hero: React.FC = () => {
               paragraph
               sx={{ mb: 4 }}
             >
-              여행 중 무거운 짐 때문에 불편하셨나요? TravelLight가 여러분의 짐을 안전하게 보관하고 배송해 드립니다.
-              유인보관, 무인보관, 짐배송 서비스로 여행의 자유를 느껴보세요.
+              {t('heroDescription')}
             </Typography>
             <Box sx={{ mt: 4, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
               <Button
@@ -96,7 +97,7 @@ const Hero: React.FC = () => {
                   fontSize: '1.1rem'
                 }}
               >
-                서비스 이용하기
+                {t('useService')}
               </Button>
               <Button
                 variant="outlined"
@@ -109,7 +110,7 @@ const Hero: React.FC = () => {
                   fontSize: '1.1rem'
                 }}
               >
-                더 알아보기
+                {t('learnMore')}
               </Button>
             </Box>
           </Grid>
@@ -119,18 +120,18 @@ const Hero: React.FC = () => {
                 {[
                   { 
                     icon: <StorefrontIcon sx={{ fontSize: 40, color: 'primary.main' }} />, 
-                    title: '유인보관', 
-                    description: '전문 직원이 여러분의 짐을 안전하게 보관합니다.' 
+                    title: t('attendedStorage'), 
+                    description: t('attendedStorageDesc')
                   },
                   { 
                     icon: <LuggageIcon sx={{ fontSize: 40, color: 'secondary.main' }} />, 
-                    title: '무인보관', 
-                    description: '24시간 언제든지 이용 가능한 무인 보관함 서비스입니다.' 
+                    title: t('selfStorage'), 
+                    description: t('selfStorageDesc')
                   },
                   { 
                     icon: <LocalShippingIcon sx={{ fontSize: 40, color: 'info.main' }} />, 
-                    title: '짐배송', 
-                    description: '원하는 장소로 짐을 안전하게 배송해 드립니다.' 
+                    title: t('luggageDelivery'), 
+                    description: t('luggageDeliveryDesc')
                   },
                 ].map((service, index) => (
                   <Grid item xs={12} sm={4} key={index}>
