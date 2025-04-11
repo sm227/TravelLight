@@ -47,12 +47,29 @@ const MyPage = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
+  // 예약 상태를 체크하고 업데이트하는 함수
+  const checkAndUpdateReservationStatus = (reservations: ReservationDto[]): ReservationDto[] => {
+    const now = new Date();
+    return reservations.map(reservation => {
+      const endDateTime = new Date(`${reservation.storageEndDate}T${reservation.storageEndTime}`);
+      
+      if (reservation.status === 'RESERVED' && now > endDateTime) {
+        return {
+          ...reservation,
+          status: 'COMPLETED' as const
+        };
+      }
+      return reservation;
+    });
+  };
+
   useEffect(() => {
     const fetchReservations = async () => {
       if (user?.id) {
         try {
           const reservations = await getMyReservations(user.id);
-          setMyTrips(reservations);
+          const updatedReservations = checkAndUpdateReservationStatus(reservations);
+          setMyTrips(updatedReservations);
         } catch (error) {
           console.error('예약 정보를 불러오는데 실패했습니다:', error);
         } finally {
@@ -62,6 +79,13 @@ const MyPage = () => {
     };
 
     fetchReservations();
+
+    // 1분마다 상태를 체크하고 업데이트
+    const interval = setInterval(() => {
+      setMyTrips(prevTrips => checkAndUpdateReservationStatus(prevTrips));
+    }, 60000);
+
+    return () => clearInterval(interval);
   }, [user]);
 
   const handleTabChange = (newValue: number) => {
