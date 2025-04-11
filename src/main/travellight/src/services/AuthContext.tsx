@@ -1,11 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserResponse } from './api';
 
+// UserResponse 인터페이스 확장
+interface ExtendedUserResponse extends UserResponse {
+  token?: string;
+  isAdmin?: boolean;
+}
+
 export interface AuthContextType {
-  user: UserResponse | null;
+  user: ExtendedUserResponse | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (userData: UserResponse) => void;
+  login: (userData: ExtendedUserResponse) => void;
   logout: () => void;
   adminLogin: (credentials: {email: string, password: string}) => Promise<void>;
 }
@@ -17,7 +23,7 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<UserResponse | null>(null);
+  const [user, setUser] = useState<ExtendedUserResponse | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
@@ -37,7 +43,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const login = (userData: UserResponse) => {
+  const login = (userData: ExtendedUserResponse) => {
     setUser(userData);
     setIsAuthenticated(true);
     setIsAdmin(!!userData.isAdmin);
@@ -53,8 +59,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const adminLogin = async (credentials: {email: string, password: string}) => {
     if (credentials.email === 'admin' && credentials.password === '1234') {
-      const adminData: UserResponse = {
-        id: 'admin-id',
+      const adminData: ExtendedUserResponse = {
+        id: 999, // 관리자 ID는 숫자 타입으로 변경
         name: '관리자',
         email: 'admin',
         token: 'admin-token',

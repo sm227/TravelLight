@@ -71,7 +71,7 @@ const Navbar: React.FC = () => {
 
   const navigateToEventStorage = () => {
     handlePartnerMenuClose();
-    navigate('/event-storage');
+    navigate('/EventStorage');
   };
 
   const menuItems = [
@@ -123,6 +123,13 @@ const Navbar: React.FC = () => {
                   <ListItemText primary={`안녕하세요, ${user?.name}님`} />
                 </ListItem>
                 <ListItemButton
+                    component={RouterLink}
+                    to="/mypage"
+                    sx={{ textAlign: 'center', color: 'primary.main' }}
+                >
+                  <ListItemText primary="마이페이지" />
+                </ListItemButton>
+                <ListItemButton
                     onClick={handleLogout}
                     sx={{ textAlign: 'center', color: 'error.main' }}
                 >
@@ -169,6 +176,7 @@ const Navbar: React.FC = () => {
           open={isMenuOpen}
           onClose={handleMenuClose}
       >
+        <MenuItem onClick={() => { handleMenuClose(); navigate('/mypage'); }}>마이페이지</MenuItem>
         <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>내 프로필</MenuItem>
         <MenuItem onClick={() => { handleMenuClose(); navigate('/settings'); }}>설정</MenuItem>
         <Divider />
@@ -228,123 +236,115 @@ const Navbar: React.FC = () => {
                   </Drawer>
                 </>
             ) : (
-                <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
-                  {menuItems.map((item) => (
+                <>
+                  <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
+                    {menuItems.map((item) => (
+                        <Button
+                            key={item.text}
+                            href={item.href}
+                            sx={{
+                              my: 2,
+                              mx: 1.5,
+                              color: 'text.primary',
+                              display: 'block',
+                              '&:hover': {
+                                color: 'primary.main',
+                              }
+                            }}
+                        >
+                          {item.text}
+                        </Button>
+                    ))}
+                    <Box sx={{ position: 'relative' }}>
                       <Button
-                          key={item.text}
-                          href={item.href}
+                          ref={partnerButtonRef}
+                          aria-controls={partnerMenuOpen ? 'partner-menu-desktop' : undefined}
+                          aria-haspopup="true"
+                          aria-expanded={partnerMenuOpen ? 'true' : undefined}
+                          onClick={handlePartnerMenuOpen}
                           sx={{
                             my: 2,
                             mx: 1.5,
                             color: 'text.primary',
-                            display: 'block',
+                            display: 'flex',
+                            alignItems: 'center',
                             '&:hover': {
                               color: 'primary.main',
                             }
                           }}
+                          endIcon={<ArrowDropDownIcon />}
                       >
-                        {item.text}
+                        제휴·협업 문의
                       </Button>
-                  ))}
-                  <Box sx={{ position: 'relative' }}>
-                    <Button
-                        ref={partnerButtonRef}
-                        aria-controls={partnerMenuOpen ? 'partner-menu' : undefined}
-                        aria-haspopup="true"
-                        aria-expanded={partnerMenuOpen ? 'true' : undefined}
-                        onClick={handlePartnerMenuOpen}
-                        endIcon={<ArrowDropDownIcon />}
-                        sx={{
-                          my: 2,
-                          mx: 1.5,
-                          color: 'text.primary',
-                          display: 'flex',
-                          alignItems: 'center',
-                          '&:hover': {
-                            color: 'primary.main',
-                          }
-                        }}
-                    >
-                      제휴·협업 문의
-                    </Button>
-                    <Menu
-                        id="partner-menu"
-                        anchorEl={partnerButtonRef.current}
-                        open={partnerMenuOpen}
-                        onClose={handlePartnerMenuClose}
-                        MenuListProps={{
-                          'aria-labelledby': 'partner-button',
-                        }}
-                        sx={{ mt: 1 }}
-                    >
-                      {partnerSubMenuItems.map((item) => (
-                          <MenuItem key={item.text} onClick={item.onClick}>
-                            {item.text}
-                          </MenuItem>
-                      ))}
-                    </Menu>
+                      <Menu
+                          id="partner-menu-desktop"
+                          anchorEl={partnerMenuAnchorEl}
+                          open={partnerMenuOpen}
+                          onClose={handlePartnerMenuClose}
+                          MenuListProps={{
+                            'aria-labelledby': 'partner-button',
+                          }}
+                      >
+                        {partnerSubMenuItems.map((item) => (
+                            <MenuItem key={item.text} onClick={item.onClick}>
+                              {item.text}
+                            </MenuItem>
+                        ))}
+                      </Menu>
+                    </Box>
                   </Box>
-                </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {isAuthenticated ? (
+                        <>
+                          <Button
+                              component={RouterLink}
+                              to="/mypage"
+                              color="primary"
+                              sx={{ mx: 1 }}
+                          >
+                            마이페이지
+                          </Button>
+                          <Button
+                              onClick={handleProfileMenuOpen}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                borderRadius: '24px',
+                                padding: '4px 8px 4px 4px',
+                                color: 'primary.main',
+                              }}
+                          >
+                            <Avatar sx={{ width: 32, height: 32, mr: 1, bgcolor: 'primary.main' }}>
+                              {user?.name?.charAt(0) || <AccountCircleIcon />}
+                            </Avatar>
+                            {user?.name}
+                          </Button>
+                        </>
+                    ) : (
+                        <>
+                          <Button
+                              component={RouterLink}
+                              to="/login"
+                              variant="text"
+                              color="primary"
+                              sx={{ textTransform: 'none', fontWeight: 'bold' }}
+                          >
+                            로그인
+                          </Button>
+                          <Button
+                              component={RouterLink}
+                              to="/register"
+                              variant="contained"
+                              color="primary"
+                              sx={{ ml: 2, textTransform: 'none', fontWeight: 'bold' }}
+                          >
+                            회원가입
+                          </Button>
+                        </>
+                    )}
+                  </Box>
+                </>
             )}
-
-            <Box sx={{ flexGrow: 0, display: { xs: 'none', md: 'flex' } }}>
-              {isAuthenticated ? (
-                  <>
-                    <Typography
-                        variant="body1"
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          mr: 2,
-                          color: 'text.primary'
-                        }}
-                    >
-                      안녕하세요, {user?.name}님
-                    </Typography>
-                    <IconButton
-                        size="large"
-                        edge="end"
-                        aria-label="account of current user"
-                        aria-controls={menuId}
-                        aria-haspopup="true"
-                        onClick={handleProfileMenuOpen}
-                        color="inherit"
-                    >
-                      <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                        {user?.name.charAt(0)}
-                      </Avatar>
-                    </IconButton>
-                  </>
-              ) : (
-                  <>
-                    <Button
-                        component={RouterLink}
-                        to="/login"
-                        variant="outlined"
-                        color="primary"
-                        sx={{
-                          borderRadius: '24px',
-                          px: 2,
-                          mr: 1
-                        }}
-                    >
-                      로그인
-                    </Button>
-                    <Button
-                        component={RouterLink}
-                        to="/register"
-                        variant="contained"
-                        color="primary"
-                        sx={{
-                          borderRadius: '24px',
-                          px: 2
-                        }}
-                    >
-                      회원가입
-                    </Button>
-                  </>
-              )}
-            </Box>
           </Toolbar>
         </Container>
         {renderMenu}

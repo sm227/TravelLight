@@ -6,6 +6,7 @@ import Map from "./pages/Map";
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import Carry from './pages/Carry';
 import Navbar from './components/Navbar';
 import { AuthProvider } from './services/AuthContext';
 import './App.css';
@@ -15,8 +16,11 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminOrders from './pages/admin/AdminOrders';
+import AdminEventStorage from './pages/admin/AdminEventStorage';
 import AdminLayout from './components/admin/AdminLayout';
 import ProtectedAdminRoute from './components/admin/ProtectedAdminRoute';
+import MyPage from './pages/MyPage';
+import EventStorage from "./pages/EventStorage.tsx";
 
 // 테마 설정
 const theme = createTheme({
@@ -71,7 +75,9 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/StoragePartnership" element={<StoragePartnership />} />
-            {/*<Route path="/event-storage" element={<EventStorage />} />*/}
+            <Route path="/carry" element={<Carry />}/>
+            <Route path="/mypage" element={<MyPage />} />
+            <Route path="/Eventstorage" element={<EventStorage />} />
 
             {/* 관리자 라우트 */}
             <Route path="/admin/login" element={<AdminLogin />} />
@@ -84,6 +90,7 @@ function App() {
               <Route path="users" element={<AdminUsers />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="orders" element={<AdminOrders />} />
+              <Route path="event-storage" element={<AdminEventStorage />} />
             </Route>
           </Routes>
         </Router>

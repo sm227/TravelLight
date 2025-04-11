@@ -1,6 +1,6 @@
 package org.example.travellight.controller;
 
-import org.example.travellight.entity.Entity;
+import org.example.travellight.entity.Travel;
 import org.example.travellight.service.TravelService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;

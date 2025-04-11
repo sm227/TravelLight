@@ -1,5 +1,6 @@
 import React from 'react';
-import { 
+import {Link} from 'react-router-dom';
+import {
   Box, 
   Container, 
   Typography, 
@@ -33,7 +34,8 @@ const serviceData = [
     ],
     color: 'primary.main',
     bgColor: 'primary.light',
-    buttonText: '유인보관 이용하기'
+    buttonText: '유인보관 이용하기',
+    path:'/map'
   },
   {
     id: 'unmanned-storage',
@@ -65,7 +67,8 @@ const serviceData = [
     ],
     color: 'info.main',
     bgColor: 'info.light',
-    buttonText: '짐배송 이용하기'
+    buttonText: '짐배송 이용하기',
+    path:'/carry'
   }
 ];
 
@@ -164,6 +167,8 @@ const Services: React.FC = () => {
                     variant="contained" 
                     fullWidth 
                     size="large"
+                    component={Link}
+                    to={service.path}
                     sx={{ 
                       borderRadius: '28px',
                       py: 1.5,

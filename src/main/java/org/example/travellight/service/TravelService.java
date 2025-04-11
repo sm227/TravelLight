@@ -1,6 +1,6 @@
 package org.example.travellight.service;
 
-import org.example.travellight.entity.Entity;
+import org.example.travellight.entity.Travel;
 import org.example.travellight.repository.TravelRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,7 +19,7 @@ public class TravelService {
     }
 
     // 테스트
-    public Entity saveTravel(Entity travel) {
+    public Travel saveTravel(Travel travel) {
         return travelRepository.save(travel);
     }
 }
