@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -12,6 +12,9 @@ import {
 import Navbar from '../components/Navbar';
 import { styled } from '@mui/material/styles';
 import './MyPage.css';
+import { useAuth } from '../services/AuthContext';
+import { getMyReservations } from '../services/reservationService';
+import { ReservationDto } from '../types/reservation';
 
 // Custom styled components
 const StyledButton = styled(Button)(({ theme }) => ({
@@ -40,23 +43,43 @@ const InactiveButton = styled(StyledButton)(({ theme }) => ({
 
 const MyPage = () => {
   const [activeTab, setActiveTab] = useState(0);
+  const [myTrips, setMyTrips] = useState<ReservationDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetchReservations = async () => {
+      if (user?.id) {
+        try {
+          const reservations = await getMyReservations(user.id);
+          setMyTrips(reservations);
+        } catch (error) {
+          console.error('예약 정보를 불러오는데 실패했습니다:', error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchReservations();
+  }, [user]);
 
   const handleTabChange = (newValue: number) => {
     setActiveTab(newValue);
   };
 
-  // Sample travel data
-  const myTrips = [
-    {
-      id: 'TCKR-2023-09-15-001',
-      origin: '서울역',
-      destination: '유인보관',
-      departureDate: '2023-09-15 10:30',
-      arrivalDate: '2023-09-18 17:00',
-      luggage: '캐리어 2개, 백팩 1개',
-      status: '이용완료'
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'RESERVED':
+        return '예약완료';
+      case 'COMPLETED':
+        return '이용완료';
+      case 'CANCELLED':
+        return '취소됨';
+      default:
+        return status;
     }
-  ];
+  };
 
   return (
     <>
@@ -103,39 +126,52 @@ const MyPage = () => {
                 </div>
               </div>
 
-              <div>
-                {myTrips.map((trip) => (
-                  <div className="trip-card" key={trip.id}>
-                    <div className="trip-header">
-                      <div className="trip-title">
-                        {trip.origin} → {trip.destination}
+              {loading ? (
+                <div className="loading-container">
+                  <Typography>로딩 중...</Typography>
+                </div>
+              ) : myTrips.length === 0 ? (
+                <div className="empty-container">
+                  <Typography>예약 내역이 없습니다.</Typography>
+                </div>
+              ) : (
+                <div>
+                  {myTrips.map((trip) => (
+                    <div className="trip-card" key={trip.id}>
+                      <div className="trip-header">
+                        <div className="trip-title">
+                          {trip.placeName}
+                        </div>
+                        <div className={`status-chip status-${trip.status.toLowerCase()}`}>
+                          {getStatusText(trip.status)}
+                        </div>
                       </div>
-                      <div className="status-chip status-completed">
-                        {trip.status}
+                      
+                      <div className="trip-details">
+                        <div className="trip-detail-item">
+                          예약번호: {trip.reservationNumber}
+                        </div>
+                        <div className="trip-detail-item">
+                          보관 시작: {trip.storageDate} {trip.storageStartTime}
+                        </div>
+                        <div className="trip-detail-item">
+                          보관 종료: {trip.storageEndDate} {trip.storageEndTime}
+                        </div>
+                        <div className="trip-detail-item">
+                          짐 개수: 소형 {trip.smallBags}개, 중형 {trip.mediumBags}개, 대형 {trip.largeBags}개
+                        </div>
+                        <div className="trip-detail-item">
+                          총 금액: {trip.totalPrice.toLocaleString()}원
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <button className="detail-button">상세보기</button>
                       </div>
                     </div>
-                    
-                    <div className="trip-details">
-                      <div className="trip-detail-item">
-                        예약번호: {trip.id}
-                      </div>
-                      <div className="trip-detail-item">
-                        출발 날짜: {trip.departureDate}
-                      </div>
-                      <div className="trip-detail-item">
-                        도착 날짜: {trip.arrivalDate}
-                      </div>
-                      <div className="trip-detail-item">
-                        짐 개수: {trip.luggage}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <button className="detail-button">상세보기</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
 
