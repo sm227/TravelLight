@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -131,6 +132,56 @@ public class EventStorageController {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
                     .success(false)
                     .message("조회 중 오류가 발생했습니다: " + e.getMessage())
+                    .build());
+        }
+    }
+
+    @GetMapping("/admin/EventStorage")
+    public ResponseEntity<ApiResponse> getAllEventStorages() {
+        try {
+            var eventStorages = eventStorageService.getAllEventStorages();
+            
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .data(eventStorages)
+                    .build());
+                    
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message("이벤트 보관 목록 조회 중 오류가 발생했습니다: " + e.getMessage())
+                    .build());
+        }
+    }
+    
+    @PutMapping("/admin/EventStorage/{id}/status")
+    public ResponseEntity<ApiResponse> updateEventStorageStatus(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> statusMap) {
+        try {
+            String newStatus = statusMap.get("status");
+            if (newStatus == null || newStatus.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.builder()
+                        .success(false)
+                        .message("상태 값이 제공되지 않았습니다.")
+                        .build());
+            }
+            
+            boolean updated = eventStorageService.updateEventStorageStatus(id, newStatus);
+            
+            if (!updated) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("이벤트 보관 신청 상태가 업데이트되었습니다.")
+                    .build());
+                    
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message("상태 업데이트 중 오류가 발생했습니다: " + e.getMessage())
                     .build());
         }
     }

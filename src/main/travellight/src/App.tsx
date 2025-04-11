@@ -16,6 +16,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminOrders from './pages/admin/AdminOrders';
+import AdminEventStorage from './pages/admin/AdminEventStorage';
 import AdminLayout from './components/admin/AdminLayout';
 import ProtectedAdminRoute from './components/admin/ProtectedAdminRoute';
 import MyPage from './pages/MyPage';
@@ -89,6 +90,7 @@ function App() {
               <Route path="users" element={<AdminUsers />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="orders" element={<AdminOrders />} />
+              <Route path="event-storage" element={<AdminEventStorage />} />
             </Route>
           </Routes>
         </Router>

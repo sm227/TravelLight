@@ -10,6 +10,29 @@ const api = axios.create({
   },
 });
 
+// 요청 인터셉터 추가
+api.interceptors.request.use(
+  (config) => {
+    // 로컬 스토리지에서 사용자 정보 가져오기
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        // 토큰이 있으면 헤더에 추가
+        if (user.token) {
+          config.headers['Authorization'] = `Bearer ${user.token}`;
+        }
+      } catch (error) {
+        console.error('로컬 스토리지의 사용자 정보 파싱 오류:', error);
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 export interface RegisterRequest {
   name: string;
   email: string;
