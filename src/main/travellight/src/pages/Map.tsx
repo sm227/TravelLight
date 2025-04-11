@@ -27,6 +27,7 @@ import {LocalizationProvider, TimePicker} from '@mui/x-date-pickers';
 import {ko} from 'date-fns/locale';
 import { useAuth } from "../services/AuthContext";
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 declare global {
     interface Window {
@@ -49,6 +50,9 @@ interface KakaoMap {
 }
 
 const Map = () => {
+    // i18n 번역 훅 추가
+    const { t } = useTranslation();
+    
     // useAuth 훅을 사용하여 사용자 정보 가져오기
     const { user, isAuthenticated } = useAuth();
     
@@ -265,13 +269,13 @@ const Map = () => {
                     <div class="info-content">
                         <div class="title">
                             <span class="bank-name">${bankName}</span>
-                            <div class="close" onclick="this.parentElement.parentElement.parentElement.parentElement.style.display='none'" title="닫기">×</div>
+                            <div class="close" onclick="this.parentElement.parentElement.parentElement.parentElement.style.display='none'" title="${t('close')}">×</div>
                         </div>
                         <div class="body">
                             <div class="desc">
                                 <div class="ellipsis">${place.address_name}</div>
-                                <div class="phone">${place.phone || '전화번호 정보 없음'}</div>
-                                <div class="hours">${place.opening_hours || '평일 09:00 - 16:00'}</div>
+                                <div class="phone">${place.phone || t('noPhoneNumber')}</div>
+                                <div class="hours">${place.opening_hours || t('bankHours')}</div>
                             </div>
                         </div>
                     </div>
@@ -390,13 +394,13 @@ const Map = () => {
                     <div class="info-content">
                         <div class="title">
                             <span class="store-name">${storeName}</span>
-                            <div class="close" onclick="this.parentElement.parentElement.parentElement.parentElement.style.display='none'" title="닫기">×</div>
+                            <div class="close" onclick="this.parentElement.parentElement.parentElement.parentElement.style.display='none'" title="${t('close')}">×</div>
                         </div>
                         <div class="body">
                             <div class="desc">
                                 <div class="ellipsis">${place.address_name}</div>
-                                <div class="phone">${place.phone || '전화번호 정보 없음'}</div>
-                                <div class="hours">${place.opening_hours || '24시간 영업'}</div>
+                                <div class="phone">${place.phone || t('noPhoneNumber')}</div>
+                                <div class="hours">${place.opening_hours || t('operatingHours')}</div>
                             </div>
                         </div>
                     </div>
@@ -638,30 +642,30 @@ const Map = () => {
     // 보관 시간 텍스트 계산 함수 수정
     const calculateStorageTimeText = () => {
         if (!storageDate || !storageStartTime || !storageEndTime) {
-            return "보관 날짜와 시간을 선택해주세요";
+            return t('selectDateAndTime');
         }
 
         // 날짜 포맷팅
         const formatDate = (date: string) => {
             if (!date) return "";
             const [year, month, day] = date.split('-');
-            return `${month}월 ${day}일`;
+            return `${month}${t('month')} ${day}${t('day')}`;
         };
 
         // 시간 포맷팅
         const formatTime = (time: string) => {
             if (!time) return "";
             const [hours, minutes] = time.split(':');
-            return `${hours}시 ${minutes}분`;
+            return `${hours}:${minutes}`;
         };
 
         if (storageDuration === "day") {
-            return `${formatDate(storageDate)} ${formatTime(storageStartTime)}부터 ${formatTime(storageEndTime)}까지 보관`;
+            return `${formatDate(storageDate)} ${formatTime(storageStartTime)} ~ ${formatTime(storageEndTime)}`;
         } else {
             if (!storageEndDate) {
-                return "보관 종료 날짜를 선택해주세요";
+                return t('selectAllDateAndTime');
             }
-            return `${formatDate(storageDate)} ${formatTime(storageStartTime)}부터 ${formatDate(storageEndDate)} ${formatTime(storageEndTime)}까지 보관`;
+            return `${formatDate(storageDate)} ${formatTime(storageStartTime)} ~ ${formatDate(storageEndDate)} ${formatTime(storageEndTime)}`;
         }
     };
 
@@ -812,13 +816,14 @@ const Map = () => {
         try {
             const [year, month, day] = dateStr.split('-');
 
+            // Modified: Display same start/end date for same-day reservation
             if (storageDuration === 'day') {
-                return `${year}년 ${month}월 ${day}일`;
+                return `${year}${t('year')} ${month}${t('month')} ${day}${t('day')}`;
             } else {
-                if (!storageEndDate) return `${year}년 ${month}월 ${day}일`;
+                if (!storageEndDate) return `${year}${t('year')} ${month}${t('month')} ${day}${t('day')}`;
 
                 const [endYear, endMonth, endDay] = storageEndDate.split('-');
-                return `${year}년 ${month}월 ${day}일 ~ ${endYear}년 ${endMonth}월 ${endDay}일`;
+                return `${year}${t('year')} ${month}${t('month')} ${day}${t('day')} ~ ${endYear}${t('year')} ${endMonth}${t('month')} ${endDay}${t('day')}`;
             }
         } catch (e) {
             return dateStr;
@@ -842,18 +847,18 @@ const Map = () => {
         const bagsArray = [];
 
         if (bagSizes.small > 0) {
-            bagsArray.push(`소형 ${bagSizes.small}개`);
+            bagsArray.push(`${t('smallBag')} ${bagSizes.small}${t('pieces')}`);
         }
 
         if (bagSizes.medium > 0) {
-            bagsArray.push(`중형 ${bagSizes.medium}개`);
+            bagsArray.push(`${t('mediumBag')} ${bagSizes.medium}${t('pieces')}`);
         }
 
         if (bagSizes.large > 0) {
-            bagsArray.push(`대형 ${bagSizes.large}개`);
+            bagsArray.push(`${t('largeBag')} ${bagSizes.large}${t('pieces')}`);
         }
 
-        return bagsArray.join(', ') || '없음';
+        return bagsArray.join(', ') || t('none');
     };
 
     // 예약 번호 생성 함수
@@ -866,8 +871,8 @@ const Map = () => {
     // 예약 정보를 서버로 전송하는 함수
     const submitReservation = async () => {
         if (!isAuthenticated || !user) {
-            console.error("로그인이 필요합니다.");
-            setReservationError("로그인이 필요합니다. 예약을 저장하려면 로그인 상태여야 합니다.");
+            console.error(t('loginRequired'));
+            setReservationError(t('loginRequiredMessage'));
             return false;
         }
         
@@ -898,7 +903,7 @@ const Map = () => {
                 placeAddress: selectedPlace.address_name,
                 reservationNumber: reservationNumber,
                 storageDate: formatDateForServer(storageDate),
-                storageEndDate: storageDuration === "period" ? formatDateForServer(storageEndDate) : null,
+                storageEndDate: storageDuration === "period" ? formatDateForServer(storageEndDate) : formatDateForServer(storageDate),
                 storageStartTime: formatTimeForServer(storageStartTime),
                 storageEndTime: formatTimeForServer(storageEndTime),
                 smallBags: bagSizes.small,
@@ -920,26 +925,26 @@ const Map = () => {
             return true;
             
         } catch (error) {
-            console.error("예약 저장 중 오류 발생:", error);
+            console.error("Error while saving reservation:", error);
             
             if (axios.isAxiosError(error) && error.response) {
-                console.error("서버 응답 오류:", error.response.data);
-                setReservationError(`예약 정보를 저장하는 중 오류가 발생했습니다: ${JSON.stringify(error.response.data)}`);
+                console.error("Server response error:", error.response.data);
+                setReservationError(t('reservationSaveError') + ': ' + JSON.stringify(error.response.data));
             } else {
-                setReservationError("예약 정보를 저장하는 중 오류가 발생했습니다. 다시 시도해주세요.");
+                setReservationError(t('reservationSaveErrorRetry'));
             }
             
             return false;
         }
     };
     
-    // 수정: 결제 완료 버튼 클릭 시 서버에 예약 정보 저장
+    // Modified: Submit reservation data to server when payment is completed
     const completePayment = async () => {
         if (isPaymentFormValid()) {
             const result = await submitReservation();
             
             if (result) {
-                // 결제 및 예약 성공
+                // Payment and reservation success
                 setIsPaymentComplete(true);
                 setIsPaymentOpen(false);
             }
@@ -1016,7 +1021,7 @@ const Map = () => {
                         <Box sx={{display: 'flex', gap: 1}}>
                             <TextField
                                 fullWidth
-                                placeholder="어디로 가시나요?"
+                                placeholder={t('whereToGo')}
                                 value={searchKeyword}
                                 onChange={(e) => setSearchKeyword(e.target.value)}
                                 onKeyPress={(e) => {
@@ -1071,18 +1076,18 @@ const Map = () => {
                                     }
                                 }}
                             >
-                                검색
+                                {t('search')}
                             </Button>
                         </Box>
 
                         {/* 시간 선택 영역 */}
                         <Box sx={{mt: 2, display: 'flex', gap: 2}}>
                             <FormControl sx={{flex: 1}}>
-                                <InputLabel id="start-time-label">시작</InputLabel>
+                                <InputLabel id="start-time-label">{t('start')}</InputLabel>
                                 <Select
                                     labelId="start-time-label"
                                     value={startTime}
-                                    label="시작"
+                                    label={t('start')}
                                     onChange={(e) => {
                                         const newStartTime = e.target.value;
                                         setStartTime(newStartTime);
@@ -1150,11 +1155,11 @@ const Map = () => {
                                 </Select>
                             </FormControl>
                             <FormControl sx={{flex: 1}}>
-                                <InputLabel id="end-time-label">종료</InputLabel>
+                                <InputLabel id="end-time-label">{t('end')}</InputLabel>
                                 <Select
                                     labelId="end-time-label"
                                     value={endTime}
-                                    label="종료"
+                                    label={t('end')}
                                     onChange={(e) => {
                                         setEndTime(e.target.value);
                                         if (searchResults.length > 0) {
@@ -1261,7 +1266,7 @@ const Map = () => {
                                     <Typography sx={{color: 'text.secondary', mb: 2}}>
                                         {selectedPlace.opening_hours ||
                                             (selectedPlace.category_group_code === "BK9" ?
-                                                "평일 09:00 - 16:00" : "24시간 영업")}
+                                                t('bankHours') : t('storeHours'))}
                                     </Typography>
                                     <Box sx={{
                                         display: 'flex',
@@ -1286,7 +1291,7 @@ const Map = () => {
                                             }}
                                             onClick={() => setSelectedPlace(null)}
                                         >
-                                            목록으로 돌아가기
+                                            {t('backToList')}
                                         </Button>
                                         <Button
                                             variant="contained"
@@ -1316,7 +1321,7 @@ const Map = () => {
                                                 setTotalPrice(0);
                                             }}
                                         >
-                                            예약하기
+                                            {t('makeReservation')}
                                         </Button>
                                     </Box>
                                 </Box>
@@ -1334,7 +1339,7 @@ const Map = () => {
                                         mb: 3
                                     }}>
                                         <Typography variant="h6" sx={{fontWeight: 600}}>
-                                            카드 결제
+                                            {t('cardPayment')}
                                         </Typography>
                                         <Button
                                             sx={{
@@ -1360,19 +1365,19 @@ const Map = () => {
                                         {selectedPlace.place_name}
                                     </Typography>
                                     <Typography sx={{color: 'text.secondary', mb: 3, fontSize: '14px'}}>
-                                        결제 금액: {totalPrice.toLocaleString()}원
+                                        {t('paymentAmount')}{totalPrice.toLocaleString()}{t('won')}
                                     </Typography>
 
                                     {/* 카드 정보 입력 폼 */}
                                     <Box component="form" sx={{mb: 3}}>
                                         <Typography sx={{fontWeight: 500, mb: 2}}>
-                                            카드 정보 입력
+                                            {t('enterCardInfo')}
                                         </Typography>
 
                                         {/* 카드 번호 */}
                                         <Box sx={{mb: 2}}>
                                             <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                카드 번호
+                                                {t('cardNumber')}
                                             </Typography>
                                             <TextField
                                                 fullWidth
@@ -1405,7 +1410,7 @@ const Map = () => {
                                         <Box sx={{display: 'flex', gap: 2, mb: 2}}>
                                             <Box sx={{flex: 1}}>
                                                 <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                    만료일 (MM/YY)
+                                                    {t('expiryDate')}
                                                 </Typography>
                                                 <TextField
                                                     fullWidth
@@ -1466,11 +1471,11 @@ const Map = () => {
                                         {/* 카드 소유자 이름 */}
                                         <Box sx={{mb: 3}}>
                                             <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                카드 소유자 이름
+                                                {t('cardholderName')}
                                             </Typography>
                                             <TextField
                                                 fullWidth
-                                                placeholder="카드에 표시된 이름"
+                                                placeholder={t('cardholderNamePlaceholder')}
                                                 value={cardInfo.name}
                                                 onChange={(e) => {
                                                     // 숫자와 특수문자를 제외한 문자만 허용 (한글, 영문, 공백만 가능)
@@ -1496,7 +1501,7 @@ const Map = () => {
                                         fontSize: '13px',
                                         color: 'text.secondary'
                                     }}>
-                                        결제를 진행하면 TravelLight의 서비스 이용약관 및 개인정보 처리방침에 동의하게 됩니다.
+                                        {t('termsAgreement')}
                                     </Box>
 
                                     {/* 결제 완료 버튼 */}
@@ -1517,9 +1522,9 @@ const Map = () => {
                                             }
                                         }}
                                         disabled={!isPaymentFormValid()}
-                                        onClick={completePayment} // 기존 onClick 함수를 새로운 함수로 교체
+                                        onClick={completePayment}
                                     >
-                                        {totalPrice.toLocaleString()}원 결제하기
+                                        {totalPrice.toLocaleString()}{t('won')} {t('pay')}
                                     </Button>
                                 </Box>
                             ) : isPaymentComplete ? (
@@ -1550,11 +1555,11 @@ const Map = () => {
                                     </Box>
 
                                     <Typography variant="h6" sx={{fontWeight: 600, mb: 2}}>
-                                        결제가 완료되었습니다!
+                                        {t('paymentComplete')}
                                     </Typography>
 
                                     <Typography sx={{color: 'text.secondary', mb: 3, fontSize: '15px'}}>
-                                        {selectedPlace.place_name}에 가방 보관 예약이 성공적으로 완료되었습니다.
+                                        {t('reservationSuccess')} {selectedPlace.place_name}{t('hasBeenCompleted')}
                                     </Typography>
 
                                     <Box sx={{
@@ -1569,7 +1574,7 @@ const Map = () => {
                                         {/* 예약 날짜 추가 */}
                                         <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
                                             <Typography sx={{fontSize: '14px', color: 'text.secondary'}}>
-                                                예약 날짜
+                                                {t('reservationDate')}
                                             </Typography>
                                             <Typography sx={{fontSize: '14px', fontWeight: 500}}>
                                                 {formatReservationDate(storageDate)}
@@ -1579,7 +1584,7 @@ const Map = () => {
                                         {/* 예약 시간 추가 */}
                                         <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
                                             <Typography sx={{fontSize: '14px', color: 'text.secondary'}}>
-                                                예약 시간
+                                                {t('reservationTime')}
                                             </Typography>
                                             <Typography sx={{fontSize: '14px', fontWeight: 500}}>
                                                 {formatTime(storageStartTime)} ~ {formatTime(storageEndTime)}
@@ -1589,7 +1594,7 @@ const Map = () => {
                                         {/* 가방 크기 및 개수 정보 추가 */}
                                         <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
                                             <Typography sx={{fontSize: '14px', color: 'text.secondary'}}>
-                                                보관 물품
+                                                {t('storedItems')}
                                             </Typography>
                                             <Typography sx={{fontSize: '14px', fontWeight: 500, textAlign: 'right'}}>
                                                 {getBagSummary()}
@@ -1598,16 +1603,16 @@ const Map = () => {
 
                                         <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
                                             <Typography sx={{fontSize: '14px', color: 'text.secondary'}}>
-                                                결제 금액
+                                                {t('paymentAmount')}
                                             </Typography>
                                             <Typography sx={{fontSize: '14px', fontWeight: 500}}>
-                                                {totalPrice.toLocaleString()}원
+                                                {totalPrice.toLocaleString()}{t('won')}
                                             </Typography>
                                         </Box>
 
                                         <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
                                             <Typography sx={{fontSize: '14px', color: 'text.secondary'}}>
-                                                보관 장소
+                                                {t('storageLocation')}
                                             </Typography>
                                             <Typography sx={{fontSize: '14px', fontWeight: 500}}>
                                                 {selectedPlace.place_name}
@@ -1616,7 +1621,7 @@ const Map = () => {
 
                                         <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
                                             <Typography sx={{fontSize: '14px', color: 'text.secondary'}}>
-                                                주소
+                                                {t('address')}
                                             </Typography>
                                             <Typography sx={{
                                                 fontSize: '14px',
@@ -1638,7 +1643,7 @@ const Map = () => {
                                         textAlign: 'center'
                                     }}>
                                         <Typography sx={{fontSize: '13px', color: '#1a73e8', mb: 1}}>
-                                            예약 번호
+                                            {t('reservationNumber')}
                                         </Typography>
                                         <Typography sx={{fontSize: '20px', fontWeight: 600, letterSpacing: '1px'}}>
                                             {submittedReservation ? submittedReservation.reservationNumber : generateReservationNumber()}
@@ -1647,7 +1652,7 @@ const Map = () => {
 
                                     <Box sx={{mt: 2, mb: 1}}>
                                         <Typography sx={{fontSize: '14px', color: '#1a73e8', fontWeight: 500}}>
-                                            예약 정보가 이메일로 발송되었습니다.
+                                            {t('reservationEmailSent')}
                                         </Typography>
                                     </Box>
 
@@ -1687,7 +1692,7 @@ const Map = () => {
                                             });
                                         }}
                                     >
-                                        확인
+                                        {t('confirm')}
                                     </Button>
                                 </Box>
                             ) : (
@@ -1704,7 +1709,7 @@ const Map = () => {
                                         mb: 3
                                     }}>
                                         <Typography variant="h6" sx={{fontWeight: 600}}>
-                                            가방 보관 예약
+                                            {t('luggageStorageReservation')}
                                         </Typography>
                                         <Button
                                             sx={{
@@ -1734,7 +1739,7 @@ const Map = () => {
                                     </Typography>
 
                                     <Typography sx={{fontWeight: 500, mb: 2}}>
-                                        보관할 가방 선택
+                                        {t('selectLuggage')}
                                     </Typography>
 
                                     {/* 소형 가방 */}
@@ -1748,13 +1753,13 @@ const Map = () => {
                                     }}>
                                         <Box>
                                             <Typography sx={{fontWeight: 500}}>
-                                                소형 가방
+                                                {t('smallBag')}
                                             </Typography>
                                             <Typography sx={{color: 'text.secondary', fontSize: '13px'}}>
-                                                15인치 노트북 가방, 배낭 등
+                                                {t('smallBagDesc')}
                                             </Typography>
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
-                                                3,000원 / 일
+                                                3,000{t('dayPerPrice')}
                                             </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
@@ -1823,13 +1828,13 @@ const Map = () => {
                                     }}>
                                         <Box>
                                             <Typography sx={{fontWeight: 500}}>
-                                                중형 가방
+                                                {t('mediumBag')}
                                             </Typography>
                                             <Typography sx={{color: 'text.secondary', fontSize: '13px'}}>
-                                                캐리어(24인치 이하), 중형 가방
+                                                {t('mediumBagDesc')}
                                             </Typography>
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
-                                                5,000원 / 일
+                                                5,000{t('dayPerPrice')}
                                             </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
@@ -1898,13 +1903,13 @@ const Map = () => {
                                     }}>
                                         <Box>
                                             <Typography sx={{fontWeight: 500}}>
-                                                대형 가방
+                                                {t('largeBag')}
                                             </Typography>
                                             <Typography sx={{color: 'text.secondary', fontSize: '13px'}}>
-                                                캐리어(24인치 이상), 대형 가방
+                                                {t('largeBagDesc')}
                                             </Typography>
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
-                                                8,000원 / 일
+                                                8,000{t('dayPerPrice')}
                                             </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
@@ -1989,7 +1994,7 @@ const Map = () => {
                                                 }}
                                                 onClick={() => setStorageDuration("day")}
                                             >
-                                                당일 보관
+                                                {t('daySameDay')}
                                             </Button>
                                             <Button
                                                 variant={storageDuration === "period" ? "contained" : "text"}
@@ -2009,7 +2014,7 @@ const Map = () => {
                                                 }}
                                                 onClick={() => setStorageDuration("period")}
                                             >
-                                                기간 보관
+                                                {t('periodStorage')}
                                             </Button>
                                         </Box>
 
@@ -2021,7 +2026,7 @@ const Map = () => {
                                                 color: 'text.secondary',
                                                 fontWeight: 500
                                             }}>
-                                                {storageDuration === "day" ? "보관 날짜" : "시작 날짜"}
+                                                {storageDuration === "day" ? t('storageDate') : t('storageStartDate')}
                                             </Typography>
                                             <TextField
                                                 fullWidth
@@ -2055,7 +2060,7 @@ const Map = () => {
                                                     }
                                                 }}
                                                 inputProps={{
-                                                    min: new Date().toISOString().split('T')[0] // 오늘 이후 날짜만 선택 가능
+                                                    min: new Date().toISOString().split('T')[0] // Only allow dates after today
                                                 }}
                                                 InputLabelProps={{
                                                     shrink: true,
@@ -2072,7 +2077,7 @@ const Map = () => {
                                                     color: 'text.secondary',
                                                     fontWeight: 500
                                                 }}>
-                                                    종료 날짜
+                                                    {t('storageEndDate')}
                                                 </Typography>
                                                 <TextField
                                                     fullWidth
@@ -2089,8 +2094,7 @@ const Map = () => {
                                                                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
                                                             },
                                                             '& .MuiOutlinedInput-notchedOutline': {
-                                                                borderColor: '#1a73e8',
-                                                                borderWidth: '1px'
+                                                                borderColor: 'transparent'
                                                             },
                                                             '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
                                                                 borderColor: '#1a73e8',
@@ -2106,9 +2110,8 @@ const Map = () => {
                                                             }
                                                         }
                                                     }}
-                                                    // storageDate 이후 날짜만 선택 가능
                                                     inputProps={{
-                                                        min: storageDate || new Date().toISOString().split('T')[0]
+                                                        min: new Date().toISOString().split('T')[0] // Only allow dates after today
                                                     }}
                                                     InputLabelProps={{
                                                         shrink: true,
@@ -2125,7 +2128,7 @@ const Map = () => {
                                                 color: 'text.secondary',
                                                 fontWeight: 500
                                             }}>
-                                                보관 시간
+                                                {t('storageTime')}
                                             </Typography>
 
                                             <Box sx={{display: 'flex', gap: 2}}>
@@ -2137,7 +2140,7 @@ const Map = () => {
                                                         color: '#1a73e8',
                                                         fontWeight: 500
                                                     }}>
-                                                        시작 시간
+                                                        {t('startTime')}
                                                     </Typography>
 
                                                     <Box sx={{
@@ -2203,7 +2206,7 @@ const Map = () => {
                                                         color: '#1a73e8',
                                                         fontWeight: 500
                                                     }}>
-                                                        종료 시간
+                                                        {t('endTime')}
                                                     </Typography>
 
                                                     <Box sx={{
@@ -2265,9 +2268,13 @@ const Map = () => {
                                             fontWeight: isTimeValid ? 'normal' : 500
                                         }}>
                                             {selectedPlace
-                                                ? `* 운영 시간: ${getPlaceOperatingHours(selectedPlace).start} ~ ${getPlaceOperatingHours(selectedPlace).end}`
-                                                : '* 운영 시간: 09:00 ~ 18:00'}
-                                            {!isTimeValid && ' (운영 시간 내로 설정해주세요)'}
+                                                ? t('operatingHoursFormat', { 
+                                                    0: getPlaceOperatingHours(selectedPlace).start, 
+                                                    1: getPlaceOperatingHours(selectedPlace).end 
+                                                  }).replace('%s', getPlaceOperatingHours(selectedPlace).start)
+                                                    .replace('%s', getPlaceOperatingHours(selectedPlace).end)
+                                                : t('operatingHoursDefault')}
+                                            {!isTimeValid && t('operatingHoursWarning')}
                                         </Typography>
                                     </Box>
 
@@ -2323,10 +2330,10 @@ const Map = () => {
                                         borderRadius: '12px'
                                     }}>
                                         <Typography sx={{fontWeight: 500}}>
-                                            총 금액
+                                            {t('totalAmount')}
                                         </Typography>
                                         <Typography sx={{fontWeight: 600, color: '#1a73e8', fontSize: '18px'}}>
-                                            {totalPrice.toLocaleString()}원
+                                            {totalPrice.toLocaleString()}{t('won')}
                                         </Typography>
                                     </Box>
 
@@ -2334,34 +2341,44 @@ const Map = () => {
                                     <Button
                                         variant="contained"
                                         fullWidth
+                                        disabled={
+                                            (bagSizes.small === 0 && bagSizes.medium === 0 && bagSizes.large === 0) ||
+                                            !storageDate ||
+                                            !storageStartTime ||
+                                            !storageEndTime ||
+                                            (storageDuration === "period" && !storageEndDate) ||
+                                            !selectedPlace ||
+                                            !isTimeValid
+                                        }
                                         sx={{
+                                            backgroundColor: '#1a73e8',
+                                            color: 'white',
                                             borderRadius: '12px',
-                                            textTransform: 'none',
                                             p: 1.5,
-                                            backgroundColor: (totalPrice > 0 && isTimeValid && storageDate && storageStartTime && storageEndTime) ? '#1a73e8' : '#e0e0e0',
-                                            color: (totalPrice > 0 && isTimeValid && storageDate && storageStartTime && storageEndTime) ? 'white' : '#9e9e9e',
+                                            mt: 2,
                                             boxShadow: 'none',
-                                            '&:hover': {
-                                                backgroundColor: (totalPrice > 0 && isTimeValid && storageDate && storageStartTime && storageEndTime) ? '#1565c0' : '#e0e0e0'
-                                            },
-                                            '&:focus': {
-                                                outline: 'none',
-                                            }
+                                            '&:hover': {backgroundColor: '#1565c0'},
+                                            '&:disabled': {backgroundColor: 'rgba(0, 0, 0, 0.12)', color: 'rgba(0, 0, 0, 0.26)'},
+                                            '&:focus': {outline: 'none', backgroundColor: '#0d47a1'},
+                                            transition: 'background-color 0.2s ease'
                                         }}
-                                        disabled={totalPrice === 0 || !isTimeValid || !storageDate || !storageStartTime || !storageEndTime || (storageDuration === "period" && !storageEndDate)}
                                         onClick={() => {
                                             if (totalPrice > 0 && isTimeValid && storageDate && storageStartTime && storageEndTime && (storageDuration !== "period" || storageEndDate)) {
-                                                setIsPaymentOpen(true);
+                                                if (!isAuthenticated) {
+                                                    setReservationError(t('loginRequiredMessage'));
+                                                } else {
+                                                    setIsPaymentOpen(true);
+                                                }
                                             }
                                         }}
                                     >
-                                        {!isTimeValid
-                                            ? "운영 시간 내로 설정해주세요"
-                                            : !storageDate || !storageStartTime || !storageEndTime || (storageDuration === "period" && !storageEndDate)
-                                                ? "날짜와 시간을 모두 선택해주세요"
-                                                : totalPrice === 0
-                                                    ? "가방을 선택해주세요"
-                                                    : "결제하기"}
+                                        {!isAuthenticated
+                                            ? t('loginRequired')
+                                            : !isTimeValid
+                                                ? t('setWithinOperatingHours')
+                                                : (!storageDate || !storageStartTime || !storageEndTime || (storageDuration === "period" && !storageEndDate))
+                                                    ? t('selectAllDateAndTime')
+                                                    : t('pay')}
                                     </Button>
                                 </Box>
                             )}

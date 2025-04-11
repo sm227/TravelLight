@@ -14,8 +14,37 @@ import TwitterIcon from '@mui/icons-material/Twitter';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import LuggageIcon from '@mui/icons-material/Luggage';
+import { useTranslation } from 'react-i18next';
 
 const Footer: React.FC = () => {
+  const { t } = useTranslation();
+  
+  const currentYear = new Date().getFullYear();
+  
+  const serviceLinks = [
+    { name: t('attendedStorage2'), href: '#' },
+    { name: t('selfStorage2'), href: '#' },
+    { name: t('luggageDelivery2'), href: '#' },
+    { name: t('priceGuide'), href: '#' },
+    { name: t('howToUse'), href: '#' }
+  ];
+  
+  const companyLinks = [
+    { name: t('aboutUs'), href: '#' },
+    { name: t('notice'), href: '#' },
+    { name: t('pressRelease'), href: '#' },
+    { name: t('careers'), href: '#' },
+    { name: t('partnership2'), href: '#' }
+  ];
+  
+  const supportLinks = [
+    { name: t('faq'), href: '#' },
+    { name: t('inquiry'), href: '#' },
+    { name: t('termsOfService'), href: '#' },
+    { name: t('privacyPolicy'), href: '#' },
+    { name: t('location'), href: '#' }
+  ];
+  
   return (
     <Box
       component="footer"
@@ -36,8 +65,7 @@ const Footer: React.FC = () => {
               </Typography>
             </Box>
             <Typography variant="body2" sx={{ mb: 2 }}>
-              여행의 자유를 위한 최고의 짐 보관 및 배송 서비스를 제공합니다.
-              언제 어디서나 편리하게 이용하세요.
+              {t('footerDescription')}
             </Typography>
             <Stack direction="row" spacing={1}>
               <IconButton aria-label="facebook" sx={{ color: 'white' }}>
@@ -57,18 +85,18 @@ const Footer: React.FC = () => {
           
           <Grid item xs={6} sm={3} md={2}>
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
-              서비스
+              {t('footerServices')}
             </Typography>
             <Stack spacing={1}>
-              {['유인보관', '무인보관', '짐배송', '가격안내', '이용방법'].map((item) => (
+              {serviceLinks.map((item) => (
                 <Link
-                  key={item}
-                  href="#"
+                  key={item.name}
+                  href={item.href}
                   underline="hover"
                   color="inherit"
                   sx={{ '&:hover': { color: 'primary.light' } }}
                 >
-                  {item}
+                  {item.name}
                 </Link>
               ))}
             </Stack>
@@ -76,18 +104,18 @@ const Footer: React.FC = () => {
           
           <Grid item xs={6} sm={3} md={2}>
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
-              회사소개
+              {t('aboutCompany')}
             </Typography>
             <Stack spacing={1}>
-              {['회사소개', '공지사항', '보도자료', '채용정보', '파트너십'].map((item) => (
+              {companyLinks.map((item) => (
                 <Link
-                  key={item}
-                  href="#"
+                  key={item.name}
+                  href={item.href}
                   underline="hover"
                   color="inherit"
                   sx={{ '&:hover': { color: 'primary.light' } }}
                 >
-                  {item}
+                  {item.name}
                 </Link>
               ))}
             </Stack>
@@ -95,18 +123,18 @@ const Footer: React.FC = () => {
           
           <Grid item xs={6} sm={3} md={2}>
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
-              고객지원
+              {t('customerSupport')}
             </Typography>
             <Stack spacing={1}>
-              {['자주 묻는 질문', '1:1 문의', '이용약관', '개인정보처리방침', '위치'].map((item) => (
+              {supportLinks.map((item) => (
                 <Link
-                  key={item}
-                  href="#"
+                  key={item.name}
+                  href={item.href}
                   underline="hover"
                   color="inherit"
                   sx={{ '&:hover': { color: 'primary.light' } }}
                 >
-                  {item}
+                  {item.name}
                 </Link>
               ))}
             </Stack>
@@ -114,13 +142,13 @@ const Footer: React.FC = () => {
           
           <Grid item xs={6} sm={3} md={2}>
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
-              고객센터
+              {t('customerCenter')}
             </Typography>
             <Typography variant="body2" sx={{ mb: 1 }}>
-              평일 09:00 - 18:00
+              {t('businessHours')}
             </Typography>
             <Typography variant="body2" sx={{ mb: 1 }}>
-              주말 및 공휴일 휴무
+              {t('closed')}
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
               1588-0000
@@ -140,14 +168,14 @@ const Footer: React.FC = () => {
         
         <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="body2" sx={{ mb: { xs: 2, md: 0 } }}>
-            © {new Date().getFullYear()} TravelLight. All rights reserved.
+            © {currentYear} TravelLight. {t('allRights')}
           </Typography>
           <Box>
             <Link href="#" underline="hover" color="inherit" sx={{ mr: 3 }}>
-              이용약관
+              {t('termsOfService')}
             </Link>
             <Link href="#" underline="hover" color="inherit">
-              개인정보처리방침
+              {t('privacyPolicy')}
             </Link>
           </Box>
         </Box>

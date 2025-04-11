@@ -18,61 +18,64 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import LuggageIcon from '@mui/icons-material/Luggage';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-
-const serviceData = [
-  {
-    id: 'manned-storage',
-    title: '유인보관 서비스',
-    icon: <StorefrontIcon sx={{ fontSize: 60, color: 'primary.main' }} />,
-    description: '전문 직원이 상주하는 보관소에서 여러분의 짐을 안전하게 보관해 드립니다.',
-    features: [
-      '전문 직원의 안전한 짐 보관',
-      '24시간 보안 시스템 운영',
-      '다양한 크기의 짐 보관 가능',
-      '장기 보관 할인 혜택',
-      '보관 중 짐 확인 서비스'
-    ],
-    color: 'primary.main',
-    bgColor: 'primary.light',
-    buttonText: '유인보관 이용하기',
-    path:'/map'
-  },
-  {
-    id: 'unmanned-storage',
-    title: '무인보관 서비스',
-    icon: <LuggageIcon sx={{ fontSize: 60, color: 'secondary.main' }} />,
-    description: '24시간 언제든지 이용 가능한 무인 보관함으로 편리하게 짐을 보관하세요.',
-    features: [
-      '24시간 연중무휴 이용 가능',
-      '앱으로 간편한 예약 및 결제',
-      '다양한 크기의 보관함 제공',
-      '시간 단위 요금제',
-      '주요 관광지 및 교통 요지에 위치'
-    ],
-    color: 'secondary.main',
-    bgColor: 'secondary.light',
-    buttonText: '무인보관 이용하기'
-  },
-  {
-    id: 'luggage-delivery',
-    title: '짐배송 서비스',
-    icon: <LocalShippingIcon sx={{ fontSize: 60, color: 'info.main' }} />,
-    description: '여행지에서 다음 목적지까지 짐을 안전하게 배송해 드립니다.',
-    features: [
-      '당일 배송 서비스',
-      '실시간 배송 추적',
-      '안전한 포장 서비스',
-      '보험 서비스 제공',
-      '국내 전 지역 배송 가능'
-    ],
-    color: 'info.main',
-    bgColor: 'info.light',
-    buttonText: '짐배송 이용하기',
-    path:'/carry'
-  }
-];
+import { useTranslation } from 'react-i18next';
 
 const Services: React.FC = () => {
+  const { t } = useTranslation();
+
+  const serviceData = [
+    {
+      id: 'manned-storage',
+      title: t('attendedServiceTitle'),
+      icon: <StorefrontIcon sx={{ fontSize: 60, color: 'primary.main' }} />,
+      description: t('attendedServiceDesc'),
+      features: [
+        t('feature1'),
+        t('feature2'),
+        t('feature3'),
+        t('feature4'),
+        t('feature5')
+      ],
+      color: 'primary.main',
+      bgColor: 'primary.light',
+      buttonText: t('useAttendedStorage'),
+      path:'/map'
+    },
+    {
+      id: 'unmanned-storage',
+      title: t('selfStorageTitle'),
+      icon: <LuggageIcon sx={{ fontSize: 60, color: 'secondary.main' }} />,
+      description: t('selfStorageDesc'),
+      features: [
+        t('feature6'),
+        t('feature7'),
+        t('feature8'),
+        t('feature9'),
+        t('feature10')
+      ],
+      color: 'secondary.main',
+      bgColor: 'secondary.light',
+      buttonText: t('useSelfStorage')
+    },
+    {
+      id: 'luggage-delivery',
+      title: t('deliveryServiceTitle'),
+      icon: <LocalShippingIcon sx={{ fontSize: 60, color: 'info.main' }} />,
+      description: t('deliveryServiceDesc'),
+      features: [
+        t('feature11'),
+        t('feature12'),
+        t('feature13'),
+        t('feature14'),
+        t('feature15')
+      ],
+      color: 'info.main',
+      bgColor: 'info.light',
+      buttonText: t('useDeliveryService'),
+      path:'/carry'
+    }
+  ];
+
   return (
     <Box
       id="services"
@@ -90,15 +93,14 @@ const Services: React.FC = () => {
             gutterBottom
             sx={{ fontWeight: 700 }}
           >
-            우리의 서비스
+            {t('ourServices')}
           </Typography>
           <Typography
             variant="h6"
             color="text.secondary"
             sx={{ maxWidth: 800, mx: 'auto' }}
           >
-            TravelLight는 여행자들의 다양한 니즈에 맞춘 세 가지 핵심 서비스를 제공합니다.
-            여행의 자유를 위한 최적의 솔루션을 경험해보세요.
+            {t('servicesDescription')}
           </Typography>
         </Box>
 
@@ -163,24 +165,43 @@ const Services: React.FC = () => {
                   </List>
                 </CardContent>
                 <Box sx={{ p: 3, pt: 0 }}>
-                  <Button 
-                    variant="contained" 
-                    fullWidth 
-                    size="large"
-                    component={Link}
-                    to={service.path}
-                    sx={{ 
-                      borderRadius: '28px',
-                      py: 1.5,
-                      bgcolor: service.color,
-                      '&:hover': {
+                  {service.path ? (
+                    <Button 
+                      variant="contained" 
+                      fullWidth 
+                      size="large"
+                      component={Link}
+                      to={service.path}
+                      sx={{ 
+                        borderRadius: '28px',
+                        py: 1.5,
                         bgcolor: service.color,
-                        filter: 'brightness(0.9)'
-                      }
-                    }}
-                  >
-                    {service.buttonText}
-                  </Button>
+                        '&:hover': {
+                          bgcolor: service.color,
+                          filter: 'brightness(0.9)'
+                        }
+                      }}
+                    >
+                      {service.buttonText}
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="contained" 
+                      fullWidth 
+                      size="large"
+                      sx={{ 
+                        borderRadius: '28px',
+                        py: 1.5,
+                        bgcolor: service.color,
+                        '&:hover': {
+                          bgcolor: service.color,
+                          filter: 'brightness(0.9)'
+                        }
+                      }}
+                    >
+                      {service.buttonText}
+                    </Button>
+                  )}
                 </Box>
               </Card>
             </Grid>

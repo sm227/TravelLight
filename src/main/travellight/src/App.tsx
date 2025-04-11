@@ -21,6 +21,7 @@ import AdminLayout from './components/admin/AdminLayout';
 import ProtectedAdminRoute from './components/admin/ProtectedAdminRoute';
 import MyPage from './pages/MyPage';
 import EventStorage from "./pages/EventStorage.tsx";
+import './i18n'; // i18n 설정 파일 임포트
 import FAQ from './pages/FAQ';
 import Inquiry from './pages/Inquiry';
 

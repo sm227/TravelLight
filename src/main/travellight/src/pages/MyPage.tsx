@@ -15,6 +15,7 @@ import './MyPage.css';
 import { useAuth } from '../services/AuthContext';
 import { getMyReservations } from '../services/reservationService';
 import { ReservationDto } from '../types/reservation';
+import { useTranslation } from 'react-i18next';
 
 // Custom styled components
 const StyledButton = styled(Button)(({ theme }) => ({
@@ -46,6 +47,7 @@ const MyPage = () => {
   const [myTrips, setMyTrips] = useState<ReservationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   // 예약 상태를 체크하고 업데이트하는 함수
   const checkAndUpdateReservationStatus = (reservations: ReservationDto[]): ReservationDto[] => {
@@ -95,11 +97,11 @@ const MyPage = () => {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'RESERVED':
-        return '예약완료';
+        return t('statusReserved');
       case 'COMPLETED':
-        return '이용완료';
+        return t('statusCompleted');
       case 'CANCELLED':
-        return '취소됨';
+        return t('statusCancelled');
       default:
         return status;
     }
@@ -112,10 +114,10 @@ const MyPage = () => {
         <div className="mypage-container">
           <div className="mypage-header">
             <Typography variant="h5" className="mypage-title">
-              마이페이지
+              {t('myPageTitle')}
             </Typography>
             <Typography variant="body2" className="mypage-description">
-              여행 내역 확인 및 회원 정보를 관리하세요.
+              {t('myPageDescription')}
             </Typography>
           </div>
 
@@ -125,13 +127,13 @@ const MyPage = () => {
               onClick={() => handleTabChange(0)}
               style={{ marginRight: '8px' }}
             >
-              여행 확인
+              {t('tripCheck')}
             </div>
             <div 
               className={`tab-button ${activeTab === 1 ? 'active' : 'inactive'}`}
               onClick={() => handleTabChange(1)}
             >
-              정보 수정
+              {t('editInfo')}
             </div>
           </div>
           
@@ -140,23 +142,23 @@ const MyPage = () => {
               <div className="filter-container">
                 <div style={{ marginBottom: '8px' }}>
                   <Typography variant="body2" color="text.secondary">
-                    날짜 범위
+                    {t('dateRange')}
                   </Typography>
                 </div>
                 <div>
                   <Typography variant="body2" color="text.secondary">
-                    최근 3개월 ~ 서비스 유형 모든 유형 ~
+                    {t('recentMonths')}
                   </Typography>
                 </div>
               </div>
 
               {loading ? (
                 <div className="loading-container">
-                  <Typography>로딩 중...</Typography>
+                  <Typography>{t('loading')}</Typography>
                 </div>
               ) : myTrips.length === 0 ? (
                 <div className="empty-container">
-                  <Typography>예약 내역이 없습니다.</Typography>
+                  <Typography>{t('noReservations')}</Typography>
                 </div>
               ) : (
                 <div>
@@ -173,24 +175,24 @@ const MyPage = () => {
                       
                       <div className="trip-details">
                         <div className="trip-detail-item">
-                          예약번호: {trip.reservationNumber}
+                          {t('reservationNumber')}{trip.reservationNumber}
                         </div>
                         <div className="trip-detail-item">
-                          보관 시작: {trip.storageDate} {trip.storageStartTime}
+                          {t('storageStart')}{trip.storageDate} {trip.storageStartTime}
                         </div>
                         <div className="trip-detail-item">
-                          보관 종료: {trip.storageEndDate} {trip.storageEndTime}
+                          {t('storageEnd')}{trip.storageEndDate} {trip.storageEndTime}
                         </div>
                         <div className="trip-detail-item">
-                          짐 개수: 소형 {trip.smallBags}개, 중형 {trip.mediumBags}개, 대형 {trip.largeBags}개
+                          {t('luggageCount')}{trip.smallBags}{t('pieces')}{t('mediumBags')}{trip.mediumBags}{t('pieces')}{t('largeBags')}{trip.largeBags}{t('pieces')}
                         </div>
                         <div className="trip-detail-item">
-                          총 금액: {trip.totalPrice.toLocaleString()}원
+                          {t('totalPrice')}{trip.totalPrice.toLocaleString()}{t('won')}
                         </div>
                       </div>
                       
                       <div>
-                        <button className="detail-button">상세보기</button>
+                        <button className="detail-button">{t('viewDetails')}</button>
                       </div>
                     </div>
                   ))}
@@ -202,7 +204,7 @@ const MyPage = () => {
           {activeTab === 1 && (
             <div className="trip-card">
               <Typography variant="body1">
-                회원 정보 수정 기능은 준비 중입니다.
+                {t('editInfoMessage')}
               </Typography>
             </div>
           )}

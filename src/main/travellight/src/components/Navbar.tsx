@@ -23,17 +23,21 @@ import MenuIcon from '@mui/icons-material/Menu';
 import LuggageIcon from '@mui/icons-material/Luggage';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import TranslateIcon from '@mui/icons-material/Translate';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const Navbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [partnerMenuAnchorEl, setPartnerMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -63,6 +67,19 @@ const Navbar: React.FC = () => {
 
   const partnerMenuOpen = Boolean(partnerMenuAnchorEl);
 
+  const handleLangMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setLangMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleLangMenuClose = () => {
+    setLangMenuAnchorEl(null);
+  };
+
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
+    handleLangMenuClose();
+  };
+
   // Navigation to Partnership Pages
   const navigateToStoragePartnership = () => {
     handlePartnerMenuClose();
@@ -85,17 +102,17 @@ const Navbar: React.FC = () => {
   };
 
   const menuItems = [
-    { text: '홈', href: '#home' },
-    { text: '서비스', href: '#services' },
-    { text: '이용방법', href: '#how-it-works' },
-    { text: '가격', href: '#pricing' },
+    { text: t('home'), href: '#home' },
+    { text: t('services'), href: '#services' },
+    { text: t('howItWorks'), href: '#how-it-works' },
+    { text: t('pricing'), href: '#pricing' },
     // '제휴·협업 문의' is now handled separately for the dropdown
   ];
 
   const partnerSubMenuItems = [
     { text: 'FAQ',onClick: navigateToFAQ },
-    { text: '짐보관 서비스 제휴 신청', onClick: navigateToStoragePartnership },
-    { text: '콘서트 및 행사 전용 이동식 짐보관 신청', onClick: navigateToEventStorage },
+    { text: t('storageService'), onClick: navigateToStoragePartnership },
+    { text: t('eventStorage'), onClick: navigateToEventStorage },
     { text: '1:1 문의', onClick: navigateToInquiry },
   ];
 
@@ -112,7 +129,7 @@ const Navbar: React.FC = () => {
               </ListItem>
           ))}
           <ListItemButton onClick={handlePartnerMenuOpen} sx={{ textAlign: 'center', color: 'inherit' }}>
-            <ListItemText primary="제휴·협업 문의" />
+            <ListItemText primary={t('partnership')} />
           </ListItemButton>
           <Menu
               id="partner-menu-mobile"
@@ -129,23 +146,29 @@ const Navbar: React.FC = () => {
                 </MenuItem>
             ))}
           </Menu>
+          
+          {/* 언어 설정 */}
+          <ListItemButton onClick={handleLangMenuOpen} sx={{ textAlign: 'center', color: 'primary.main' }}>
+            <ListItemText primary={t('language')} />
+          </ListItemButton>
+          
           {isAuthenticated ? (
               <>
                 <ListItem sx={{ textAlign: 'center', color: 'primary.main' }}>
-                  <ListItemText primary={`안녕하세요, ${user?.name}님`} />
+                  <ListItemText primary={`${t('greeting')}${user?.name}님`} />
                 </ListItem>
                 <ListItemButton
                     component={RouterLink}
                     to="/mypage"
                     sx={{ textAlign: 'center', color: 'primary.main' }}
                 >
-                  <ListItemText primary="마이페이지" />
+                  <ListItemText primary={t('myPage')} />
                 </ListItemButton>
                 <ListItemButton
                     onClick={handleLogout}
                     sx={{ textAlign: 'center', color: 'error.main' }}
                 >
-                  <ListItemText primary="로그아웃" />
+                  <ListItemText primary={t('logout')} />
                 </ListItemButton>
               </>
           ) : (
@@ -155,14 +178,14 @@ const Navbar: React.FC = () => {
                     to="/login"
                     sx={{ textAlign: 'center', textDecoration: 'none', color: 'primary.main', fontWeight: 'bold' }}
                 >
-                  <ListItemText primary="로그인" />
+                  <ListItemText primary={t('login')} />
                 </ListItem>
                 <ListItem
                     component={RouterLink}
                     to="/register"
                     sx={{ textAlign: 'center', textDecoration: 'none', color: 'secondary.main', fontWeight: 'bold' }}
                 >
-                  <ListItemText primary="회원가입" />
+                  <ListItemText primary={t('register')} />
                 </ListItem>
               </>
           )}
@@ -188,15 +211,17 @@ const Navbar: React.FC = () => {
           open={isMenuOpen}
           onClose={handleMenuClose}
       >
-        <MenuItem onClick={() => { handleMenuClose(); navigate('/mypage'); }}>마이페이지</MenuItem>
-        <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>내 프로필</MenuItem>
-        <MenuItem onClick={() => { handleMenuClose(); navigate('/settings'); }}>설정</MenuItem>
+        <MenuItem onClick={() => { handleMenuClose(); navigate('/mypage'); }}>{t('myPage')}</MenuItem>
+        <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>{t('profile')}</MenuItem>
+        <MenuItem onClick={() => { handleMenuClose(); navigate('/settings'); }}>{t('settings')}</MenuItem>
         <Divider />
-        <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>로그아웃</MenuItem>
+        <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>{t('logout')}</MenuItem>
       </Menu>
   );
 
   const partnerButtonRef = React.useRef<HTMLButtonElement>(null);
+
+  const isLangMenuOpen = Boolean(langMenuAnchorEl);
 
   return (
       <AppBar position="fixed" color="default" elevation={0} sx={{ backgroundColor: 'white' }}>
@@ -286,7 +311,7 @@ const Navbar: React.FC = () => {
                           }}
                           endIcon={<ArrowDropDownIcon />}
                       >
-                        제휴·협업 문의
+                        {t('partnership')}
                       </Button>
                       <Menu
                           id="partner-menu-desktop"
@@ -314,8 +339,22 @@ const Navbar: React.FC = () => {
                               color="primary"
                               sx={{ mx: 1 }}
                           >
-                            마이페이지
+                            {t('myPage')}
                           </Button>
+                          
+                          <IconButton
+                              aria-label={t('language')}
+                              aria-controls={isLangMenuOpen ? 'language-menu' : undefined}
+                              aria-haspopup="true"
+                              aria-expanded={isLangMenuOpen ? 'true' : undefined}
+                              onClick={handleLangMenuOpen}
+                              color="primary"
+                              size="small"
+                              sx={{ mx: 1 }}
+                          >
+                            <TranslateIcon />
+                          </IconButton>
+                          
                           <Button
                               onClick={handleProfileMenuOpen}
                               sx={{
@@ -334,6 +373,19 @@ const Navbar: React.FC = () => {
                         </>
                     ) : (
                         <>
+                          <IconButton
+                              aria-label={t('language')}
+                              aria-controls={isLangMenuOpen ? 'language-menu' : undefined}
+                              aria-haspopup="true"
+                              aria-expanded={isLangMenuOpen ? 'true' : undefined}
+                              onClick={handleLangMenuOpen}
+                              color="primary"
+                              size="small"
+                              sx={{ mx: 1 }}
+                          >
+                            <TranslateIcon />
+                          </IconButton>
+                          
                           <Button
                               component={RouterLink}
                               to="/login"
@@ -341,7 +393,7 @@ const Navbar: React.FC = () => {
                               color="primary"
                               sx={{ textTransform: 'none', fontWeight: 'bold' }}
                           >
-                            로그인
+                            {t('login')}
                           </Button>
                           <Button
                               component={RouterLink}
@@ -350,7 +402,7 @@ const Navbar: React.FC = () => {
                               color="primary"
                               sx={{ ml: 2, textTransform: 'none', fontWeight: 'bold' }}
                           >
-                            회원가입
+                            {t('register')}
                           </Button>
                         </>
                     )}
@@ -360,6 +412,19 @@ const Navbar: React.FC = () => {
           </Toolbar>
         </Container>
         {renderMenu}
+        
+        <Menu
+            id="language-menu"
+            anchorEl={langMenuAnchorEl}
+            open={isLangMenuOpen}
+            onClose={handleLangMenuClose}
+            MenuListProps={{
+              'aria-labelledby': 'language-button',
+            }}
+        >
+          <MenuItem onClick={() => changeLanguage('ko')}>{t('korean')}</MenuItem>
+          <MenuItem onClick={() => changeLanguage('en')}>{t('english')}</MenuItem>
+        </Menu>
       </AppBar>
   );
 };
