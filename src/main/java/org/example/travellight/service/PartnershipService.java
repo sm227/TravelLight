@@ -117,4 +117,18 @@ public class PartnershipService {
     public List<Partnership> getAllPartnerships() {
         return partnershipRepository.findAll();
     }
+
+    @Transactional
+    public Partnership updatePartnershipStatus(Long id, String newStatus) {
+        Partnership partnership = partnershipRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("제휴점을 찾을 수 없습니다: " + id));
+        
+        // 현재 상태와 동일한 경우 예외 발생
+        if (partnership.getStatus().equals(newStatus)) {
+            throw new RuntimeException("이미 " + (newStatus.equals("APPROVED") ? "승인" : "거절") + "된 상태입니다.");
+        }
+        
+        partnership.setStatus(newStatus);
+        return partnershipRepository.save(partnership);
+    }
 }

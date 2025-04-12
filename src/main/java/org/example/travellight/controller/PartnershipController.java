@@ -77,4 +77,26 @@ public class PartnershipController {
                     .body(ApiResponse.error(e.getMessage()));
         }
     }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<?> updatePartnershipStatus(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> statusUpdate) {
+        try {
+            String newStatus = statusUpdate.get("status");
+            if (newStatus == null || !List.of("APPROVED", "REJECTED").contains(newStatus)) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("유효하지 않은 상태입니다. APPROVED 또는 REJECTED만 가능합니다."));
+            }
+
+            Partnership updatedPartnership = partnershipService.updatePartnershipStatus(id, newStatus);
+            return ResponseEntity.ok(ApiResponse.success(
+                "제휴점 상태가 " + (newStatus.equals("APPROVED") ? "승인" : "거절") + "되었습니다.", 
+                updatedPartnership
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("상태 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
 }
