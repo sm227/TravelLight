@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -18,6 +19,17 @@ public class PartnershipController {
 
     @Autowired
     private PartnershipService partnershipService;
+
+    @GetMapping
+    public ResponseEntity<?> getAllPartnerships() {
+        try {
+            List<Partnership> partnerships = partnershipService.getAllPartnerships();
+            return ResponseEntity.ok(ApiResponse.success("모든 제휴점 정보를 조회했습니다.", partnerships));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("제휴점 정보 조회 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
 
     @PostMapping
     public ResponseEntity<?> createPartnership(@RequestBody PartnershipDto partnershipDto) {

@@ -10,7 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class PartnershipService {
@@ -84,18 +86,15 @@ public class PartnershipService {
         partnership.setBusinessHours(businessHoursMap);
 
         // 고유 신청 ID 생성
-        String submissionId = generateSubmissionId();
-        partnership.setSubmissionId(submissionId);
+        partnership.setSubmissionId(generateSubmissionId());
 
         // 저장 및 반환
         return partnershipRepository.save(partnership);
     }
 
     private String generateSubmissionId() {
-        // "PN" + 현재 시간 기반으로 고유 ID 생성
-        String timestamp = LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyMMddHHmmss"));
-        return "PN" + timestamp;
+        String uuid = UUID.randomUUID().toString().toUpperCase().replace("-", "");
+        return "PT-" + uuid.substring(0, 4) + "-" + uuid.substring(4, 8);
     }
 
     public Partnership getPartnershipBySubmissionId(String submissionId) {
@@ -113,5 +112,9 @@ public class PartnershipService {
         partnership.setLongitude(latLng[1]);
 
         return partnershipRepository.save(partnership);
+    }
+
+    public List<Partnership> getAllPartnerships() {
+        return partnershipRepository.findAll();
     }
 }
