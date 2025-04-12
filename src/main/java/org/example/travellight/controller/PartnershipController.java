@@ -35,6 +35,12 @@ public class PartnershipController {
             // 서비스를 통해 데이터 저장
             Partnership savedPartnership = partnershipService.createPartnership(partnershipDto);
 
+            // 저장된 위도 경도 확인
+//            System.out.println("ID: " + savedPartnership.getId());
+//            System.out.println("제출 ID: " + savedPartnership.getSubmissionId());
+            System.out.println("위도: " + savedPartnership.getLatitude());
+            System.out.println("경도: " + savedPartnership.getLongitude());
+
             // 클라이언트에 전달할 응답 데이터
             Map<String, Object> data = new HashMap<>();
             data.put("id", savedPartnership.getId());
@@ -42,6 +48,8 @@ public class PartnershipController {
 
             return ResponseEntity.ok(ApiResponse.success("제휴 신청이 성공적으로 접수되었습니다.", data));
         } catch (Exception e) {
+            System.out.println("제휴 신청 처리 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("제출 중 오류가 발생했습니다: " + e.getMessage()));
         }

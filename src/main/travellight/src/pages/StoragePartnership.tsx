@@ -34,10 +34,11 @@ import HandshakeIcon from '@mui/icons-material/Handshake';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
-// 카카오 주소 검색 타입 선언 (TypeScript 지원을 위해)
+// 카카오 맵 및 주소 검색 타입 선언 (TypeScript 지원을 위해)
 declare global {
     interface Window {
         daum: any;
+        kakao: any;
     }
 }
 
@@ -51,6 +52,9 @@ const StoragePartnership: React.FC = () => {
         email: '',
         phone: '',
         address: '',
+        //위도와 경도를 추가함
+        latitude: 0,
+        longitude: 0,
         businessType: '',
         spaceSize: '',
         additionalInfo: '',
@@ -73,34 +77,130 @@ const StoragePartnership: React.FC = () => {
     const [submissionId, setSubmissionId] = useState('');
     // const [isAddressModalOpen, setAddressModalOpen] = useState(false);
 
-    // 카카오 주소 검색 스크립트 로드
+    // 카카오 API 스크립트 로드 (주소 검색 및 지오코딩)
     useEffect(() => {
-        const script = document.createElement('script');
-        script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
-        script.async = true;
-        document.body.appendChild(script);
+        // 주소 검색 API 스크립트 로드
+        const postcodeScript = document.createElement('script');
+        postcodeScript.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+        postcodeScript.async = true;
+        document.body.appendChild(postcodeScript);
+
+        // 지오코딩을 위한 맵 API 스크립트 로드
+        const mapScript = document.createElement('script');
+        mapScript.src = '//dapi.kakao.com/v2/maps/sdk.js?appkey=92f721d745fe5ca9c85f8fa735e6979b&libraries=services';
+        mapScript.async = true;
+        document.body.appendChild(mapScript);
 
         return () => {
-            document.body.removeChild(script);
+            document.body.removeChild(postcodeScript);
+            if (document.body.contains(mapScript)) {
+                document.body.removeChild(mapScript);
+            }
         };
     }, []);
+
+    // 지오코딩 함수
+    const getCoordinates = (address: string) => {
+        return new Promise<{ lat: number; lng: number }>((resolve, reject) => {
+            // api 호출 횟수 관리 -> 최대 10
+            let attempts = 0;
+            const maxAttempts = 10;
+
+            // 카카오맵 api 로드되었는지 확인
+            const checkAndExecute = () => {
+                attempts++;
+                if (window.kakao && window.kakao.maps && window.kakao.maps.services) {
+                    console.log('카카오 맵 API 로드 완료, 좌표 변환 시도');
+                    
+                    const geocoder = new window.kakao.maps.services.Geocoder();
+
+                    // 주소 -> 위, 경도 좌표 변환
+                    geocoder.addressSearch(address, (result: any, status: any) => {
+                        if (status === window.kakao.maps.services.Status.OK) {
+                            console.log('좌표 변환 결과:', result);
+                            // 검색된 주소를 바탕으로 한 좌표 추출
+                            // y가 위도, x 가 경도
+                            const coords = {
+                                lat: parseFloat(result[0].y),
+                                lng: parseFloat(result[0].x)
+                            };
+
+                            // 좌표 유효성 검사
+                            if (isNaN(coords.lat) || isNaN(coords.lng)) {
+                                console.error('변환된 좌표가 숫자가 아닙니다:', result);
+                                reject(new Error('유효하지 않은 좌표입니다.'));
+                            } else {
+                                console.log('최종 변환 좌표:', coords);
+
+                                setTimeout(() => {
+                                    resolve(coords);
+                                }, 500);
+                            }
+                        } else {
+                            console.error('주소 변환 실패:', status);
+                            reject(new Error('주소를 좌표로 변환할 수 없습니다.'));
+                        }
+                    });
+                } else {
+                    console.log(`카카오 맵 API 로드 대기 중... (시도: ${attempts}/${maxAttempts})`);
+                    if (attempts < maxAttempts) {
+                        setTimeout(checkAndExecute, 1000);
+                    } else {
+                        console.error('카카오 맵 API 로드 실패');
+                        reject(new Error('카카오 맵 API가 로드되지 않았습니다.'));
+                    }
+                }
+            };
+            checkAndExecute();
+        });
+    };
 
     // 주소 검색 모달 열기
     const handleAddressSearch = () => {
         if (window.daum && window.daum.Postcode) {
             new window.daum.Postcode({
-                oncomplete: function(data: any) {
+                oncomplete: async function(data: any) {
                     // 선택한 주소 데이터 활용
+                    // 주소 정보 추출
+                    // data.address = 기본 주소
+                    // buildingName = 건물명
+                    // buildingNameㅇ ㅣ 존재하면 기본 주소랑 같이 보임
                     const fullAddress = data.address;
                     const extraAddress = data.buildingName ? ` (${data.buildingName})` : '';
+                    const completeAddress = fullAddress + extraAddress;
 
-                    setFormData({
-                        ...formData,
-                        address: fullAddress + extraAddress
-                    });
+                    console.log('검색된 주소:', fullAddress);
+
+
+                    try {
+                        setFormData(prev => ({
+                            ...prev,
+                            address: completeAddress,
+                            latitude: 0,
+                            longitude: 0
+                        }));
+
+                        // 좌표 변환
+                        // await 사용해 비동기 처리
+                        console.log('좌표 변환 시작...');
+                        const coords = await getCoordinates(fullAddress);
+                        console.log('좌표 변환 성공:', coords);
+
+                        setFormData(prev => ({
+                            ...prev,
+                            latitude: coords.lat,
+                            longitude: coords.lng
+                        }));
+                        
+                        console.log(`주소 좌표 변환 완료 및 저장: 위도 ${coords.lat}, 경도 ${coords.lng}`);
+                    } catch (error) {
+                        console.error('좌표 변환 오류:', error);
+                        setError('주소를 좌표로 변환하는 중 오류가 발생했습니다. 다시 시도해 주세요.');
+                    }
                 }
             }).open();
         } else {
+            console.error('Daum 우편번호 서비스를 찾을 수 없습니다.');
             setError('주소 검색 서비스를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
         }
     };
@@ -160,18 +260,35 @@ const StoragePartnership: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // 간단한 유효성 검사
         if (!formData.businessName || !formData.email || !formData.phone || !formData.agreeTerms) {
             setError('필수 항목을 모두 입력해주세요.');
             return;
         }
 
+        console.log('전송 전 좌표 확인:', { 
+            latitude: formData.latitude, 
+            longitude: formData.longitude 
+        });
+
+        if (formData.latitude === 0 || formData.longitude === 0) {
+            console.warn('위도 또는 경도가 0입니다. 주소 검색을 통해 좌표를 설정해주세요.');
+            setError('주소 좌표 변환이 필요합니다. 주소 검색을 다시 진행해주세요.');
+            return;
+        }
+
         try {
-            // 실제 서버로 데이터 전송
+            const dataToSend = {
+                ...formData,
+                latitude: Number(formData.latitude),
+                longitude: Number(formData.longitude)
+            };
+
+            console.log('서버로 전송할 데이터:', dataToSend);
+
             const response = await fetch('/api/partnership', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(dataToSend)
             });
 
             if (!response.ok) {
@@ -180,11 +297,11 @@ const StoragePartnership: React.FC = () => {
             }
 
             const data = await response.json();
+            console.log('서버 응답:', data);
             setSubmissionId(data.data.submissionId); // 서버에서 반환한 ID 저장
             setSuccessDialogOpen(true);
             setError('');
 
-            // 폼 초기화 또는 다른 후속 작업
         } catch (err) {
             console.error('제출 오류:', err);
             setError('제출 중 오류가 발생했습니다. 다시 시도해주세요.');
@@ -445,6 +562,16 @@ const StoragePartnership: React.FC = () => {
                                         />
                                     </Grid>
 
+                                    {/*주소 검색하면 나오는 좌표 정보..인데 안보이게 숨겨놨음 풀지말것*/}
+                                    <div style={{ display: 'none' }}>
+                                        {(formData.latitude !== 0 && formData.longitude !== 0) && (
+                                            <div>
+                                                <div>위도: {formData.latitude}</div>
+                                                <div>경도: {formData.longitude}</div>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <Grid item xs={12} sm={6}>
                                         <FormControl fullWidth required>
                                             <InputLabel>업종</InputLabel>
@@ -494,7 +621,7 @@ const StoragePartnership: React.FC = () => {
                                                 </Box>
                                             </Box>
                                             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                                Bounce 서비스에 대한 고객들의 이용 가능 시간을 알려주세요.
+                                                TravelLight 서비스에 대한 고객들의 이용 가능 시간을 알려주세요.
                                             </Typography>
 
                                             {/* 요일 선택 및 시간 입력 */}

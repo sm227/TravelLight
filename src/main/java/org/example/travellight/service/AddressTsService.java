@@ -57,15 +57,16 @@ public class AddressTsService {
                     return new double[]{y, x};
                 } else {
                     System.out.println("주소에 해당하는 좌표를 찾을 수 없습니다: " + address);
+                    throw new RuntimeException("주소에 해당하는 좌표를 찾을 수 없습니다: " + address);
                 }
+            } else {
+                throw new RuntimeException("카카오 API 응답이 유효하지 않습니다: " + response.getStatusCode());
             }
         } catch (Exception e) {
             System.out.println("카카오 API 호출 중 오류 발생: " + e.getMessage());
             e.printStackTrace();
+            throw new RuntimeException("좌표 변환 중 오류가 발생했습니다: " + e.getMessage());
         }
-
-        System.out.println("기본 좌표 [0.0, 0.0] 반환");
-        return new double[]{0.0, 0.0};
     }
 
 
