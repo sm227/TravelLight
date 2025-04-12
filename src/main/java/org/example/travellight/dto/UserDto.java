@@ -35,4 +35,13 @@ public class UserDto {
         private String name;
         private String email;
     }
+    
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PasswordChangeRequest {
+        private String currentPassword;
+        private String newPassword;
+    }
 } 

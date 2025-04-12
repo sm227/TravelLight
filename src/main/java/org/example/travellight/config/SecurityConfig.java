@@ -28,7 +28,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/users/register", "/api/users/login", "/api/partnership", 
                                 "/api/reservations/**", "/api/EventStorage", 
-                                "/api/admin/EventStorage/**").permitAll()
+                                "/api/admin/EventStorage/**", 
+                                "/api/users/{userId}", "/api/users/{userId}/password").permitAll()
                 .anyRequest().authenticated()
             );
         
