@@ -88,6 +88,7 @@ const Map = () => {
         name: ''
     });
     const [isPaymentComplete, setIsPaymentComplete] = useState(false);
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false); // 결제 진행 상태 추가
     const [storageDuration, setStorageDuration] = useState("day");
     const [storageDate, setStorageDate] = useState("");
     const [storageStartTime, setStorageStartTime] = useState("");
@@ -292,6 +293,9 @@ const Map = () => {
 
             // 클릭 이벤트 처리
             markerElement.addEventListener('click', function () {
+                // 결제가 완료된 상태면 클릭 이벤트 무시
+                if (isPaymentComplete) return;
+                
                 // 선택된 마커가 있으면 원래 색상으로 돌리기
                 if (selectedMarkerElement) {
                     const prevMarker = selectedMarkerElement.querySelector('.bank-marker');
@@ -417,6 +421,9 @@ const Map = () => {
 
             // 클릭 이벤트 처리
             markerElement.addEventListener('click', function () {
+                // 결제가 완료된 상태면 클릭 이벤트 무시
+                if (isPaymentComplete) return;
+                
                 // 선택된 마커가 있으면 원래 색상으로 돌리기
                 if (selectedMarkerElement) {
                     const prevMarker = selectedMarkerElement.querySelector('.bank-marker, .store-marker');
@@ -459,14 +466,21 @@ const Map = () => {
             storeMarkers = [];
         }
 
+        // 지도 드래그 이벤트 수정
         window.kakao.maps.event.addListener(map, "dragend", () => {
+            // 결제 완료 상태에서는 새 마커를 불러오지 않음
+            if (isPaymentComplete) return;
+            
             setIsMapMoved(true);
             searchBanks(map);
             searchStores(map);
         });
 
-        // 지도 클릭 시 열려있는 오버레이 닫기
+        // 지도 클릭 이벤트 수정
         window.kakao.maps.event.addListener(map, "click", () => {
+            // 결제 완료 상태에서는 반응하지 않음
+            if (isPaymentComplete) return;
+            
             if (currentInfoOverlay) {
                 currentInfoOverlay.setMap(null);
                 currentInfoOverlay = null;
@@ -489,7 +503,7 @@ const Map = () => {
             clearBankMarkers();
             clearStoreMarkers();
         };
-    }, []);
+    }, [isPaymentComplete]); // isPaymentComplete 의존성 추가
 
     // 현재 위치로 돌아가는 함수를 useCallback으로 메모이제이션
     const returnToMyLocation = useCallback(() => {
@@ -941,12 +955,27 @@ const Map = () => {
     // Modified: Submit reservation data to server when payment is completed
     const completePayment = async () => {
         if (isPaymentFormValid()) {
-            const result = await submitReservation();
-            
-            if (result) {
-                // Payment and reservation success
-                setIsPaymentComplete(true);
-                setIsPaymentOpen(false);
+            try {
+                // 결제 진행 상태 활성화
+                setIsProcessingPayment(true);
+                
+                // 약간의 지연 시간을 두어 UX 향상
+                const result = await submitReservation();
+                
+                if (result) {
+                    // Payment and reservation success
+                    setIsPaymentComplete(true);
+                    setIsPaymentOpen(false);
+                    
+                    // 여기서 예약 완료 후 다른 장소를 선택하지 못하도록 설정
+                    // 결제 완료 시 검색 결과 및 지도 상태를 초기화하지만, selectedPlace는 유지
+                    setSearchResults([]);
+                }
+            } catch (error) {
+                console.error("결제 처리 중 오류 발생:", error);
+            } finally {
+                // 결제 진행 상태 비활성화
+                setIsProcessingPayment(false);
             }
         }
     };
@@ -1025,8 +1054,9 @@ const Map = () => {
                                 value={searchKeyword}
                                 onChange={(e) => setSearchKeyword(e.target.value)}
                                 onKeyPress={(e) => {
-                                    if (e.key === 'Enter') searchPlaces();
+                                    if (e.key === 'Enter' && !isPaymentComplete) searchPlaces();
                                 }}
+                                disabled={isPaymentComplete}
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: '16px',
@@ -1042,6 +1072,10 @@ const Map = () => {
                                             '& fieldset': {
                                                 border: 'none',
                                             }
+                                        },
+                                        '&.Mui-disabled': {
+                                            opacity: 0.5,
+                                            backgroundColor: '#f0f0f0'
                                         }
                                     }
                                 }}
@@ -1050,6 +1084,7 @@ const Map = () => {
                                 variant="contained"
                                 onClick={searchPlaces}
                                 disableRipple
+                                disabled={isPaymentComplete}
                                 sx={{
                                     minWidth: '80px',
                                     height: '56px',
@@ -1067,12 +1102,10 @@ const Map = () => {
                                     '&:focus': {
                                         outline: 'none',
                                     },
-                                    '&.Mui-focusVisible': {
-                                        outline: 'none',
-                                        boxShadow: 'none',
-                                    },
-                                    '&:active': {
-                                        boxShadow: 'none',
+                                    '&.Mui-disabled': {
+                                        opacity: 0.5,
+                                        backgroundColor: '#e0e0e0',
+                                        color: '#9e9e9e'
                                     }
                                 }}
                             >
@@ -1330,8 +1363,145 @@ const Map = () => {
                                     backgroundColor: '#f8f9fa',
                                     borderRadius: '20px',
                                     p: 3,
-                                    transition: 'all 0.2s ease'
+                                    transition: 'all 0.2s ease',
+                                    position: 'relative' // position relative 추가
                                 }}>
+                                    {/* 결제 중 오버레이 추가 */}
+                                    {isProcessingPayment && (
+                                        <Box
+                                            sx={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                zIndex: 10,
+                                                borderRadius: '20px'
+                                            }}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    gap: 2
+                                                }}
+                                            >
+                                                {/* 모던한 로딩 스피너 */}
+                                                <Box
+                                                    sx={{
+                                                        width: '56px',
+                                                        height: '56px',
+                                                        position: 'relative',
+                                                        mb: 1
+                                                    }}
+                                                >
+                                                    {/* 첫 번째 원 */}
+                                                    <Box
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            width: '100%',
+                                                            height: '100%',
+                                                            border: '3px solid transparent',
+                                                            borderTopColor: '#1a73e8',
+                                                            borderRadius: '50%',
+                                                            animation: 'spinClockwise 1.2s linear infinite'
+                                                        }}
+                                                    />
+                                                    
+                                                    {/* 두 번째 원 */}
+                                                    <Box
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            top: '8px',
+                                                            left: '8px',
+                                                            right: '8px',
+                                                            bottom: '8px',
+                                                            border: '3px solid transparent',
+                                                            borderTopColor: '#4285f4',
+                                                            borderRadius: '50%',
+                                                            animation: 'spinCounterClockwise 1.8s linear infinite'
+                                                        }}
+                                                    />
+                                                    
+                                                    {/* 세 번째 원 */}
+                                                    <Box
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            top: '16px',
+                                                            left: '16px',
+                                                            right: '16px',
+                                                            bottom: '16px',
+                                                            border: '3px solid transparent',
+                                                            borderTopColor: '#1a73e8',
+                                                            borderRadius: '50%',
+                                                            animation: 'spinClockwise 1.5s linear infinite'
+                                                        }}
+                                                    />
+                                                    
+                                                    {/* 애니메이션 키프레임 스타일 */}
+                                                    <Box
+                                                        sx={{
+                                                            '@keyframes spinClockwise': {
+                                                                '0%': { transform: 'rotate(0deg)' },
+                                                                '100%': { transform: 'rotate(360deg)' }
+                                                            },
+                                                            '@keyframes spinCounterClockwise': {
+                                                                '0%': { transform: 'rotate(0deg)' },
+                                                                '100%': { transform: 'rotate(-360deg)' }
+                                                            }
+                                                        }}
+                                                    />
+                                                </Box>
+                                                
+                                                {/* 텍스트 메시지 */}
+                                                <Typography
+                                                    sx={{
+                                                        fontWeight: 500,
+                                                        color: '#1a73e8',
+                                                        fontSize: '15px',
+                                                        display: 'flex',
+                                                        alignItems: 'center'
+                                                    }}
+                                                >
+                                                    {t('processingPayment')}
+                                                    <Box
+                                                        component="span"
+                                                        sx={{
+                                                            display: 'inline-flex',
+                                                            ml: 0.5,
+                                                            '& > span': {
+                                                                width: '4px',
+                                                                height: '4px',
+                                                                margin: '0 1px',
+                                                                backgroundColor: '#1a73e8',
+                                                                borderRadius: '50%',
+                                                                display: 'inline-block'
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Box component="span" sx={{ animation: 'dotPulse 1.5s infinite ease-in-out', animationDelay: '0s' }} />
+                                                        <Box component="span" sx={{ animation: 'dotPulse 1.5s infinite ease-in-out', animationDelay: '0.2s' }} />
+                                                        <Box component="span" sx={{ animation: 'dotPulse 1.5s infinite ease-in-out', animationDelay: '0.4s' }} />
+                                                        <Box
+                                                            sx={{
+                                                                '@keyframes dotPulse': {
+                                                                    '0%, 100%': { transform: 'scale(0.5)', opacity: 0.5 },
+                                                                    '50%': { transform: 'scale(1)', opacity: 1 }
+                                                                }
+                                                            }}
+                                                        />
+                                                    </Box>
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    )}
+                                    
                                     <Box sx={{
                                         display: 'flex',
                                         alignItems: 'center',
@@ -1519,12 +1689,99 @@ const Map = () => {
                                             },
                                             '&:focus': {
                                                 outline: 'none',
-                                            }
+                                            },
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            transition: 'all 0.3s ease',
                                         }}
-                                        disabled={!isPaymentFormValid()}
+                                        disabled={!isPaymentFormValid() || isProcessingPayment}
                                         onClick={completePayment}
                                     >
-                                        {totalPrice.toLocaleString()}{t('won')} {t('pay')}
+                                        {isProcessingPayment ? (
+                                            <Box sx={{ 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                justifyContent: 'center',
+                                                gap: 1.5,
+                                                position: 'relative'
+                                            }}>
+                                                <Box 
+                                                    sx={{
+                                                        display: 'flex',
+                                                        gap: 0.5
+                                                    }}
+                                                >
+                                                    <Box 
+                                                        sx={{
+                                                            width: '8px',
+                                                            height: '8px',
+                                                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                                            borderRadius: '50%',
+                                                            animation: 'pulse 1.5s infinite ease-in-out',
+                                                            animationDelay: '0s',
+                                                            '@keyframes pulse': {
+                                                                '0%, 100%': {
+                                                                    transform: 'scale(0.5)',
+                                                                    opacity: 0.5
+                                                                },
+                                                                '50%': {
+                                                                    transform: 'scale(1)',
+                                                                    opacity: 1
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                    <Box 
+                                                        sx={{
+                                                            width: '8px',
+                                                            height: '8px',
+                                                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                                            borderRadius: '50%',
+                                                            animation: 'pulse 1.5s infinite ease-in-out',
+                                                            animationDelay: '0.3s'
+                                                        }}
+                                                    />
+                                                    <Box 
+                                                        sx={{
+                                                            width: '8px',
+                                                            height: '8px',
+                                                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                                            borderRadius: '50%',
+                                                            animation: 'pulse 1.5s infinite ease-in-out',
+                                                            animationDelay: '0.6s'
+                                                        }}
+                                                    />
+                                                </Box>
+                                                <Typography sx={{ fontWeight: 500, fontSize: '14px' }}>
+                                                    {t('processing')}...
+                                                </Typography>
+                                            </Box>
+                                        ) : (
+                                            `${totalPrice.toLocaleString()}${t('won')} ${t('pay')}`
+                                        )}
+                                        
+                                        {/* 물결 효과 */}
+                                        {isProcessingPayment && (
+                                            <Box
+                                                sx={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    right: 0,
+                                                    bottom: 0,
+                                                    backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%)',
+                                                    animation: 'wave 1.5s infinite linear',
+                                                    '@keyframes wave': {
+                                                        '0%': {
+                                                            transform: 'translateX(-100%)'
+                                                        },
+                                                        '100%': {
+                                                            transform: 'translateX(100%)'
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                        )}
                                     </Button>
                                 </Box>
                             ) : isPaymentComplete ? (
@@ -1559,7 +1816,7 @@ const Map = () => {
                                     </Typography>
 
                                     <Typography sx={{color: 'text.secondary', mb: 3, fontSize: '15px'}}>
-                                        {t('reservationSuccess')} {selectedPlace.place_name}{t('hasBeenCompleted')}
+                                        {selectedPlace.place_name}{t('hasBeenCompleted')}{t('reservationSuccess')}
                                     </Typography>
 
                                     <Box sx={{
@@ -1690,6 +1947,9 @@ const Map = () => {
                                                 cvc: '',
                                                 name: ''
                                             });
+                                            // 검색 결과도 초기화
+                                            setSearchResults([]);
+                                            setSearchKeyword("");
                                         }}
                                     >
                                         {t('confirm')}
@@ -2406,13 +2666,19 @@ const Map = () => {
                                 <ListItem
                                     key={index}
                                     onClick={() => {
+                                        // 이미 결제가 완료된 상태라면 다른 장소를 선택하지 못하도록 함
+                                        if (isPaymentComplete) {
+                                            return;
+                                        }
+                                        
                                         setSelectedPlace(place);
                                         const moveLatLng = new window.kakao.maps.LatLng(place.y, place.x);
                                         mapInstance?.setCenter(moveLatLng);
                                     }}
                                     sx={{
                                         p: 2,
-                                        cursor: 'pointer' // button 대신 커서 스타일로 대체
+                                        cursor: isPaymentComplete ? 'default' : 'pointer',
+                                        opacity: isPaymentComplete ? 0.5 : 1
                                     }}
                                 >
                                     <ListItemText

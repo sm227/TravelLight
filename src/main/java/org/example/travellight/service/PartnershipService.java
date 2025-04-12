@@ -28,9 +28,26 @@ public class PartnershipService {
     public Partnership createPartnership(PartnershipDto dto) {
         Partnership partnership = new Partnership();
 
-        // 주소 → 위도/경도 변환
-        double[] latLng = addressTsService.getCoordinatesFromAddress(dto.getAddress());
-        System.out.println("변환된 좌표: [" + latLng[0] + ", " + latLng[1] + "]");
+        // 프론트엔드에서 전달된 위도/경도 값 사용
+        double latitude = dto.getLatitude();
+        double longitude = dto.getLongitude();
+        
+        // 위경도가 전달되지 않았거나 0인 경우에만 API로 변환 시도
+        if (latitude == 0 || longitude == 0) {
+            try {
+                System.out.println("프론트엔드에서 좌표가 전달되지 않아 API로 변환 시도");
+                // 주소 → 위도/경도 변환
+                double[] latLng = addressTsService.getCoordinatesFromAddress(dto.getAddress());
+                latitude = latLng[0];
+                longitude = latLng[1];
+                System.out.println("API 변환 좌표: [" + latitude + ", " + longitude + "]");
+            } catch (Exception e) {
+                System.out.println("API 좌표 변환 실패, 오류: " + e.getMessage());
+                throw new RuntimeException("주소를 좌표로 변환할 수 없습니다: " + e.getMessage());
+            }
+        } else {
+            System.out.println("프론트엔드에서 전달된 좌표 사용: [" + latitude + ", " + longitude + "]");
+        }
 
         // 기본 정보 설정
         partnership.setBusinessName(dto.getBusinessName());
@@ -40,26 +57,14 @@ public class PartnershipService {
         partnership.setAddress(dto.getAddress());
 
         // 좌표 설정
-        partnership.setLatitude(latLng[0]); // 위도
-        partnership.setLongitude(latLng[1]); // 경도
+        partnership.setLatitude(latitude);
+        partnership.setLongitude(longitude);
 
         partnership.setBusinessType(dto.getBusinessType());
         partnership.setSpaceSize(dto.getSpaceSize());
         partnership.setAdditionalInfo(dto.getAdditionalInfo());
         partnership.setAgreeTerms(dto.isAgreeTerms());
         partnership.setIs24Hours(dto.isIs24Hours());
-
-        // 좌표 설정 전에 배열 길이 확인
-        if (latLng.length >= 2) {
-            partnership.setLatitude(latLng[0]);
-            partnership.setLongitude(latLng[1]);
-        } else {
-            // 좌표를 얻지 못한 경우 기본값 설정이나 오류 처리
-            partnership.setLatitude(0.0);  // 기본값 또는 적절한 처리
-            partnership.setLongitude(0.0); // 기본값 또는 적절한 처리
-            // 또는 오류 처리
-            // throw new RuntimeException("주소에서 좌표를 얻을 수 없습니다: " + dto.getAddress());
-        }
 
         // 영업시간 정보 변환 및 설정
         Map<String, String> businessHoursMap = new HashMap<>();

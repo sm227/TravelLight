@@ -166,7 +166,9 @@ const resources = {
       operatingHoursFormat: '* Operating hours: %s ~ %s',
       operatingHoursDefault: '* Operating hours: 09:00 ~ 18:00',
       operatingHoursWarning: ' (Please set within operating hours)',
-      setWithinOperatingHours: 'Please set within operating hours'
+      setWithinOperatingHours: 'Please set within operating hours',
+      processing: "Processing",
+      processingPayment: "Processing Payment"
     }
   },
   ko: {
@@ -322,12 +324,15 @@ const resources = {
       storageTime: '보관 시간',
       startTime: '시작 시간',
       endTime: '종료 시간',
-      operatingHours: '운영 시간: 00:00 ~ 23:59',
+      operatingHoursFormat: '* 운영 시간 : %s ~ %s',
+      operatingHours: '운영 시간 : 00:00 ~ 23:59',
       selectDateAndTime: '보관 날짜와 시간을 선택해주세요',
       totalAmount: '총 금액',
       selectAllDateAndTime: '날짜와 시간을 모두 선택해주세요',
       storeLocation: '매장 위치',
-      won: '원'
+      won: '원',
+      processing: "처리 중",
+      processingPayment: "결제를 처리하고 있습니다"
     }
   }
 };
