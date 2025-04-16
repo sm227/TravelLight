@@ -15,7 +15,8 @@ import {
     FormControl,
     InputLabel,
     Snackbar,
-    Alert
+    Alert,
+    Stack
 } from "@mui/material";
 import {Typography} from "@mui/material";
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -47,6 +48,32 @@ interface KakaoMap {
     panTo(position: KakaoLatLng): void;
 
     getCenter(): KakaoLatLng;
+}
+
+// 제휴점 정보 타입 정의
+interface Partnership {
+    id: number;
+    businessName: string;
+    ownerName: string;
+    email: string;
+    phone: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    businessType: string;
+    spaceSize: string;
+    additionalInfo: string;
+    agreeTerms: boolean;
+    is24Hours: boolean;
+    businessHours: Record<string, BusinessHourDto>;
+    status: string;
+}
+
+// 비즈니스 시간 타입 정의
+interface BusinessHourDto {
+    enabled: boolean;
+    open: string;
+    close: string;
 }
 
 const Map = () => {
@@ -88,6 +115,7 @@ const Map = () => {
         name: ''
     });
     const [isPaymentComplete, setIsPaymentComplete] = useState(false);
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false); // 결제 진행 상태 추가
     const [storageDuration, setStorageDuration] = useState("day");
     const [storageDate, setStorageDate] = useState("");
     const [storageStartTime, setStorageStartTime] = useState("");
@@ -156,6 +184,12 @@ const Map = () => {
         '22:30', '23:00', '23:30'
     ];
 
+    // 제휴점 데이터 상태 추가
+    const [partnerships, setPartnerships] = useState<Partnership[]>([]);
+    const [partnershipMarkers, setPartnershipMarkers] = useState<any[]>([]);
+    const [partnershipOverlays, setPartnershipOverlays] = useState<any[]>([]);
+
+    // useEffect 내부 코드 수정 - 마커 생성 부분
     useEffect(() => {
         const container = document.getElementById("map") as HTMLElement;
         const options = {
@@ -164,35 +198,8 @@ const Map = () => {
         };
         const map = new window.kakao.maps.Map(container, options);
         setMapInstance(map);
-        // const infowindow = new window.kakao.maps.InfoWindow({ zIndex: 1 });
-        let bankMarkers: any[] = [];
-        let bankOverlays: any[] = [];
-        let storeMarkers: any[] = [];
-        let storeOverlays: any[] = [];
         let currentInfoOverlay: any = null;
         let selectedMarkerElement: HTMLElement | null = null; //마커 선택 요소 추적
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    const locPosition = new window.kakao.maps.LatLng(lat, lon);
-                    setUserPosition(locPosition);
-                    displayUserMarker(locPosition);
-                    map.setCenter(locPosition);
-                    searchBanks(map);
-                    searchStores(map);
-                },
-                () => {
-                    searchBanks(map);
-                    searchStores(map);
-                }
-            );
-        } else {
-            searchBanks(map);
-            searchStores(map);
-        }
 
         function displayUserMarker(locPosition: any) {
             const markerElement = document.createElement("div");
@@ -210,129 +217,12 @@ const Map = () => {
             customOverlay.setMap(map);
         }
 
-        function searchBanks(map: any) {
-            const ps = new window.kakao.maps.services.Places(map);
-            ps.categorySearch("BK9", placesSearchCB, {useMapBounds: true});
-        }
-
-        function placesSearchCB(data: any, status: any) {
-            if (status === window.kakao.maps.services.Status.OK) {
-                clearBankMarkers();
-                // ATM 필터링 (place_name에 'ATM' 또는 '에이티엠'이 포함되지 않은 것만 표시)
-                const filteredData = data.filter((place: any) =>
-                    !place.place_name.toUpperCase().includes('ATM') &&
-                    !place.place_name.includes('에이티엠')
-                );
-                for (let i = 0; i < filteredData.length; i++) {
-                    displayBankMarker(filteredData[i]);
-                }
-            }
-        }
-
-        function displayBankMarker(place: any) {
-            const markerPosition = new window.kakao.maps.LatLng(place.y, place.x);
-
-            // 기본 마커 대신 커스텀 오버레이 사용
-            const markerElement = document.createElement("div");
-            markerElement.className = "bank-marker-container";
-            markerElement.innerHTML = `
-                <div class="bank-marker">
-                    <img src="/carrier.png" alt="은행" class="marker-icon" />
-                </div>
-            `;
-
-            // 커스텀 오버레이 생성
-            const markerOverlay = new window.kakao.maps.CustomOverlay({
-                position: markerPosition,
-                content: markerElement,
-                yAnchor: 1,
-                zIndex: 1
-            });
-
-            // 맵에 오버레이 표시
-            markerOverlay.setMap(map);
-
-            // 상태 업데이트로 오버레이 배열 관리
-            setBankOverlays(prev => [...prev, markerOverlay]);
-
-            // 은행명 처리 - 길이 제한 증가
-            let bankName = place.place_name;
-            if (bankName.length > 20) {
-                bankName = bankName.substring(0, 19) + '...';
-            }
-
-            // 은행의 상세 정보 오버레이
-            const infoContent = document.createElement("div");
-            infoContent.className = "bank-info-overlay";
-            infoContent.innerHTML = `
-                <div class="info-window">
-                    <div class="info-content">
-                        <div class="title">
-                            <span class="bank-name">${bankName}</span>
-                            <div class="close" onclick="this.parentElement.parentElement.parentElement.parentElement.style.display='none'" title="${t('close')}">×</div>
-                        </div>
-                        <div class="body">
-                            <div class="desc">
-                                <div class="ellipsis">${place.address_name}</div>
-                                <div class="phone">${place.phone || t('noPhoneNumber')}</div>
-                                <div class="hours">${place.opening_hours || t('bankHours')}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="info-tail"></div>
-                </div>
-            `;
-
-            const infoOverlay = new window.kakao.maps.CustomOverlay({
-                content: infoContent,
-                position: markerPosition,
-                yAnchor: 1.5,
-                zIndex: 2
-            });
-
-            // 클릭 이벤트 처리
-            markerElement.addEventListener('click', function () {
-                // 선택된 마커가 있으면 원래 색상으로 돌리기
-                if (selectedMarkerElement) {
-                    const prevMarker = selectedMarkerElement.querySelector('.bank-marker');
-                    if (prevMarker) {
-                        prevMarker.classList.remove('selected');
-                    }
-                }
-                // 현재 마커를 선택 상태로 변경
-                const currentMarker = markerElement.querySelector('.bank-marker');
-                if (currentMarker) {
-                    currentMarker.classList.add('selected');
-                }
-                // 현재 마커를 선택된 마커로 설정
-                selectedMarkerElement = markerElement;
-
-                if (currentInfoOverlay) {
-                    currentInfoOverlay.setMap(null);
-                }
-                infoOverlay.setMap(map);
-                currentInfoOverlay = infoOverlay;
-
-                // 사이드바에 정보 표시
-                setSelectedPlace(place);
-                // 사이드바가 닫혀있으면 열기
-                setIsSidebarOpen(true);
-            });
-
-            // 닫기 버튼 클릭 이벤트는 HTML에서 직접 처리됨
-        }
-
-        function clearBankMarkers() {
-            // 오버레이 제거
-            bankOverlays.forEach(overlay => overlay.setMap(null));
-            setBankOverlays([]);
-
-            // 기존 마커도 제거 (혹시 남아있을 경우)
-            for (let marker of bankMarkers) {
-                marker.setMap(null);
-            }
-            bankMarkers = [];
-
+        // 제휴점 마커 제거 함수
+        function clearPartnershipMarkers() {
+            // 기존 오버레이 제거
+            partnershipOverlays.forEach(overlay => overlay.setMap(null));
+            setPartnershipOverlays([]);
+            
             // 현재 정보 오버레이도 제거
             if (currentInfoOverlay) {
                 currentInfoOverlay.setMap(null);
@@ -342,138 +232,219 @@ const Map = () => {
             selectedMarkerElement = null;
         }
 
-        function searchStores(map: any) {
-            const ps = new window.kakao.maps.services.Places(map);
-            ps.categorySearch("CS2", storesSearchCB, {useMapBounds: true});
-        }
-
-        function storesSearchCB(data: any, status: any) {
-            if (status === window.kakao.maps.services.Status.OK) {
-                clearStoreMarkers();
-                for (let i = 0; i < data.length; i++) {
-                    displayStoreMarker(data[i]);
+        // 제휴점 데이터 가져오는 함수
+        const fetchPartnerships = async () => {
+            try {
+                const response = await axios.get('/api/partnership');
+                if (response.data.success) {
+                    const partnershipData = response.data.data;
+                    setPartnerships(partnershipData);
+                    
+                    // 기존 마커 제거
+                    clearPartnershipMarkers();
+                    
+                    // 새 제휴점 마커 생성
+                    partnershipData.forEach((partnership: Partnership) => {
+                        displayPartnershipMarker(partnership, map);
+                    });
+                } else {
+                    console.error('제휴점 데이터 가져오기 실패:', response.data.message);
                 }
+            } catch (error) {
+                console.error('제휴점 API 호출 중 오류:', error);
             }
+        };
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    const locPosition = new window.kakao.maps.LatLng(lat, lon);
+                    setUserPosition(locPosition);
+                    displayUserMarker(locPosition);
+                    map.setCenter(locPosition);
+                    
+                    // 제휴점 데이터 가져오기
+                    fetchPartnerships();
+                },
+                () => {
+                    // 제휴점 데이터 가져오기
+                    fetchPartnerships();
+                }
+            );
+        } else {
+            // 제휴점 데이터 가져오기
+            fetchPartnerships();
         }
 
-        function displayStoreMarker(place: any) {
-            const markerPosition = new window.kakao.maps.LatLng(place.y, place.x);
+        // 제휴점 마커 표시 함수
+        function displayPartnershipMarker(partnership: Partnership, map: any) {
+            try {
+                const markerPosition = new window.kakao.maps.LatLng(partnership.latitude, partnership.longitude);
 
-            // 기본 마커 대신 커스텀 오버레이 사용
-            const markerElement = document.createElement("div");
-            markerElement.className = "store-marker-container";
-            markerElement.innerHTML = `
-                <div class="store-marker">
-                    <img src="/carrier.png" alt="편의점" class="marker-icon" />
-                </div>
-            `;
+                // 모든 타입의 마커에 파란색 배경 사용
+                const iconSrc = "/carrier.png"; // 기본 아이콘
 
-            // 커스텀 오버레이 생성
-            const markerOverlay = new window.kakao.maps.CustomOverlay({
-                position: markerPosition,
-                content: markerElement,
-                yAnchor: 1,
-                zIndex: 1
-            });
+                // 기본 마커 대신 커스텀 오버레이 사용
+                const markerElement = document.createElement("div");
+                markerElement.className = "partnership-marker-container";
+                markerElement.innerHTML = `
+                    <div class="partnership-marker">
+                        <img src="${iconSrc}" alt="${partnership.businessName}" class="marker-icon" />
+                    </div>
+                `;
 
-            // 맵에 오버레이 표시
-            markerOverlay.setMap(map);
-            storeOverlays.push(markerOverlay);
+                // 커스텀 오버레이 생성
+                const markerOverlay = new window.kakao.maps.CustomOverlay({
+                    position: markerPosition,
+                    content: markerElement,
+                    yAnchor: 1,
+                    zIndex: 1
+                });
 
-            // 편의점명 처리 - 길이 제한
-            let storeName = place.place_name;
-            if (storeName.length > 20) {
-                storeName = storeName.substring(0, 19) + '...';
-            }
+                // 맵에 오버레이 표시
+                markerOverlay.setMap(map);
+                setPartnershipOverlays(prev => [...prev, markerOverlay]);
 
-            // 편의점의 상세 정보 오버레이
-            const infoContent = document.createElement("div");
-            infoContent.className = "store-info-overlay";
-            infoContent.innerHTML = `
-                <div class="info-window">
-                    <div class="info-content">
-                        <div class="title">
-                            <span class="store-name">${storeName}</span>
-                            <div class="close" onclick="this.parentElement.parentElement.parentElement.parentElement.style.display='none'" title="${t('close')}">×</div>
-                        </div>
-                        <div class="body">
-                            <div class="desc">
-                                <div class="ellipsis">${place.address_name}</div>
-                                <div class="phone">${place.phone || t('noPhoneNumber')}</div>
-                                <div class="hours">${place.opening_hours || t('operatingHours')}</div>
+                // 매장명 처리 - 길이 제한
+                let placeName = partnership.businessName;
+                if (placeName.length > 20) {
+                    placeName = placeName.substring(0, 19) + '...';
+                }
+
+                // 영업시간 정보 가져오기
+                let hours = partnership.is24Hours ? 
+                    "24시간 영업" : 
+                    partnership.businessHours ? 
+                        formatBusinessHours(partnership.businessHours) : 
+                        "영업시간 정보 없음";
+
+                // 매장 상세 정보 오버레이
+                const infoContent = document.createElement("div");
+                infoContent.className = "partnership-info-overlay";
+                infoContent.innerHTML = `
+                    <div class="info-window">
+                        <div class="info-content">
+                            <div class="title">
+                                <span class="partnership-name">${placeName}</span>
+                                <div class="close" onclick="this.parentElement.parentElement.parentElement.parentElement.style.display='none'" title="${t('close')}">×</div>
+                            </div>
+                            <div class="body">
+                                <div class="desc">
+                                    <div class="business-type business-type-${partnership.businessType}">${partnership.businessType}</div>
+                                    <div class="ellipsis">${partnership.address}</div>
+                                    <div class="phone">${partnership.phone || t('noPhoneNumber')}</div>
+                                    <div class="hours">${hours}</div>
+                                </div>
                             </div>
                         </div>
+                        <div class="info-tail"></div>
                     </div>
-                    <div class="info-tail"></div>
-                </div>
-            `;
+                `;
 
-            const infoOverlay = new window.kakao.maps.CustomOverlay({
-                content: infoContent,
-                position: markerPosition,
-                yAnchor: 1.5,
-                zIndex: 2
-            });
+                const infoOverlay = new window.kakao.maps.CustomOverlay({
+                    content: infoContent,
+                    position: markerPosition,
+                    yAnchor: 1.5,
+                    zIndex: 2
+                });
 
-            // 클릭 이벤트 처리
-            markerElement.addEventListener('click', function () {
-                // 선택된 마커가 있으면 원래 색상으로 돌리기
-                if (selectedMarkerElement) {
-                    const prevMarker = selectedMarkerElement.querySelector('.bank-marker, .store-marker');
-                    if (prevMarker) {
-                        prevMarker.classList.remove('selected');
+                // 클릭 이벤트 처리
+                markerElement.addEventListener('click', function () {
+                    // 결제가 완료된 상태면 클릭 이벤트 무시
+                    if (isPaymentComplete) return;
+                    
+                    // 선택된 마커가 있으면 원래 색상으로 돌리기
+                    if (selectedMarkerElement) {
+                        const prevMarker = selectedMarkerElement.querySelector('.partnership-marker');
+                        if (prevMarker) {
+                            prevMarker.classList.remove('selected');
+                        }
                     }
-                }
-                // 현재 마커를 선택 상태로 변경
-                const currentMarker = markerElement.querySelector('.store-marker');
-                if (currentMarker) {
-                    currentMarker.classList.add('selected');
-                }
-                // 현재 마커를 선택된 마커로 설정
-                selectedMarkerElement = markerElement;
+                    // 현재 마커를 선택 상태로 변경
+                    const currentMarker = markerElement.querySelector('.partnership-marker');
+                    if (currentMarker) {
+                        currentMarker.classList.add('selected');
+                    }
+                    // 현재 마커를 선택된 마커로 설정
+                    selectedMarkerElement = markerElement;
 
-                if (currentInfoOverlay) {
-                    currentInfoOverlay.setMap(null);
-                }
-                infoOverlay.setMap(map);
-                currentInfoOverlay = infoOverlay;
+                    if (currentInfoOverlay) {
+                        currentInfoOverlay.setMap(null);
+                    }
+                    infoOverlay.setMap(map);
+                    currentInfoOverlay = infoOverlay;
 
-                // 사이드바에 정보 표시
-                setSelectedPlace(place);
-                // 사이드바가 닫혀있으면 열기
-                setIsSidebarOpen(true);
-            });
+                    // 사이드바에 정보 표시 - partnership 객체를 selectedPlace로 변환
+                    const placeData = {
+                        place_name: partnership.businessName,
+                        address_name: partnership.address,
+                        phone: partnership.phone,
+                        x: partnership.longitude.toString(),
+                        y: partnership.latitude.toString(),
+                        // 제휴점 타입에 따라 카테고리 코드 부여
+                        category_group_code: getCategoryCodeFromBusinessType(partnership.businessType),
+                        opening_hours: hours,
+                        business_type: partnership.businessType // 비즈니스 타입 추가
+                    };
+                    setSelectedPlace(placeData);
+                    // 사이드바가 닫혀있으면 열기
+                    setIsSidebarOpen(true);
+                });
+            } catch (error) {
+                console.error("제휴점 마커 표시 중 오류:", error);
+            }
         }
 
-        function clearStoreMarkers() {
-            // 오버레이 제거
-            for (let overlay of storeOverlays) {
-                overlay.setMap(null);
+        // 비즈니스 타입에 따른 카테고리 코드 반환
+        function getCategoryCodeFromBusinessType(businessType: string): string {
+            switch (businessType) {
+                case "카페": return "CE7";
+                case "편의점": return "CS2"; 
+                case "숙박": return "AD5";
+                case "식당": return "FD6";
+                default: return "ETC";
             }
-            storeOverlays = [];
-
-            // 기존 마커도 제거 (혹시 남아있을 경우)
-            for (let marker of storeMarkers) {
-                marker.setMap(null);
-            }
-            storeMarkers = [];
         }
 
+        // 영업 시간 포맷팅 함수
+        function formatBusinessHours(businessHours: Record<string, BusinessHourDto>): string {
+            if (!businessHours || Object.keys(businessHours).length === 0) {
+                return "영업시간 정보 없음";
+            }
+            
+            // 요일별 영업 시간 중 첫번째 항목만 표시 (간단하게)
+            const firstDayKey = Object.keys(businessHours)[0];
+            const hourData = businessHours[firstDayKey];
+            
+            if (!hourData.enabled) {
+                return "휴무일";
+            }
+            
+            return `${hourData.open} - ${hourData.close}`;
+        }
+
+        // 지도 드래그 이벤트 수정 - 마커 관련 코드 제거
         window.kakao.maps.event.addListener(map, "dragend", () => {
+            // 결제 완료 상태에서는 새 마커를 불러오지 않음
+            if (isPaymentComplete) return;
+            
             setIsMapMoved(true);
-            searchBanks(map);
-            searchStores(map);
         });
 
-        // 지도 클릭 시 열려있는 오버레이 닫기
+        // 지도 클릭 이벤트 수정
         window.kakao.maps.event.addListener(map, "click", () => {
+            // 결제 완료 상태에서는 반응하지 않음
+            if (isPaymentComplete) return;
+            
             if (currentInfoOverlay) {
                 currentInfoOverlay.setMap(null);
                 currentInfoOverlay = null;
             }
             // 선택된 마커 스타일 초기화
             if (selectedMarkerElement) {
-                const marker = selectedMarkerElement.querySelector('.bank-marker, .store-marker');
+                const marker = selectedMarkerElement.querySelector('.partnership-marker');
                 if (marker) {
                     marker.classList.remove('selected');
                 }
@@ -486,10 +457,9 @@ const Map = () => {
             if (currentInfoOverlay) {
                 currentInfoOverlay.setMap(null);
             }
-            clearBankMarkers();
-            clearStoreMarkers();
+            clearPartnershipMarkers();
         };
-    }, []);
+    }, [isPaymentComplete]); // isPaymentComplete 의존성 추가
 
     // 현재 위치로 돌아가는 함수를 useCallback으로 메모이제이션
     const returnToMyLocation = useCallback(() => {
@@ -515,31 +485,29 @@ const Map = () => {
 
     // 영업 시간 체크 함수 수정
     const isOpenDuringTime = (place: any, startTime: string, endTime: string) => {
-        // 은행의 경우 (기본 영업시간 09:00-16:00)
-        if (place.category_group_code === "BK9") {
+        // 제휴점의 경우 비즈니스 타입에 따라 영업시간 확인
+        if (place.category_group_code === "CS2") { // 편의점
+            // 24시간 영업 편의점으로 가정
+            return true;
+        } else if (place.category_group_code === "CE7") { // 카페
             const [startHour] = startTime.split(':').map(Number);
             const [endHour] = endTime.split(':').map(Number);
-
-            // 시작 시간이 9시 이전이거나 종료 시간이 16시 이후면 false
-            return startHour >= 9 && endHour <= 16;
-        }
-
-        // 편의점의 경우
-        if (place.category_group_code === "CS2") {
-            // 24시간 영업 편의점
-            if (place.place_name.includes("GS25") ||
-                place.place_name.includes("CU") ||
-                place.place_name.includes("세븐일레븐")) {
-                return true;
-            }
-            // 기타 편의점은 09:00-22:00로 가정
+            // 카페 기본 영업시간 08:00-22:00
+            return startHour >= 8 && endHour <= 22;
+        } else if (place.category_group_code === "FD6") { // 식당
             const [startHour] = startTime.split(':').map(Number);
             const [endHour] = endTime.split(':').map(Number);
-
-            return startHour >= 9 && endHour <= 22;
+            // 식당 기본 영업시간 11:00-22:00
+            return startHour >= 11 && endHour <= 22;
+        } else if (place.category_group_code === "AD5") { // 숙박
+            // 숙박 시설은 24시간 영업으로 가정
+            return true;
         }
 
-        return false;
+        // 기본 영업시간 09:00-18:00
+        const [startHour] = startTime.split(':').map(Number);
+        const [endHour] = endTime.split(':').map(Number);
+        return startHour >= 9 && endHour <= 18;
     };
 
     // 검색 결과 필터링 함수
@@ -547,7 +515,7 @@ const Map = () => {
         return places.filter(place => isOpenDuringTime(place, startTime, endTime));
     };
 
-    // searchPlaces 함수 수정
+    // searchPlaces 함수 수정 - 기존 코드 유지하되 필요 없는 부분 제거
     const searchPlaces = () => {
         if (!searchKeyword.trim()) return;
 
@@ -559,50 +527,58 @@ const Map = () => {
                 const moveLatLng = new window.kakao.maps.LatLng(firstResult.y, firstResult.x);
                 mapInstance?.setCenter(moveLatLng);
 
-                const searchNearbyPlaces = () => {
-                    const ps = new window.kakao.maps.services.Places();
-                    let combinedResults: any[] = [];
+                // 검색 결과를 partnerships에서 필터링
+                const filteredPartnerships = partnerships.filter(p => {
+                    // 검색어와 비즈니스 이름 또는 주소가 부분적으로 일치하는지 확인
+                    return p.businessName.includes(searchKeyword) || 
+                           p.address.includes(searchKeyword);
+                });
 
-                    ps.categorySearch(
-                        "BK9",
-                        (bankData: any, bankStatus: any) => {
-                            if (bankStatus === window.kakao.maps.services.Status.OK) {
-                                const filteredBankData = bankData.filter((place: any) =>
-                                    !place.place_name.toUpperCase().includes('ATM') &&
-                                    !place.place_name.includes('에이티엠')
-                                );
-                                // 시간에 따라 은행 필터링
-                                const timeFilteredBanks = filterPlacesByTime(filteredBankData, startTime, endTime);
-                                combinedResults = [...timeFilteredBanks];
+                // partnerships를 place 형식으로 변환하여 검색 결과에 추가
+                const convertedPlaces = filteredPartnerships.map(p => ({
+                    place_name: p.businessName,
+                    address_name: p.address,
+                    phone: p.phone,
+                    category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+                    x: p.longitude.toString(),
+                    y: p.latitude.toString(),
+                    opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+                }));
 
-                                ps.categorySearch(
-                                    "CS2",
-                                    (storeData: any, storeStatus: any) => {
-                                        if (storeStatus === window.kakao.maps.services.Status.OK) {
-                                            // 시간에 따라 편의점 필터링
-                                            const timeFilteredStores = filterPlacesByTime(storeData, startTime, endTime);
-                                            combinedResults = [...combinedResults, ...timeFilteredStores];
-                                            setSearchResults(combinedResults);
-                                            setSelectedPlace(null);
-                                        }
-                                    },
-                                    {
-                                        location: moveLatLng,
-                                        radius: 1000
-                                    }
-                                );
-                            }
-                        },
-                        {
-                            location: moveLatLng,
-                            radius: 1000
-                        }
-                    );
-                };
-
-                setTimeout(searchNearbyPlaces, 300);
+                // 시간에 따른 필터링
+                const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
+                setSearchResults(timeFilteredPlaces);
+                setSelectedPlace(null);
             }
         });
+    };
+
+    // 비즈니스 타입에 따른 카테고리 코드 반환 함수
+    const getCategoryCodeFromBusinessType = (businessType: string): string => {
+        switch (businessType) {
+            case "카페": return "CE7";
+            case "편의점": return "CS2"; 
+            case "숙박": return "AD5";
+            case "식당": return "FD6";
+            default: return "ETC";
+        }
+    };
+
+    // 영업 시간 포맷팅 함수
+    const formatBusinessHours = (businessHours: Record<string, BusinessHourDto> | undefined): string => {
+        if (!businessHours || Object.keys(businessHours).length === 0) {
+            return "영업시간 정보 없음";
+        }
+        
+        // 요일별 영업 시간 중 첫번째 항목만 표시 (간단하게)
+        const firstDayKey = Object.keys(businessHours)[0];
+        const hourData = businessHours[firstDayKey];
+        
+        if (!hourData.enabled) {
+            return "휴무일";
+        }
+        
+        return `${hourData.open} - ${hourData.close}`;
     };
 
     // 시간 옵션 생성 함수
@@ -941,12 +917,27 @@ const Map = () => {
     // Modified: Submit reservation data to server when payment is completed
     const completePayment = async () => {
         if (isPaymentFormValid()) {
-            const result = await submitReservation();
-            
-            if (result) {
-                // Payment and reservation success
-                setIsPaymentComplete(true);
-                setIsPaymentOpen(false);
+            try {
+                // 결제 진행 상태 활성화
+                setIsProcessingPayment(true);
+                
+                // 약간의 지연 시간을 두어 UX 향상
+                const result = await submitReservation();
+                
+                if (result) {
+                    // Payment and reservation success
+                    setIsPaymentComplete(true);
+                    setIsPaymentOpen(false);
+                    
+                    // 여기서 예약 완료 후 다른 장소를 선택하지 못하도록 설정
+                    // 결제 완료 시 검색 결과 및 지도 상태를 초기화하지만, selectedPlace는 유지
+                    setSearchResults([]);
+                }
+            } catch (error) {
+                console.error("결제 처리 중 오류 발생:", error);
+            } finally {
+                // 결제 진행 상태 비활성화
+                setIsProcessingPayment(false);
             }
         }
     };
@@ -1025,8 +1016,9 @@ const Map = () => {
                                 value={searchKeyword}
                                 onChange={(e) => setSearchKeyword(e.target.value)}
                                 onKeyPress={(e) => {
-                                    if (e.key === 'Enter') searchPlaces();
+                                    if (e.key === 'Enter' && !isPaymentComplete) searchPlaces();
                                 }}
+                                disabled={isPaymentComplete}
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: '16px',
@@ -1042,6 +1034,10 @@ const Map = () => {
                                             '& fieldset': {
                                                 border: 'none',
                                             }
+                                        },
+                                        '&.Mui-disabled': {
+                                            opacity: 0.5,
+                                            backgroundColor: '#f0f0f0'
                                         }
                                     }
                                 }}
@@ -1050,6 +1046,7 @@ const Map = () => {
                                 variant="contained"
                                 onClick={searchPlaces}
                                 disableRipple
+                                disabled={isPaymentComplete}
                                 sx={{
                                     minWidth: '80px',
                                     height: '56px',
@@ -1067,12 +1064,10 @@ const Map = () => {
                                     '&:focus': {
                                         outline: 'none',
                                     },
-                                    '&.Mui-focusVisible': {
-                                        outline: 'none',
-                                        boxShadow: 'none',
-                                    },
-                                    '&:active': {
-                                        boxShadow: 'none',
+                                    '&.Mui-disabled': {
+                                        opacity: 0.5,
+                                        backgroundColor: '#e0e0e0',
+                                        color: '#9e9e9e'
                                     }
                                 }}
                             >
@@ -1257,6 +1252,20 @@ const Map = () => {
                                     <Typography variant="h6" sx={{mb: 2, fontWeight: 600}}>
                                         {selectedPlace.place_name}
                                     </Typography>
+                                    {selectedPlace.business_type && (
+                                        <Box sx={{
+                                            display: 'inline-block',
+                                            mb: 2,
+                                            padding: '4px 10px',
+                                            borderRadius: '20px',
+                                            fontSize: '14px',
+                                            fontWeight: 500
+                                        }}
+                                        className={`business-type-${selectedPlace.business_type}`}
+                                        >
+                                            {selectedPlace.business_type}
+                                        </Box>
+                                    )}
                                     <Typography sx={{color: 'text.secondary', mb: 1}}>
                                         {selectedPlace.address_name}
                                     </Typography>
@@ -1330,8 +1339,145 @@ const Map = () => {
                                     backgroundColor: '#f8f9fa',
                                     borderRadius: '20px',
                                     p: 3,
-                                    transition: 'all 0.2s ease'
+                                    transition: 'all 0.2s ease',
+                                    position: 'relative' // position relative 추가
                                 }}>
+                                    {/* 결제 중 오버레이 추가 */}
+                                    {isProcessingPayment && (
+                                        <Box
+                                            sx={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                zIndex: 10,
+                                                borderRadius: '20px'
+                                            }}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    gap: 2
+                                                }}
+                                            >
+                                                {/* 모던한 로딩 스피너 */}
+                                                <Box
+                                                    sx={{
+                                                        width: '56px',
+                                                        height: '56px',
+                                                        position: 'relative',
+                                                        mb: 1
+                                                    }}
+                                                >
+                                                    {/* 첫 번째 원 */}
+                                                    <Box
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            width: '100%',
+                                                            height: '100%',
+                                                            border: '3px solid transparent',
+                                                            borderTopColor: '#1a73e8',
+                                                            borderRadius: '50%',
+                                                            animation: 'spinClockwise 1.2s linear infinite'
+                                                        }}
+                                                    />
+                                                    
+                                                    {/* 두 번째 원 */}
+                                                    <Box
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            top: '8px',
+                                                            left: '8px',
+                                                            right: '8px',
+                                                            bottom: '8px',
+                                                            border: '3px solid transparent',
+                                                            borderTopColor: '#4285f4',
+                                                            borderRadius: '50%',
+                                                            animation: 'spinCounterClockwise 1.8s linear infinite'
+                                                        }}
+                                                    />
+                                                    
+                                                    {/* 세 번째 원 */}
+                                                    <Box
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            top: '16px',
+                                                            left: '16px',
+                                                            right: '16px',
+                                                            bottom: '16px',
+                                                            border: '3px solid transparent',
+                                                            borderTopColor: '#1a73e8',
+                                                            borderRadius: '50%',
+                                                            animation: 'spinClockwise 1.5s linear infinite'
+                                                        }}
+                                                    />
+                                                    
+                                                    {/* 애니메이션 키프레임 스타일 */}
+                                                    <Box
+                                                        sx={{
+                                                            '@keyframes spinClockwise': {
+                                                                '0%': { transform: 'rotate(0deg)' },
+                                                                '100%': { transform: 'rotate(360deg)' }
+                                                            },
+                                                            '@keyframes spinCounterClockwise': {
+                                                                '0%': { transform: 'rotate(0deg)' },
+                                                                '100%': { transform: 'rotate(-360deg)' }
+                                                            }
+                                                        }}
+                                                    />
+                                                </Box>
+                                                
+                                                {/* 텍스트 메시지 */}
+                                                <Typography
+                                                    sx={{
+                                                        fontWeight: 500,
+                                                        color: '#1a73e8',
+                                                        fontSize: '15px',
+                                                        display: 'flex',
+                                                        alignItems: 'center'
+                                                    }}
+                                                >
+                                                    {t('processingPayment')}
+                                                    <Box
+                                                        component="span"
+                                                        sx={{
+                                                            display: 'inline-flex',
+                                                            ml: 0.5,
+                                                            '& > span': {
+                                                                width: '4px',
+                                                                height: '4px',
+                                                                margin: '0 1px',
+                                                                backgroundColor: '#1a73e8',
+                                                                borderRadius: '50%',
+                                                                display: 'inline-block'
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Box component="span" sx={{ animation: 'dotPulse 1.5s infinite ease-in-out', animationDelay: '0s' }} />
+                                                        <Box component="span" sx={{ animation: 'dotPulse 1.5s infinite ease-in-out', animationDelay: '0.2s' }} />
+                                                        <Box component="span" sx={{ animation: 'dotPulse 1.5s infinite ease-in-out', animationDelay: '0.4s' }} />
+                                                        <Box
+                                                            sx={{
+                                                                '@keyframes dotPulse': {
+                                                                    '0%, 100%': { transform: 'scale(0.5)', opacity: 0.5 },
+                                                                    '50%': { transform: 'scale(1)', opacity: 1 }
+                                                                }
+                                                            }}
+                                                        />
+                                                    </Box>
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    )}
+                                    
                                     <Box sx={{
                                         display: 'flex',
                                         alignItems: 'center',
@@ -1519,12 +1665,99 @@ const Map = () => {
                                             },
                                             '&:focus': {
                                                 outline: 'none',
-                                            }
+                                            },
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            transition: 'all 0.3s ease',
                                         }}
-                                        disabled={!isPaymentFormValid()}
+                                        disabled={!isPaymentFormValid() || isProcessingPayment}
                                         onClick={completePayment}
                                     >
-                                        {totalPrice.toLocaleString()}{t('won')} {t('pay')}
+                                        {isProcessingPayment ? (
+                                            <Box sx={{ 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                justifyContent: 'center',
+                                                gap: 1.5,
+                                                position: 'relative'
+                                            }}>
+                                                <Box 
+                                                    sx={{
+                                                        display: 'flex',
+                                                        gap: 0.5
+                                                    }}
+                                                >
+                                                    <Box 
+                                                        sx={{
+                                                            width: '8px',
+                                                            height: '8px',
+                                                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                                            borderRadius: '50%',
+                                                            animation: 'pulse 1.5s infinite ease-in-out',
+                                                            animationDelay: '0s',
+                                                            '@keyframes pulse': {
+                                                                '0%, 100%': {
+                                                                    transform: 'scale(0.5)',
+                                                                    opacity: 0.5
+                                                                },
+                                                                '50%': {
+                                                                    transform: 'scale(1)',
+                                                                    opacity: 1
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                    <Box 
+                                                        sx={{
+                                                            width: '8px',
+                                                            height: '8px',
+                                                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                                            borderRadius: '50%',
+                                                            animation: 'pulse 1.5s infinite ease-in-out',
+                                                            animationDelay: '0.3s'
+                                                        }}
+                                                    />
+                                                    <Box 
+                                                        sx={{
+                                                            width: '8px',
+                                                            height: '8px',
+                                                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                                            borderRadius: '50%',
+                                                            animation: 'pulse 1.5s infinite ease-in-out',
+                                                            animationDelay: '0.6s'
+                                                        }}
+                                                    />
+                                                </Box>
+                                                <Typography sx={{ fontWeight: 500, fontSize: '14px' }}>
+                                                    {t('processing')}...
+                                                </Typography>
+                                            </Box>
+                                        ) : (
+                                            `${totalPrice.toLocaleString()}${t('won')} ${t('pay')}`
+                                        )}
+                                        
+                                        {/* 물결 효과 */}
+                                        {isProcessingPayment && (
+                                            <Box
+                                                sx={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    right: 0,
+                                                    bottom: 0,
+                                                    backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%)',
+                                                    animation: 'wave 1.5s infinite linear',
+                                                    '@keyframes wave': {
+                                                        '0%': {
+                                                            transform: 'translateX(-100%)'
+                                                        },
+                                                        '100%': {
+                                                            transform: 'translateX(100%)'
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                        )}
                                     </Button>
                                 </Box>
                             ) : isPaymentComplete ? (
@@ -1559,7 +1792,7 @@ const Map = () => {
                                     </Typography>
 
                                     <Typography sx={{color: 'text.secondary', mb: 3, fontSize: '15px'}}>
-                                        {t('reservationSuccess')} {selectedPlace.place_name}{t('hasBeenCompleted')}
+                                        {selectedPlace.place_name}{t('hasBeenCompleted')}{t('reservationSuccess')}
                                     </Typography>
 
                                     <Box sx={{
@@ -1690,6 +1923,9 @@ const Map = () => {
                                                 cvc: '',
                                                 name: ''
                                             });
+                                            // 검색 결과도 초기화
+                                            setSearchResults([]);
+                                            setSearchKeyword("");
                                         }}
                                     >
                                         {t('confirm')}
@@ -2406,13 +2642,19 @@ const Map = () => {
                                 <ListItem
                                     key={index}
                                     onClick={() => {
+                                        // 이미 결제가 완료된 상태라면 다른 장소를 선택하지 못하도록 함
+                                        if (isPaymentComplete) {
+                                            return;
+                                        }
+                                        
                                         setSelectedPlace(place);
                                         const moveLatLng = new window.kakao.maps.LatLng(place.y, place.x);
                                         mapInstance?.setCenter(moveLatLng);
                                     }}
                                     sx={{
                                         p: 2,
-                                        cursor: 'pointer' // button 대신 커서 스타일로 대체
+                                        cursor: isPaymentComplete ? 'default' : 'pointer',
+                                        opacity: isPaymentComplete ? 0.5 : 1
                                     }}
                                 >
                                     <ListItemText
@@ -2510,6 +2752,69 @@ const Map = () => {
                     {reservationError}
                 </Alert>
             </Snackbar>
+
+            {!selectedPlace && !isReservationOpen && !isPaymentOpen && !isPaymentComplete && searchResults.length > 0 && (
+                <Box>
+                    <Typography variant="h6" sx={{mb: 2, fontWeight: 600}}>
+                        {t('searchResultTitle', {count: searchResults.length})}
+                    </Typography>
+                    <Stack spacing={2}>
+                        {searchResults.map((place, index) => (
+                            <Box
+                                key={index}
+                                onClick={() => setSelectedPlace(place)}
+                                sx={{
+                                    borderRadius: '12px',
+                                    backgroundColor: 'white',
+                                    boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+                                    transition: 'all 0.2s',
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+                                        transform: 'translateY(-2px)',
+                                    },
+                                    p: 2,
+                                }}
+                            >
+                                <Typography variant="subtitle1" sx={{fontWeight: 600}}>
+                                    {place.place_name}
+                                </Typography>
+                                {place.business_type && (
+                                    <Typography 
+                                        sx={{
+                                            borderRadius: '10px', 
+                                            padding: '2px 6px',
+                                            display: 'inline-block',
+                                            fontSize: '12px',
+                                            mb: 1,
+                                            mt: 0.5
+                                        }}
+                                        className={`business-type-${place.business_type}`}
+                                    >
+                                        {place.business_type}
+                                    </Typography>
+                                )}
+                                <Typography variant="body2" color="text.secondary">
+                                    {place.address_name}
+                                </Typography>
+                                <Typography variant="body2" sx={{color: 'primary.main', mt: 1}}>
+                                    {place.phone || t('noPhoneNumber')}
+                                </Typography>
+                                <Typography variant="body2" sx={{color: place.opening_hours?.includes('24시간') ? 'success.main' : 'text.secondary', mt: 0.5}}>
+                                    {place.opening_hours || 
+                                        (place.category_group_code === "BK9" ? 
+                                            t('bankHours') : 
+                                            place.category_group_code === "CS2" ? 
+                                                t('storeHours') : 
+                                                t('noOpeningHours')
+                                        )
+                                    }
+                                </Typography>
+                            </Box>
+                        ))}
+                    </Stack>
+                </Box>
+            )}
         </>
     );
 };
