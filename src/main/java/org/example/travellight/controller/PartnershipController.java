@@ -80,7 +80,7 @@ public class PartnershipController {
 
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updatePartnershipStatus(
-            @PathVariable Long id,
+            @PathVariable(name = "id") Long id,
             @RequestBody Map<String, String> statusUpdate) {
         try {
             String newStatus = statusUpdate.get("status");

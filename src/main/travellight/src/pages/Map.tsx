@@ -237,7 +237,8 @@ const Map = () => {
             try {
                 const response = await axios.get('/api/partnership');
                 if (response.data.success) {
-                    const partnershipData = response.data.data;
+                    const partnershipData = response.data.data.filter((partnership: Partnership) => partnership.status === 'APPROVED');
+                    console.log('제휴점 데이터:', partnershipData);
                     setPartnerships(partnershipData);
                     
                     // 기존 마커 제거

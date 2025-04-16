@@ -29,7 +29,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/register", "/api/users/login", "/api/partnership", 
                                 "/api/reservations/**", "/api/EventStorage", 
                                 "/api/admin/EventStorage/**", 
-                                "/api/users/{userId}", "/api/users/{userId}/password").permitAll()
+                                "/api/users/{userId}", "/api/users/{userId}/password",
+                                "/api/partnership/{id}/status").permitAll()
                 .anyRequest().authenticated()
             );
         
