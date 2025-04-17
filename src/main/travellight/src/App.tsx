@@ -50,6 +50,7 @@ const theme = createTheme({
   },
   typography: {
     fontFamily: [
+      'Pretendard',
       'Noto Sans KR',
       'Roboto',
       'Inter',
