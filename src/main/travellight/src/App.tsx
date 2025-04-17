@@ -30,28 +30,58 @@ import AdminPartnerships from './pages/admin/AdminPartnerships';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2',
-      light: '#63a4ff',
-      dark: '#004ba0',
+      main: '#2E7DF1',
+      light: '#5D9FFF',
+      dark: '#0051BF',
     },
     secondary: {
-      main: '#f50057',
-      light: '#ff5983',
-      dark: '#bb002f',
+      main: '#FF5A5A',
+      light: '#FF8C8C',
+      dark: '#C41D2E',
     },
     background: {
-      default: '#f5f5f5',
-      paper: '#ffffff',
+      default: '#FAFBFC',
+      paper: '#FFFFFF',
+    },
+    text: {
+      primary: '#1A2138',
+      secondary: '#566588',
     },
   },
   typography: {
     fontFamily: [
       'Noto Sans KR',
       'Roboto',
+      'Inter',
       '"Helvetica Neue"',
       'Arial',
       'sans-serif',
     ].join(','),
+    h1: {
+      fontWeight: 700,
+      letterSpacing: '-0.01em',
+    },
+    h2: {
+      fontWeight: 700,
+      letterSpacing: '-0.01em',
+    },
+    h3: {
+      fontWeight: 600,
+      letterSpacing: '-0.01em',
+    },
+    h4: {
+      fontWeight: 600,
+      letterSpacing: '-0.01em',
+    },
+    h5: {
+      fontWeight: 600,
+    },
+    h6: {
+      fontWeight: 600,
+    },
+    button: {
+      fontWeight: 600,
+    },
   },
   components: {
     MuiButton: {
@@ -59,9 +89,43 @@ const theme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 600,
+          borderRadius: 12,
+          padding: '10px 20px',
+          boxShadow: 'none',
+        },
+        contained: {
+          '&:hover': {
+            boxShadow: '0px 4px 12px rgba(46, 125, 241, 0.2)',
+          }
+        }
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+          boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.06)',
+          overflow: 'hidden',
         },
       },
     },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          boxShadow: '0px 2px 16px rgba(0, 0, 0, 0.05)',
+        },
+      },
+    },
+  },
+  shape: {
+    borderRadius: 12,
   },
 });
 
