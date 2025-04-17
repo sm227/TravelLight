@@ -49,6 +49,7 @@ export interface RegisterRequest {
   name: string;
   email: string;
   password: string;
+  role?: string;
 }
 
 export interface LoginRequest {
@@ -65,6 +66,7 @@ export interface UserResponse {
   id: number;
   name: string;
   email: string;
+  role?: string;
 }
 
 export interface ApiResponse<T> {
