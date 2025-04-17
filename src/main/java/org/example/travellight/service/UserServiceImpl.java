@@ -32,6 +32,7 @@ public class UserServiceImpl implements UserService {
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .role(request.getRole() != null ? request.getRole() : org.example.travellight.entity.Role.USER)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -40,6 +41,7 @@ public class UserServiceImpl implements UserService {
                 .id(savedUser.getId())
                 .name(savedUser.getName())
                 .email(savedUser.getEmail())
+                .role(savedUser.getRole())
                 .build();
     }
 
@@ -59,6 +61,7 @@ public class UserServiceImpl implements UserService {
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
+                .role(user.getRole())
                 .build();
     }
     
@@ -101,6 +104,7 @@ public class UserServiceImpl implements UserService {
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
+                .role(user.getRole())
                 .build();
     }
 } 

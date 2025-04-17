@@ -86,6 +86,11 @@ export const userService = {
     return response.data;
   },
   
+  adminLogin: async (data: LoginRequest): Promise<ApiResponse<UserResponse>> => {
+    const response = await api.post<ApiResponse<UserResponse>>('/users/login', data);
+    return response.data;
+  },
+  
   getUserInfo: async (userId: number): Promise<ApiResponse<UserResponse>> => {
     const response = await api.get<ApiResponse<UserResponse>>(`/users/${userId}`);
     return response.data;
