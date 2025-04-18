@@ -331,6 +331,10 @@ const resources = {
       selectAllDateAndTime: '날짜와 시간을 모두 선택해주세요',
       storeLocation: '매장 위치',
       won: '원',
+      storageEndDate: 'End date',
+      operatingHoursDefault: '* Operating hours: 09:00 ~ 18:00',
+      operatingHoursWarning: ' (Please set within operating hours)',
+      setWithinOperatingHours: 'Please set within operating hours',
       processing: "처리 중",
       processingPayment: "결제를 처리하고 있습니다"
     }
@@ -342,10 +346,14 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: 'ko',
+    lng: localStorage.getItem('preferredLanguage') || 'ko',
     fallbackLng: 'ko',
     interpolation: {
       escapeValue: false
+    },
+    detection: {
+      order: ['localStorage', 'navigator'],
+      caches: ['localStorage']
     }
   });
 

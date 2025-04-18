@@ -20,8 +20,11 @@ public class AddressTsService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final PartnershipRepository partnershipRepository;
 
-    @Value("${kakao.rest.api.key}")
-    private String kakaoApiKey;
+    @Value("${naver.maps.client.id}")
+    private String naverClientId;
+
+    @Value("${naver.maps.client.secret}")
+    private String naverClientSecret;
 
     public AddressTsService(PartnershipRepository partnershipRepository) {
         this.partnershipRepository = partnershipRepository;
@@ -30,12 +33,14 @@ public class AddressTsService {
     // 주소 → 위도/경도 변환
     public double[] getCoordinatesFromAddress(String address) {
         System.out.println("주소 변환 시작: " + address);
-        String url = "https://dapi.kakao.com/v2/local/search/address.json?query=" + UriUtils.encode(address, StandardCharsets.UTF_8);
+        String url = "https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=" 
+                    + UriUtils.encode(address, StandardCharsets.UTF_8);
         System.out.println("API URL: " + url);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "KakaoAK " + kakaoApiKey);
-        System.out.println("API 키: " + kakaoApiKey);
+        headers.set("X-NCP-APIGW-API-KEY-ID", naverClientId);
+        headers.set("X-NCP-APIGW-API-KEY", naverClientSecret);
+        System.out.println("API 클라이언트 ID: " + naverClientId);
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {
@@ -45,14 +50,14 @@ public class AddressTsService {
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 JSONObject body = new JSONObject(response.getBody());
-                JSONArray documents = body.getJSONArray("documents");
+                JSONArray addresses = body.getJSONArray("addresses");
 
-                System.out.println("검색 결과 수: " + documents.length());
+                System.out.println("검색 결과 수: " + addresses.length());
 
-                if (documents.length() > 0) {
-                    JSONObject location = documents.getJSONObject(0);
-                    double x = location.getDouble("x"); // 경도
+                if (addresses.length() > 0) {
+                    JSONObject location = addresses.getJSONObject(0);
                     double y = location.getDouble("y"); // 위도
+                    double x = location.getDouble("x"); // 경도
                     System.out.println("좌표 변환 완료: [위도=" + y + ", 경도=" + x + "]");
                     return new double[]{y, x};
                 } else {
@@ -60,10 +65,10 @@ public class AddressTsService {
                     throw new RuntimeException("주소에 해당하는 좌표를 찾을 수 없습니다: " + address);
                 }
             } else {
-                throw new RuntimeException("카카오 API 응답이 유효하지 않습니다: " + response.getStatusCode());
+                throw new RuntimeException("네이버 API 응답이 유효하지 않습니다: " + response.getStatusCode());
             }
         } catch (Exception e) {
-            System.out.println("카카오 API 호출 중 오류 발생: " + e.getMessage());
+            System.out.println("네이버 API 호출 중 오류 발생: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("좌표 변환 중 오류가 발생했습니다: " + e.getMessage());
         }
