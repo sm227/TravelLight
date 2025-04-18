@@ -1,8 +1,9 @@
-import {useEffect, useState, useCallback} from "react";
+import {useEffect, useState, useCallback, useRef} from "react";
 import {Box} from "@mui/material";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import "../MapButton.css";
+import "../NaverMarker.css"; // 새로 만든 CSS 파일 추가
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import {
     TextField,
@@ -32,22 +33,21 @@ import { useTranslation } from 'react-i18next';
 
 declare global {
     interface Window {
-        kakao: any;
+        naver: any;
     }
 }
 
-interface KakaoLatLng {
-    getLat(): number;
-
-    getLng(): number;
+interface NaverLatLng {
+    lat(): number;
+    lng(): number;
 }
 
-interface KakaoMap {
-    setCenter(position: KakaoLatLng): void;
-
-    panTo(position: KakaoLatLng): void;
-
-    getCenter(): KakaoLatLng;
+interface NaverMap {
+    setCenter(position: any): void;
+    panTo(position: any): void;
+    getCenter(): NaverLatLng;
+    setZoom(level: number): void;
+    getZoom(): number; // getZoom 메서드 추가
 }
 
 // 제휴점 정보 타입 정의
@@ -76,30 +76,25 @@ interface BusinessHourDto {
     close: string;
 }
 
+//영문 지도 변환
 const Map = () => {
-    // i18n 번역 훅 추가
     const { t } = useTranslation();
-    
-    // useAuth 훅을 사용하여 사용자 정보 가져오기
-    const { user, isAuthenticated } = useAuth();
-    
-    // 개발자 도구에 로그 출력
-    useEffect(() => {
-        console.log('Map 컴포넌트 마운트: 사용자 인증 상태 확인');
-        console.log('로그인 상태:', isAuthenticated);
-        console.log('사용자 정보:', user);
-    }, [user, isAuthenticated]);
 
-    const [userPosition, setUserPosition] = useState<KakaoLatLng | null>(null);
+    const { user, isAuthenticated } = useAuth();
+
+
+
+    const mapRef = useRef<HTMLDivElement>(null);
+    const [userPosition, setUserPosition] = useState<{lat: number, lng: number} | null>(null);
     const [isMapMoved, setIsMapMoved] = useState(false);
-    const [mapInstance, setMapInstance] = useState<KakaoMap | null>(null);
+    const [mapInstance, setMapInstance] = useState<NaverMap | null>(null);
     const [searchKeyword, setSearchKeyword] = useState<string>("");
     const [selectedPlace, setSelectedPlace] = useState<any>(null);
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [startTime, setStartTime] = useState("09:30");
     const [endTime, setEndTime] = useState("17:00");
-    const [bankOverlays, setBankOverlays] = useState<any[]>([]);
+    const [partnershipMarkers, setPartnershipMarkers] = useState<any[]>([]);
     const [isReservationOpen, setIsReservationOpen] = useState(false);
     const [bagSizes, setBagSizes] = useState({
         small: 0,
@@ -115,7 +110,7 @@ const Map = () => {
         name: ''
     });
     const [isPaymentComplete, setIsPaymentComplete] = useState(false);
-    const [isProcessingPayment, setIsProcessingPayment] = useState(false); // 결제 진행 상태 추가
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
     const [storageDuration, setStorageDuration] = useState("day");
     const [storageDate, setStorageDate] = useState("");
     const [storageStartTime, setStorageStartTime] = useState("");
@@ -147,6 +142,10 @@ const Map = () => {
         storageType?: string;
         status?: string;
     } | null>(null);
+
+    // 제휴점 데이터 상태 추가
+    const [partnerships, setPartnerships] = useState<Partnership[]>([]);
+    const [partnershipOverlays, setPartnershipOverlays] = useState<any[]>([]);
 
     // 공통 스크롤바 스타일 정의
     const scrollbarStyle = {
@@ -184,288 +183,708 @@ const Map = () => {
         '22:30', '23:00', '23:30'
     ];
 
-    // 제휴점 데이터 상태 추가
-    const [partnerships, setPartnerships] = useState<Partnership[]>([]);
-    const [partnershipMarkers, setPartnershipMarkers] = useState<any[]>([]);
-    const [partnershipOverlays, setPartnershipOverlays] = useState<any[]>([]);
-
-    // useEffect 내부 코드 수정 - 마커 생성 부분
     useEffect(() => {
         const container = document.getElementById("map") as HTMLElement;
-        const options = {
-            center: new window.kakao.maps.LatLng(33.450701, 126.570667),
-            level: 3,
-        };
-        const map = new window.kakao.maps.Map(container, options);
-        setMapInstance(map);
-        let currentInfoOverlay: any = null;
-        let selectedMarkerElement: HTMLElement | null = null; //마커 선택 요소 추적
-
-        function displayUserMarker(locPosition: any) {
-            const markerElement = document.createElement("div");
-            markerElement.innerHTML = `
-                <div class="custom-marker">
-                    <div class="marker-circle"></div>
-                    <div class="marker-wave"></div>
-                </div>
-            `;
-            const customOverlay = new window.kakao.maps.CustomOverlay({
-                position: locPosition,
-                content: markerElement,
-                yAnchor: 1.2,
-            });
-            customOverlay.setMap(map);
-        }
-
-        // 제휴점 마커 제거 함수
-        function clearPartnershipMarkers() {
-            // 기존 오버레이 제거
-            partnershipOverlays.forEach(overlay => overlay.setMap(null));
-            setPartnershipOverlays([]);
+        
+        // 마커 관련 스타일 추가
+        const addMapStyles = () => {
+            // 기존 스타일 요소가 있으면 제거
+            const existingStyle = document.getElementById('travellight-map-styles');
+            if (existingStyle) {
+                existingStyle.remove();
+            }
             
-            // 현재 정보 오버레이도 제거
-            if (currentInfoOverlay) {
-                currentInfoOverlay.setMap(null);
-                currentInfoOverlay = null;
-            }
-            // 선택된 마커 초기화
-            selectedMarkerElement = null;
-        }
-
-        // 제휴점 데이터 가져오는 함수
-        const fetchPartnerships = async () => {
-            try {
-                const response = await axios.get('/api/partnership');
-                if (response.data.success) {
-                    const partnershipData = response.data.data.filter((partnership: Partnership) => partnership.status === 'APPROVED');
-                    console.log('제휴점 데이터:', partnershipData);
-                    setPartnerships(partnershipData);
-                    
-                    // 기존 마커 제거
-                    clearPartnershipMarkers();
-                    
-                    // 새 제휴점 마커 생성
-                    partnershipData.forEach((partnership: Partnership) => {
-                        displayPartnershipMarker(partnership, map);
-                    });
-                } else {
-                    console.error('제휴점 데이터 가져오기 실패:', response.data.message);
+            // 새 스타일 요소 생성
+            const styleElement = document.createElement('style');
+            styleElement.id = 'travellight-map-styles';
+            styleElement.textContent = `
+                @keyframes pulse {
+                    0% {
+                        transform: scale(0.8);
+                        opacity: 0.8;
+                    }
+                    70% {
+                        transform: scale(1.5);
+                        opacity: 0;
+                    }
+                    100% {
+                        transform: scale(1.5);
+                        opacity: 0;
+                    }
                 }
-            } catch (error) {
-                console.error('제휴점 API 호출 중 오류:', error);
+                
+                .luggage-marker {
+                    transition: transform 0.2s ease-out !important;
+                }
+                
+                .luggage-marker:hover {
+                    transform: translateY(-6px) !important;
+                }
+                
+                .info-window {
+                    background-color: white;
+                    border-radius: 16px;
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+                    overflow: hidden;
+                    min-width: 220px;
+                    max-width: 300px;
+                    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+                }
+                
+                .info-window .title {
+                    background-color: #2E7DF1;
+                    color: white;
+                    padding: 12px 16px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    position: relative;
+                }
+                
+                .info-window .store-name {
+                    font-weight: 600;
+                    font-size: 15px;
+                    letter-spacing: -0.3px;
+                }
+                
+                .info-window .close {
+                    cursor: pointer;
+                    font-size: 20px;
+                    width: 20px;
+                    height: 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    opacity: 0.8;
+                    transition: opacity 0.2s;
+                    line-height: 1;
+                }
+                
+                .info-window .close:hover {
+                    opacity: 1;
+                }
+                
+                .info-window .body {
+                    padding: 14px 16px;
+                }
+                
+                .info-window .badge {
+                    display: inline-block;
+                    background-color: #f0f5ff;
+                    color: #2E7DF1;
+                    font-size: 12px;
+                    font-weight: 500;
+                    padding: 3px 8px;
+                    border-radius: 12px;
+                    margin-bottom: 8px;
+                }
+                
+                .info-window .address {
+                    font-size: 13px;
+                    line-height: 1.4;
+                    color: #333;
+                    margin-bottom: 6px;
+                    word-break: keep-all;
+                }
+                
+                .info-window .phone, .info-window .hours {
+                    font-size: 12px;
+                    color: #666;
+                    display: flex;
+                    align-items: center;
+                    margin-top: 4px;
+                }
+                
+                .info-window .hours::before {
+                    content: '';
+                    display: inline-block;
+                    width: 12px;
+                    height: 12px;
+                    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24' fill='%23666'%3E%3Cpath d='M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20ZM12,6a1,1,0,0,0-1,1v5a1,1,0,0,0,.5.87l4,2.5a1,1,0,0,0,1.37-.37,1,1,0,0,0-.37-1.37l-3.5-2.18V7A1,1,0,0,0,12,6Z'/%3E%3C/svg%3E");
+                    background-size: cover;
+                    margin-right: 6px;
+                }
+                
+                .info-window .phone::before {
+                    content: '';
+                    display: inline-block;
+                    width: 12px;
+                    height: 12px;
+                    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24' fill='%23666'%3E%3Cpath d='M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20ZM12,6a1,1,0,0,0-1,1v5a1,1,0,0,0,.5.87l4,2.5a1,1,0,0,0,1.37-.37,1,1,0,0,0-.37-1.37l-3.5-2.18V7A1,1,0,0,0,12,6Z'/%3E%3C/svg%3E");
+                    background-size: cover;
+                    margin-right: 6px;
+                }
+            `;
+            
+            document.head.appendChild(styleElement);
+        };
+        
+        // 네이버 지도 객체가 로드됐는지 확인
+        const waitForNaverMaps = () => {
+            if (window.naver && window.naver.maps) {
+                initializeMap();
+            } else {
+                setTimeout(waitForNaverMaps, 100);
             }
         };
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    const locPosition = new window.kakao.maps.LatLng(lat, lon);
-                    setUserPosition(locPosition);
-                    displayUserMarker(locPosition);
-                    map.setCenter(locPosition);
-                    
-                    // 제휴점 데이터 가져오기
-                    fetchPartnerships();
-                },
-                () => {
-                    // 제휴점 데이터 가져오기
-                    fetchPartnerships();
-                }
-            );
-        } else {
-            // 제휴점 데이터 가져오기
-            fetchPartnerships();
-        }
-
-        // 제휴점 마커 표시 함수
-        function displayPartnershipMarker(partnership: Partnership, map: any) {
-            try {
-                const markerPosition = new window.kakao.maps.LatLng(partnership.latitude, partnership.longitude);
-
-                // 모든 타입의 마커에 파란색 배경 사용
-                const iconSrc = "/carrier.png"; // 기본 아이콘
-
-                // 기본 마커 대신 커스텀 오버레이 사용
-                const markerElement = document.createElement("div");
-                markerElement.className = "partnership-marker-container";
-                markerElement.innerHTML = `
-                    <div class="partnership-marker">
-                        <img src="${iconSrc}" alt="${partnership.businessName}" class="marker-icon" />
-                    </div>
-                `;
-
-                // 커스텀 오버레이 생성
-                const markerOverlay = new window.kakao.maps.CustomOverlay({
-                    position: markerPosition,
-                    content: markerElement,
-                    yAnchor: 1,
-                    zIndex: 1
+        
+        // 지도 초기화 함수
+        const initializeMap = () => {
+            // 기존에 생성된 지도 인스턴스가 있으면 정리
+            if (mapInstance) {
+                console.log("기존 지도 인스턴스 제거");
+                
+                // 모든 마커 및 오버레이 제거
+                partnershipOverlays.forEach(marker => {
+                    marker.setMap(null);
                 });
-
-                // 맵에 오버레이 표시
-                markerOverlay.setMap(map);
-                setPartnershipOverlays(prev => [...prev, markerOverlay]);
-
-                // 매장명 처리 - 길이 제한
-                let placeName = partnership.businessName;
-                if (placeName.length > 20) {
-                    placeName = placeName.substring(0, 19) + '...';
+                
+                // 필요하다면 추가적인 리소스 정리
+                
+                // 지도 요소 초기화를 위해 innerHTML 비우기
+                if (document.getElementById("map")) {
+                    document.getElementById("map")!.innerHTML = "";
                 }
+            }
+            
+            // 스타일 적용
+            addMapStyles();
+            
+            const options = {
+                center: new window.naver.maps.LatLng(33.450701, 126.570667),
+                zoom: 15,
+                zoomControl: false,
+                disableKineticPan: false,
+                zoomAnimation: true,
+                zoomDuration: 300,
+                pinchZoom: true,
+                swipeToZoom: true,
+                minZoom: 6,
+                maxZoom: 21,
+                scaleControl: false,
+                logoControl: true,
+                mapDataControl: false,
+                mapTypeControl: false,
+                mapTypeId: window.naver.maps.MapTypeId.NORMAL,
+                backgroundColor: "#f8f9fa",
+                baseTileOpacity: 1,
+                disableDoubleClickZoom: false,
+                disableDoubleTapZoom: false,
+                draggable: true,
+                tileTransition: true,
+                stylesVisible: true,
+                logoControlOptions: {
+                    position: window.naver.maps.Position.BOTTOM_RIGHT
+                }
+            };
+            
+            const map = new window.naver.maps.Map(container, options);
 
-                // 영업시간 정보 가져오기
-                let hours = partnership.is24Hours ? 
-                    "24시간 영업" : 
-                    partnership.businessHours ? 
-                        formatBusinessHours(partnership.businessHours) : 
-                        "영업시간 정보 없음";
+            window.naver.maps.Event.once(map, 'init_stylemap', () => {
+                console.log('지도 로드 완료, 추가 설정 적용');
 
-                // 매장 상세 정보 오버레이
-                const infoContent = document.createElement("div");
-                infoContent.className = "partnership-info-overlay";
-                infoContent.innerHTML = `
-                    <div class="info-window">
-                        <div class="info-content">
-                            <div class="title">
-                                <span class="partnership-name">${placeName}</span>
-                                <div class="close" onclick="this.parentElement.parentElement.parentElement.parentElement.style.display='none'" title="${t('close')}">×</div>
+                try {
+                    map.setMapTypeId(window.naver.maps.MapTypeId.NORMAL);
+
+                    map.setOptions({
+                        scaleControl: false,
+                        mapTypeControl: false,
+                        logoControl: true,
+                        mapDataControl: false
+                    });
+
+                    var labelLayer = new window.naver.maps.LabelLayer();
+                    labelLayer.setMap(null);
+
+                    try {
+                        if (map.getPOIOptions) {
+                            map.setPOIOptions({
+                                density: 0.3,
+                                minZoom: 12,
+                                maxZoom: 21
+                            });
+                        }
+
+                        if (window.naver.maps.LabelLayer) {
+                            const customLabelOptions = {
+                                zIndex: 2,
+                                visibleLayers: [
+                                    'BACKGROUND_DETAIL', 
+                                    'POI_KOREAN'
+                                ]
+                            };
+
+                            const customLabelLayer = new window.naver.maps.LabelLayer(customLabelOptions);
+                            customLabelLayer.setMap(map);
+                        }
+                    } catch (styleError: any) {
+                        console.error('POI/라벨 레이어 설정 오류:', styleError);
+                    }
+
+                    map.setOptions({
+                        mapTypeControl: false,
+                        mapDataControl: false,
+                        scaleControl: false,
+                        logoControl: true,
+                        minZoom: 6,
+                        maxZoom: 21,
+                        tileTransition: true,
+                        logoControlOptions: {
+                            position: window.naver.maps.Position.BOTTOM_RIGHT
+                        }
+                    });
+                } catch (e) {
+                    console.error('지도 스타일 설정 오류:', e);
+                }
+            });
+            
+            setMapInstance(map);
+            let currentInfoWindow: any = null;
+            let selectedMarker: any = null;
+
+            function displayUserMarker(locPosition: any) {
+                const marker = new window.naver.maps.Marker({
+                    position: locPosition,
+                    map: map,
+                    icon: {
+                        content: `
+                            <div class="user-marker-container" style="position: relative; width: 28px; height: 28px;">
+                                <div class="user-marker-pulse" style="
+                                    position: absolute;
+                                    top: 0;
+                                    left: 0;
+                                    width: 28px;
+                                    height: 28px;
+                                    border-radius: 50%;
+                                    background-color: rgba(255, 90, 90, 0.2);
+                                    animation: pulse 1.5s infinite;
+                                "></div>
+                                <div class="user-marker" style="
+                                    position: absolute;
+                                    top: 6px;
+                                    left: 6px;
+                                    width: 16px;
+                                    height: 16px;
+                                    background-color: #FF5A5A;
+                                    border-radius: 50%;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                                    border: 1.5px solid white;
+                                    box-sizing: border-box;
+                                    z-index: 1;
+                                ">
+                                    <div style="
+                                        width: 4px;
+                                        height: 4px;
+                                        background-color: white;
+                                        border-radius: 50%;
+                                    "></div>
+                                </div>
                             </div>
-                            <div class="body">
-                                <div class="desc">
-                                    <div class="business-type business-type-${partnership.businessType}">${partnership.businessType}</div>
-                                    <div class="ellipsis">${partnership.address}</div>
-                                    <div class="phone">${partnership.phone || t('noPhoneNumber')}</div>
-                                    <div class="hours">${hours}</div>
+                        `,
+                        anchor: new window.naver.maps.Point(14, 14)
+                    }
+                });
+                
+                return marker;
+            }
+
+            // 제휴점 마커 제거 함수
+            function clearPartnershipMarkers() {
+                // 기존 마커 제거
+                partnershipOverlays.forEach(marker => {
+                    marker.setMap(null);
+                });
+                setPartnershipOverlays([]);
+                
+                // 현재 정보 창도 제거
+                if (currentInfoWindow) {
+                    currentInfoWindow.close();
+                    currentInfoWindow = null;
+                }
+                
+                // 선택된 마커 초기화
+                selectedMarker = null;
+            }
+
+            // 제휴점 데이터 가져오는 함수
+            const fetchPartnerships = async () => {
+                try {
+                    // API 호출 시 catch 블록 추가 및 오류 로깅 개선
+                    const response = await axios.get('/api/partnership', { timeout: 5000 });
+                    if (response.data && response.data.success) {
+                        const partnershipData = response.data.data.filter((partnership: Partnership) => partnership.status === 'APPROVED');
+                        //console.log('제휴점 데이터:', partnershipData);
+                        setPartnerships(partnershipData);
+                        
+                        // 기존 마커 제거
+                        clearPartnershipMarkers();
+                        
+                        // 새 제휴점 마커 생성
+                        const newOverlays: any[] = [];
+                        partnershipData.forEach((partnership: Partnership) => {
+                            const marker = displayPartnershipMarker(partnership, map);
+                            if (marker) {
+                                newOverlays.push(marker);
+                            }
+                        });
+                        setPartnershipOverlays(newOverlays);
+                    } else {
+                        console.error('제휴점 데이터 가져오기 실패:', response.data?.message || '응답 데이터 없음');
+                    }
+                } catch (error: any) {
+                    console.error('제휴점 데이터 요청 중 오류:', error);
+                    // API 서버가 실행 중이지 않은 경우 임시 처리
+                    // 실제 환경에서는 이 부분을 제거하고 적절한 에러 UI 표시 필요
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log('개발 환경에서 API 호출 실패, 임시 데이터 사용');
+                    }
+                }
+            };
+
+            // 제휴점 마커 표시 함수
+            function displayPartnershipMarker(partnership: Partnership, map: any) {
+                try {
+                    const markerPosition = new window.naver.maps.LatLng(partnership.latitude, partnership.longitude);
+                    
+                    // 통일된 메인 색상 설정 (TravelLight 브랜드 컬러)
+                    const primaryColor = "#2E7DF1"; // 앱 메인 컬러
+                    const secondaryColor = "#FFFFFF"; // 아이콘 내부 색상
+                    
+                    // 세련된 캐리어 아이콘 HTML 생성
+                    const markerContent = `
+                        <div class="luggage-marker-container" style="position: relative; width: 28px; height: 28px;">
+                            <div class="luggage-marker" style="
+                                position: absolute;
+                                top: 0;
+                                left: 0;
+                                width: 28px;
+                                height: 28px;
+                                background-color: ${primaryColor};
+                                border-radius: 50%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                                border: 1.5px solid white;
+                                box-sizing: border-box;
+                                transform-origin: center bottom;
+                                transform: translateY(-2px);
+                                transition: transform 0.2s ease-out;
+                            ">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="${secondaryColor}">
+                                    <path d="M17,6V5A3,3,0,0,0,14,2H10A3,3,0,0,0,7,5V6H4A2,2,0,0,0,2,8V20a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V8a2,2,0,0,0-2-2ZM10,4h4a1,1,0,0,1,1,1V6H9V5A1,1,0,0,1,10,4ZM20,20H4V8H20Zm-2-9H6a1,1,0,0,0,0,2H18a1,1,0,0,0,0-2Z"/>
+                                </svg>
+                            </div>
+                            <div class="luggage-marker-shadow" style="
+                                position: absolute;
+                                bottom: -2px;
+                                left: 7px;
+                                width: 14px;
+                                height: 3px;
+                                background-color: rgba(0,0,0,0.2);
+                                border-radius: 50%;
+                                filter: blur(1px);
+                            "></div>
+                        </div>
+                    `;
+                    
+                    // 마커 생성
+                    const marker = new window.naver.maps.Marker({
+                        position: markerPosition,
+                        map: map,
+                        icon: {
+                            content: markerContent,
+                            anchor: new window.naver.maps.Point(14, 28) // 앵커 포인트를 아이콘 하단 중앙으로 조정
+                        },
+                        title: partnership.businessName
+                    });
+
+                    // 마커에 hover 효과 추가
+                    const markerElement = marker.getElement();
+                    if (markerElement) {
+                        markerElement.addEventListener('mouseover', function() {
+                            const luggage = markerElement.querySelector('.luggage-marker');
+                            if (luggage) {
+                                luggage.style.transform = 'translateY(-6px)';
+                            }
+                        });
+                        
+                        markerElement.addEventListener('mouseout', function() {
+                            const luggage = markerElement.querySelector('.luggage-marker');
+                            if (luggage) {
+                                luggage.style.transform = 'translateY(-2px)';
+                            }
+                        });
+                    }
+
+                    // 매장명 처리 - 길이 제한
+                    let placeName = partnership.businessName;
+                    if (placeName.length > 20) {
+                        placeName = placeName.substring(0, 19) + '...';
+                    }
+
+                    // 영업시간 정보 가져오기
+                    let hours = partnership.is24Hours ? 
+                        "24시간 영업" : 
+                        partnership.businessHours ? 
+                            formatBusinessHours(partnership.businessHours) : 
+                            "영업시간 정보 없음";
+
+                    // 매장 정보 창 내용 - 세련된 디자인으로 업데이트
+                    const infoWindowContent = `
+                        <div style="
+                            background-color: white;
+                            border-radius: 16px;
+                            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+                            overflow: hidden;
+                            min-width: 220px;
+                            max-width: 300px;
+                            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+                        ">
+                            <div style="
+                                background-color: #2E7DF1;
+                                color: white;
+                                padding: 12px 16px;
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                            ">
+                                <span style="
+                                    font-weight: 600;
+                                    font-size: 15px;
+                                    letter-spacing: -0.3px;
+                                ">${partnership.businessName}</span>
+                            </div>
+                            <div style="padding: 14px 16px;">
+                                <div style="
+                                    display: inline-block;
+                                    background-color: #f0f5ff;
+                                    color: #2E7DF1;
+                                    font-size: 12px;
+                                    font-weight: 500;
+                                    padding: 3px 8px;
+                                    border-radius: 12px;
+                                    margin-bottom: 8px;
+                                ">${partnership.businessType}</div>
+                                <div style="
+                                    font-size: 13px;
+                                    line-height: 1.4;
+                                    color: #333;
+                                    margin-bottom: 6px;
+                                    word-break: keep-all;
+                                ">${partnership.address}</div>
+                                <div style="
+                                    font-size: 12px;
+                                    color: #666;
+                                    display: flex;
+                                    align-items: center;
+                                    margin-top: 6px;
+                                ">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
+                                        <path d="M19.44,13c-.22,0-.45-.07-.67-.12a9.44,9.44,0,0,1-1.31-.39,2,2,0,0,0-2.48,1l-.22.45a12.18,12.18,0,0,1-2.66-2,12.18,12.18,0,0,1-2-2.66L10.52,9a2,2,0,0,0,1-2.48,10.33,10.33,0,0,1-.39-1.31c-.05-.22-.09-.45-.12-.68a3,3,0,0,0-3-2.49h-3a3,3,0,0,0-3,3.41A19,19,0,0,0,18.53,21.91l.38,0a3,3,0,0,0,2-.76,3,3,0,0,0,1-2.25v-3A3,3,0,0,0,19.44,13Z"/>
+                                    </svg>
+                                    ${partnership.phone || "전화번호 정보 없음"}
+                                </div>
+                                <div style="
+                                    font-size: 12px;
+                                    color: #666;
+                                    display: flex;
+                                    align-items: center;
+                                    margin-top: 6px;
+                                ">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
+                                        <path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20ZM12,6a1,1,0,0,0-1,1v5a1,1,0,0,0,.5.87l4,2.5a1,1,0,0,0,1.37-.37,1,1,0,0,0-.37-1.37l-3.5-2.18V7A1,1,0,0,0,12,6Z"/>
+                                    </svg>
+                                    ${hours}
                                 </div>
                             </div>
                         </div>
-                        <div class="info-tail"></div>
-                    </div>
-                `;
+                    `;
 
-                const infoOverlay = new window.kakao.maps.CustomOverlay({
-                    content: infoContent,
-                    position: markerPosition,
-                    yAnchor: 1.5,
-                    zIndex: 2
-                });
+                    // 정보 창 생성
+                    const infoWindow = new window.naver.maps.InfoWindow({
+                        content: infoWindowContent,
+                        maxWidth: 300,
+                        backgroundColor: "transparent",
+                        borderColor: "transparent",
+                        disableAnchor: true
+                    });
 
-                // 클릭 이벤트 처리
-                markerElement.addEventListener('click', function () {
-                    // 결제가 완료된 상태면 클릭 이벤트 무시
-                    if (isPaymentComplete) return;
-                    
-                    // 선택된 마커가 있으면 원래 색상으로 돌리기
-                    if (selectedMarkerElement) {
-                        const prevMarker = selectedMarkerElement.querySelector('.partnership-marker');
-                        if (prevMarker) {
-                            prevMarker.classList.remove('selected');
+                    // 마커 클릭 이벤트
+                    window.naver.maps.Event.addListener(marker, 'click', () => {
+                        // 현재 열린 정보창이 있으면 닫기
+                        if (currentInfoWindow) {
+                            currentInfoWindow.close();
                         }
-                    }
-                    // 현재 마커를 선택 상태로 변경
-                    const currentMarker = markerElement.querySelector('.partnership-marker');
-                    if (currentMarker) {
-                        currentMarker.classList.add('selected');
-                    }
-                    // 현재 마커를 선택된 마커로 설정
-                    selectedMarkerElement = markerElement;
 
-                    if (currentInfoOverlay) {
-                        currentInfoOverlay.setMap(null);
-                    }
-                    infoOverlay.setMap(map);
-                    currentInfoOverlay = infoOverlay;
+                        // 정보창 열기
+                        infoWindow.open(map, marker);
+                        currentInfoWindow = infoWindow;
 
-                    // 사이드바에 정보 표시 - partnership 객체를 selectedPlace로 변환
-                    const placeData = {
-                        place_name: partnership.businessName,
-                        address_name: partnership.address,
-                        phone: partnership.phone,
-                        x: partnership.longitude.toString(),
-                        y: partnership.latitude.toString(),
-                        // 제휴점 타입에 따라 카테고리 코드 부여
-                        category_group_code: getCategoryCodeFromBusinessType(partnership.businessType),
-                        opening_hours: hours,
-                        business_type: partnership.businessType // 비즈니스 타입 추가
-                    };
-                    setSelectedPlace(placeData);
-                    // 사이드바가 닫혀있으면 열기
-                    setIsSidebarOpen(true);
-                });
-            } catch (error) {
-                console.error("제휴점 마커 표시 중 오류:", error);
-            }
-        }
+                        // 선택된 마커 저장
+                        selectedMarker = marker;
 
-        // 비즈니스 타입에 따른 카테고리 코드 반환
-        function getCategoryCodeFromBusinessType(businessType: string): string {
-            switch (businessType) {
-                case "카페": return "CE7";
-                case "편의점": return "CS2"; 
-                case "숙박": return "AD5";
-                case "식당": return "FD6";
-                default: return "ETC";
-            }
-        }
+                        // 선택된 장소 데이터 설정
+                        const placeData = {
+                            place_name: partnership.businessName,
+                            address_name: partnership.address,
+                            phone: partnership.phone,
+                            category_group_code: getCategoryCodeFromBusinessType(partnership.businessType),
+                            x: partnership.longitude.toString(),
+                            y: partnership.latitude.toString(),
+                            opening_hours: partnership.is24Hours ? "24시간 영업" : formatBusinessHours(partnership.businessHours)
+                        };
+                        
+                        setSelectedPlace(placeData);
+                        // 사이드바가 닫혀있으면 열기
+                        setIsSidebarOpen(true);
+                    });
 
-        // 영업 시간 포맷팅 함수
-        function formatBusinessHours(businessHours: Record<string, BusinessHourDto>): string {
-            if (!businessHours || Object.keys(businessHours).length === 0) {
-                return "영업시간 정보 없음";
-            }
-            
-            // 요일별 영업 시간 중 첫번째 항목만 표시 (간단하게)
-            const firstDayKey = Object.keys(businessHours)[0];
-            const hourData = businessHours[firstDayKey];
-            
-            if (!hourData.enabled) {
-                return "휴무일";
-            }
-            
-            return `${hourData.open} - ${hourData.close}`;
-        }
-
-        // 지도 드래그 이벤트 수정 - 마커 관련 코드 제거
-        window.kakao.maps.event.addListener(map, "dragend", () => {
-            // 결제 완료 상태에서는 새 마커를 불러오지 않음
-            if (isPaymentComplete) return;
-            
-            setIsMapMoved(true);
-        });
-
-        // 지도 클릭 이벤트 수정
-        window.kakao.maps.event.addListener(map, "click", () => {
-            // 결제 완료 상태에서는 반응하지 않음
-            if (isPaymentComplete) return;
-            
-            if (currentInfoOverlay) {
-                currentInfoOverlay.setMap(null);
-                currentInfoOverlay = null;
-            }
-            // 선택된 마커 스타일 초기화
-            if (selectedMarkerElement) {
-                const marker = selectedMarkerElement.querySelector('.partnership-marker');
-                if (marker) {
-                    marker.classList.remove('selected');
+                    // 닫기 버튼 클릭 이벤트 (정보창 내부의 X 버튼)
+                    // window.naver.maps.Event.addListener(infoWindow, 'domready', () => {
+                    //     setTimeout(() => {
+                    //         const closeButton = document.querySelector('span[style*="cursor: pointer"][style*="font-size: 22px"]');
+                    //         if (closeButton) {
+                    //             closeButton.addEventListener('click', () => {
+                    //                 infoWindow.close();
+                    //                 currentInfoWindow = null;
+                    //             });
+                    //         }
+                    //     }, 100); // 작은 지연 시간 추가
+                    // });
+                    
+                    return marker;
+                } catch (error) {
+                    console.error("제휴점 마커 표시 중 오류:", error);
+                    return null;
                 }
-                selectedMarkerElement = null;
             }
-        });
 
-        // Cleanup 함수 추가
-        return () => {
-            if (currentInfoOverlay) {
-                currentInfoOverlay.setMap(null);
+            // 비즈니스 타입에 따른 카테고리 코드 반환
+            function getCategoryCodeFromBusinessType(businessType: string): string {
+                switch (businessType) {
+                    case "카페": return "CE7";
+                    case "편의점": return "CS2"; 
+                    case "숙박": return "AD5";
+                    case "식당": return "FD6";
+                    default: return "ETC";
+                }
             }
-            clearPartnershipMarkers();
+
+            // 영업 시간 포맷팅 함수
+            function formatBusinessHours(businessHours: Record<string, BusinessHourDto>): string {
+                if (!businessHours || Object.keys(businessHours).length === 0) {
+                    return "영업시간 정보 없음";
+                }
+                
+                // 요일별 영업 시간 중 첫번째 항목만 표시 (간단하게)
+                const firstDayKey = Object.keys(businessHours)[0];
+                const hourData = businessHours[firstDayKey];
+                
+                if (!hourData.enabled) {
+                    return "휴무일";
+                }
+                
+                return `${hourData.open} - ${hourData.close}`;
+            }
+
+            // 지도 드래그 이벤트
+            window.naver.maps.Event.addListener(map, "dragend", () => {
+                // 결제 완료 상태에서는 새 마커를 불러오지 않음
+                if (isPaymentComplete) return;
+                
+                setIsMapMoved(true);
+            });
+
+            // 지도 클릭 이벤트
+            window.naver.maps.Event.addListener(map, "click", () => {
+                // 결제 완료 상태에서는 반응하지 않음
+                if (isPaymentComplete) return;
+                
+                // 선택된 장소 초기화
+                setSelectedPlace(null);
+                
+                // 현재 정보창 닫기
+                if (currentInfoWindow) {
+                    currentInfoWindow.close();
+                    currentInfoWindow = null;
+                }
+            });
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        const locPosition = new window.naver.maps.LatLng(lat, lng);
+                        setUserPosition({lat, lng});
+                        
+                        // 사용자 마커 생성
+                        displayUserMarker(locPosition);
+                        
+                        // 위치로 부드럽게 이동
+                        // 1단계: 먼저 기본 줌 레벨로 설정
+                        map.setZoom(15);
+                        
+                        // 약간의 딜레이 후 중앙으로 이동
+                        setTimeout(() => {
+                            map.setCenter(locPosition);
+                            setIsMapMoved(false);
+                        }, 100);
+                        
+                        // 제휴점 데이터 가져오기
+                        fetchPartnerships();
+                    },
+                    () => {
+                        // 제휴점 데이터 가져오기
+                        fetchPartnerships();
+                    }
+                );
+            } else {
+                // 제휴점 데이터 가져오기
+                fetchPartnerships();
+            }
+
+            // 컴포넌트 언마운트 시 정리
+            return () => {
+                // 모든 마커와 오버레이 제거
+                clearPartnershipMarkers();
+            };
         };
-    }, [isPaymentComplete]); // isPaymentComplete 의존성 추가
+        
+        // 네이버 지도 API 로드 확인
+        waitForNaverMaps();
+        
+        // 언어 변경 이벤트 리스너 등록
+        const handleMapLanguageChange = () => {
+            console.log("언어 변경 감지, 지도 다시 로드");
+            // 약간의 지연을 주어 naver 객체가 완전히 교체된 후 지도를 초기화
+            setTimeout(waitForNaverMaps, 500);
+        };
+        
+        window.addEventListener('naverMapLanguageChanged', handleMapLanguageChange);
+        
+        // 클린업 함수
+        return () => {
+            window.removeEventListener('naverMapLanguageChanged', handleMapLanguageChange);
+            if (mapInstance) {
+                // 필요한 클린업 로직
+                partnershipOverlays.forEach(marker => {
+                    marker.setMap(null);
+                });
+            }
+        };
+    }, [isPaymentComplete]); // partnershipOverlays 의존성 제거
 
     // 현재 위치로 돌아가는 함수를 useCallback으로 메모이제이션
     const returnToMyLocation = useCallback(() => {
         if (userPosition && mapInstance) {
-            mapInstance.panTo(userPosition);
+            const naverLatLng = new window.naver.maps.LatLng(userPosition.lat, userPosition.lng);
+            // 애니메이션 효과를 위해 panTo 사용
+            mapInstance.panTo(naverLatLng);
             setIsMapMoved(false);
         }
     }, [userPosition, mapInstance]);
@@ -516,40 +935,67 @@ const Map = () => {
         return places.filter(place => isOpenDuringTime(place, startTime, endTime));
     };
 
-    // searchPlaces 함수 수정 - 기존 코드 유지하되 필요 없는 부분 제거
+    // searchPlaces 함수 수정 - 네이버맵 API에 맞게 수정
     const searchPlaces = () => {
         if (!searchKeyword.trim()) return;
 
-        const ps = new window.kakao.maps.services.Places();
+        const searchOptions = {
+            query: searchKeyword
+        };
 
-        ps.keywordSearch(searchKeyword, (data: any, status: any) => {
-            if (status === window.kakao.maps.services.Status.OK && data.length > 0) {
-                const firstResult = data[0];
-                const moveLatLng = new window.kakao.maps.LatLng(firstResult.y, firstResult.x);
-                mapInstance?.setCenter(moveLatLng);
+        // 네이버 서치 API를 통한 검색
+        window.naver.maps.Service.geocode(searchOptions, (status: any, response: any) => {
+            if (status === window.naver.maps.Service.Status.OK) {
+                const results = response.v2.addresses;
+                if (results.length > 0) {
+                    const firstResult = results[0];
+                    const moveLatLng = new window.naver.maps.LatLng(firstResult.y, firstResult.x);
+                    
+                    // 부드러운 이동 처리
+                    if (mapInstance) {
+                        // 현재 줌 레벨 저장
+                        const currentZoom = mapInstance.getZoom();
+                        
+                        // 1단계: 먼저 위치 이동
+                        mapInstance.setCenter(moveLatLng);
+                        
+                        // 2단계: 이동 후 애니메이션 효과 (줌 아웃 후 줌 인)
+                        setTimeout(() => {
+                            // 줌 아웃
+                            mapInstance.setZoom(currentZoom - 1);
+                            
+                            // 잠시 후 다시 원래 줌으로
+                            setTimeout(() => {
+                                mapInstance.setZoom(currentZoom);
+                            }, 250);
+                        }, 50);
+                    }
 
-                // 검색 결과를 partnerships에서 필터링
-                const filteredPartnerships = partnerships.filter(p => {
-                    // 검색어와 비즈니스 이름 또는 주소가 부분적으로 일치하는지 확인
-                    return p.businessName.includes(searchKeyword) || 
-                           p.address.includes(searchKeyword);
-                });
+                    // 검색 결과를 partnerships에서 필터링
+                    const filteredPartnerships = partnerships.filter(p => {
+                        // 검색어와 비즈니스 이름 또는 주소가 부분적으로 일치하는지 확인
+                        return p.businessName.includes(searchKeyword) || 
+                               p.address.includes(searchKeyword);
+                    });
 
-                // partnerships를 place 형식으로 변환하여 검색 결과에 추가
-                const convertedPlaces = filteredPartnerships.map(p => ({
-                    place_name: p.businessName,
-                    address_name: p.address,
-                    phone: p.phone,
-                    category_group_code: getCategoryCodeFromBusinessType(p.businessType),
-                    x: p.longitude.toString(),
-                    y: p.latitude.toString(),
-                    opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
-                }));
+                    // partnerships를 place 형식으로 변환하여 검색 결과에 추가
+                    const convertedPlaces = filteredPartnerships.map(p => ({
+                        place_name: p.businessName,
+                        address_name: p.address,
+                        phone: p.phone,
+                        category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+                        x: p.longitude.toString(),
+                        y: p.latitude.toString(),
+                        opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+                    }));
 
-                // 시간에 따른 필터링
-                const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
-                setSearchResults(timeFilteredPlaces);
-                setSelectedPlace(null);
+                    // 시간에 따른 필터링
+                    const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
+                    setSearchResults(timeFilteredPlaces);
+                    setSelectedPlace(null);
+                }
+            } else {
+                alert("검색 결과가 없습니다.");
             }
         });
     };
@@ -2649,7 +3095,7 @@ const Map = () => {
                                         }
                                         
                                         setSelectedPlace(place);
-                                        const moveLatLng = new window.kakao.maps.LatLng(place.y, place.x);
+                                        const moveLatLng = new window.naver.maps.LatLng(place.y, place.x);
                                         mapInstance?.setCenter(moveLatLng);
                                     }}
                                     sx={{

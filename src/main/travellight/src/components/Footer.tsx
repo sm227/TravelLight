@@ -231,7 +231,7 @@ const Footer: React.FC = () => {
               1588-0000
             </Typography>
             <Link
-              href="mailto:support@travellight.com"
+              href="mailto:haveagoodtrip.travellight@travellight.com"
               underline="none"
               sx={{ 
                 color: alpha('#fff', 0.9),
@@ -242,7 +242,7 @@ const Footer: React.FC = () => {
                 } 
               }}
             >
-              support@travellight.com
+              haveagoodtrip.travellight@gmail.com
             </Link>
           </Grid>
         </Grid>

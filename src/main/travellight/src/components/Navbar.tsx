@@ -76,8 +76,16 @@ const Navbar: React.FC = () => {
   };
 
   const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
+    // 현재 언어 저장
+    localStorage.setItem('preferredLanguage', lng);
+    
+    // 언어 메뉴 닫기
     handleLangMenuClose();
+    
+    // 0.5초 후 페이지 새로고침 (언어 설정이 저장될 시간 확보)
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   };
 
   // Navigation to Partnership Pages
