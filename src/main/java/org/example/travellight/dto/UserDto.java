@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.example.travellight.entity.Role;
 
 public class UserDto {
 
@@ -15,6 +16,7 @@ public class UserDto {
         private String name;
         private String email;
         private String password;
+        private Role role;
     }
     
     @Data
@@ -34,5 +36,15 @@ public class UserDto {
         private Long id;
         private String name;
         private String email;
+        private Role role;
+    }
+    
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PasswordChangeRequest {
+        private String currentPassword;
+        private String newPassword;
     }
 } 

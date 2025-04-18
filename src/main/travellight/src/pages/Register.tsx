@@ -135,7 +135,8 @@ const Register = () => {
         const response = await userService.register({
           name: formData.name,
           email: formData.email,
-          password: formData.password
+          password: formData.password,
+          role: 'USER'
         });
         
         // 회원가입 성공 시 로그인 처리

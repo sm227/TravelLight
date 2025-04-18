@@ -7,13 +7,24 @@ import Footer from '../components/Footer';
 
 const Home: React.FC = () => {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', margin: 0, padding: 0 }}>
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        minHeight: '100vh', 
+        width: '100%', 
+        margin: 0, 
+        padding: 0,
+        overflow: 'hidden',
+        background: '#FAFBFC',
+      }}
+    >
       <Navbar />
-      <Container maxWidth={false} disableGutters sx={{ width: '100%' }}>
+      <Container maxWidth={false} disableGutters sx={{ width: '100%', overflow: 'hidden' }}>
         <Box component="main" sx={{ flexGrow: 1 }}>
           <Hero />
           <Services />
-          {/* 여기에 추가 섹션을 넣을 수 있습니다 */}
+          {/* 추가 섹션은 여기에 추가하세요 */}
         </Box>
       </Container>
       <Footer />

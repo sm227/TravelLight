@@ -24,7 +24,8 @@ import {
   Notifications as NotificationsIcon,
   History as HistoryIcon,
   BarChart as BarChartIcon,
-  Event as EventIcon
+  Event as EventIcon,
+  Storefront as StorefrontIcon
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
@@ -40,6 +41,7 @@ const AdminLayout = () => {
     { text: '실시간 통계', icon: <BarChartIcon />, path: '/admin/stats' },
     { text: '로그 분석', icon: <TimelineIcon />, path: '/admin/logs' },
     { text: '이벤트 짐보관', icon: <EventIcon />, path: '/admin/event-storage' },
+    { text: '제휴점 관리', icon: <StorefrontIcon />, path: '/admin/partnerships' },
     { text: '설정', icon: <SettingsIcon />, path: '/admin/settings' },
   ];
 

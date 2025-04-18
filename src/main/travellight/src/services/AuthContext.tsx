@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { UserResponse } from './api';
+import { UserResponse, userService } from './api';
 
 // UserResponse 인터페이스 확장
 interface ExtendedUserResponse extends UserResponse {
@@ -58,19 +58,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const adminLogin = async (credentials: {email: string, password: string}) => {
-    if (credentials.email === 'admin' && credentials.password === '1234') {
-      const adminData: ExtendedUserResponse = {
-        id: 999, // 관리자 ID는 숫자 타입으로 변경
-        name: '관리자',
-        email: 'admin',
-        token: 'admin-token',
-        isAdmin: true
-      };
-      setUser(adminData);
-      setIsAuthenticated(true);
-      setIsAdmin(true);
-      localStorage.setItem('user', JSON.stringify(adminData));
-    } else {
+    try {
+      const response = await userService.adminLogin(credentials);
+      if (response.data && response.data.role === 'ADMIN') {
+        const adminData: ExtendedUserResponse = {
+          id: response.data.id,
+          name: response.data.name,
+          email: response.data.email,
+          role: response.data.role,
+          token: 'admin-token', // 추후 실제 토큰으로 교체
+          isAdmin: true
+        };
+        setUser(adminData);
+        setIsAuthenticated(true);
+        setIsAdmin(true);
+        localStorage.setItem('user', JSON.stringify(adminData));
+      } else {
+        throw new Error('관리자 권한이 없습니다.');
+      }
+    } catch (error) {
+      console.error('Admin login error:', error);
       throw new Error('관리자 로그인에 실패했습니다.');
     }
   };
