@@ -52,6 +52,7 @@ declare global {
         daum: any;
         kakao: any;
         naver: any;
+        naverMapLoaded?: boolean;
     }
 }
 
@@ -92,10 +93,9 @@ const StoragePartnership: React.FC = () => {
 
     // 네이버 지도 API 초기화 - 지오코더 사용
     useEffect(() => {
-        // App.tsx에서 네이버 지도 스크립트를 전역적으로 로드합니다.
-        // 여기서는 지도가 로드되었는지 확인하는 코드만 남깁니다.
+        // 전역 naverMapLoaded 플래그를 확인하는 함수
         const checkNaverMapLoaded = () => {
-            return window.naver && window.naver.maps && window.naver.maps.Service;
+            return window.naverMapLoaded === true && window.naver && window.naver.maps && window.naver.maps.Service;
         };
         
         const waitForNaverMaps = () => {
@@ -105,16 +105,16 @@ const StoragePartnership: React.FC = () => {
             }
         };
         
-        // 정기적으로 로드 상태 확인
-        const checkInterval = setInterval(waitForNaverMaps, 200);
+        // 정기적으로 로드 상태 확인 (간격 증가: 500ms)
+        const checkInterval = setInterval(waitForNaverMaps, 500);
         
-        // 5초 후 시간 초과 처리
+        // 10초로 시간 초과 처리 시간 증가
         setTimeout(() => {
             clearInterval(checkInterval);
             if (!checkNaverMapLoaded()) {
                 console.error('네이버 지도 API 로드 시간 초과');
             }
-        }, 5000);
+        }, 10000);
         
         // 언어 변경 이벤트 리스너 등록
         const handleMapLanguageChange = () => {
@@ -129,15 +129,15 @@ const StoragePartnership: React.FC = () => {
                     console.log('(언어 변경 후) 네이버 지도 API 로드 완료');
                     clearInterval(newCheckInterval);
                 }
-            }, 200);
+            }, 500);
             
-            // 5초 후 시간 초과 처리
+            // 10초 후 시간 초과 처리
             setTimeout(() => {
                 clearInterval(newCheckInterval);
                 if (!checkNaverMapLoaded()) {
                     console.error('(언어 변경 후) 네이버 지도 API 로드 시간 초과');
                 }
-            }, 5000);
+            }, 10000);
         };
         
         window.addEventListener('naverMapLanguageChanged', handleMapLanguageChange);
@@ -151,24 +151,28 @@ const StoragePartnership: React.FC = () => {
     // 지오코딩 함수 (네이버맵 API 사용)
     const getCoordinates = (address: string) => {
         return new Promise<{ lat: number; lng: number }>((resolve, reject) => {
-            // API 호출 횟수 관리 -> 최대 10
+            // API 호출 횟수 관리 -> 최대 15로 증가
             let attempts = 0;
-            const maxAttempts = 10;
+            const maxAttempts = 15;
 
             // 네이버맵 API 로드 확인 - 개선된 버전
             const checkAndExecute = () => {
                 attempts++;
-                // window.naver 객체가 있고, maps 및 Service 객체가 있는지 확인
-                if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode) {
+                
+                // 네이버 지도 API 및 지오코딩 서비스 가용성 확인
+                // 특히 Service.geocode가 존재하는지 확인
+                if (window.naver?.maps?.Service?.geocode) {
                     console.log('네이버 맵 API 로드 확인, 좌표 변환 시도');
                     
                     try {
-                        // 주소 -> 좌표 변환
+                        // 주소 -> 좌표 변환 (geocode 서비스 사용)
                         window.naver.maps.Service.geocode({
                             query: address
                         }, function(status: any, response: any) {
+                            // 응답 상태 확인
                             if (status === window.naver.maps.Service.Status.OK) {
-                                if (response.v2.addresses && response.v2.addresses.length > 0) {
+                                // 주소 데이터 확인
+                                if (response?.v2?.addresses && response.v2.addresses.length > 0) {
                                     const result = response.v2.addresses[0];
                                     console.log('좌표 변환 결과:', result);
                                     
@@ -202,7 +206,8 @@ const StoragePartnership: React.FC = () => {
                 } else {
                     console.log(`네이버 맵 API 로드 대기 중... (시도: ${attempts}/${maxAttempts})`);
                     if (attempts < maxAttempts) {
-                        setTimeout(checkAndExecute, 1000);
+                        // 대기 시간 증가 (지수 백오프)
+                        setTimeout(checkAndExecute, 500 * Math.min(attempts, 3));
                     } else {
                         console.error('네이버 맵 API 로드 실패');
                         reject(new Error('네이버 맵 API가 로드되지 않았습니다.'));
@@ -229,28 +234,33 @@ const StoragePartnership: React.FC = () => {
 
                     console.log('검색된 주소:', fullAddress);
 
+                    // 검색된 주소로 폼 데이터 먼저 업데이트
+                    setFormData(prev => ({
+                        ...prev,
+                        address: completeAddress,
+                        latitude: 0,
+                        longitude: 0
+                    }));
 
                     try {
-                        setFormData(prev => ({
-                            ...prev,
-                            address: completeAddress,
-                            latitude: 0,
-                            longitude: 0
-                        }));
+                        // 좌표 변환 시도 전에 네이버 맵 로드 상태 확인
+                        if (window.naver && window.naver.maps && window.naver.maps.Service) {
+                            // 좌표 변환
+                            console.log('좌표 변환 시작...');
+                            const coords = await getCoordinates(fullAddress);
+                            console.log('좌표 변환 성공:', coords);
 
-                        // 좌표 변환
-                        // await 사용해 비동기 처리
-                        console.log('좌표 변환 시작...');
-                        const coords = await getCoordinates(fullAddress);
-                        console.log('좌표 변환 성공:', coords);
-
-                        setFormData(prev => ({
-                            ...prev,
-                            latitude: coords.lat,
-                            longitude: coords.lng
-                        }));
-                        
-                        console.log(`주소 좌표 변환 완료 및 저장: 위도 ${coords.lat}, 경도 ${coords.lng}`);
+                            setFormData(prev => ({
+                                ...prev,
+                                latitude: coords.lat,
+                                longitude: coords.lng
+                            }));
+                            
+                            console.log(`주소 좌표 변환 완료 및 저장: 위도 ${coords.lat}, 경도 ${coords.lng}`);
+                        } else {
+                            console.warn('네이버 지도 API가 로드되지 않아 좌표 변환을 진행할 수 없습니다.');
+                            setError('지도 서비스가 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                        }
                     } catch (error) {
                         console.error('좌표 변환 오류:', error);
                         setError('주소를 좌표로 변환하는 중 오류가 발생했습니다. 다시 시도해 주세요.');

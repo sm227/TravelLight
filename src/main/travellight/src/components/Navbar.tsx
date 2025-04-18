@@ -112,13 +112,11 @@ const Navbar: React.FC = () => {
   const menuItems = [
     { text: t('home'), href: '#home' },
     { text: t('services'), href: '#services' },
-    { text: t('howItWorks'), href: '#how-it-works' },
     { text: t('pricing'), href: '#pricing' },
-    // '제휴·협업 문의' is now handled separately for the dropdown
+    // 'howItWorks'와 '제휴·협업 문의'는 별도로 처리
   ];
 
   const partnerSubMenuItems = [
-    { text: 'FAQ',onClick: navigateToFAQ },
     { text: t('storageService'), onClick: navigateToStoragePartnership },
     { text: t('eventStorage'), onClick: navigateToEventStorage },
     { text: '1:1 문의', onClick: navigateToInquiry },
@@ -136,6 +134,11 @@ const Navbar: React.FC = () => {
                 <ListItemText primary={item.text} />
               </ListItem>
           ))}
+          
+          <ListItemButton onClick={navigateToFAQ} sx={{ textAlign: 'center', color: 'inherit' }}>
+            <ListItemText primary={t('howItWorks')} />
+          </ListItemButton>
+          
           <ListItemButton onClick={handlePartnerMenuOpen} sx={{ textAlign: 'center', color: 'inherit' }}>
             <ListItemText primary={t('partnership')} />
           </ListItemButton>
@@ -300,43 +303,58 @@ const Navbar: React.FC = () => {
                           {item.text}
                         </Button>
                     ))}
-                    <Box sx={{ position: 'relative' }}>
-                      <Button
-                          ref={partnerButtonRef}
-                          aria-controls={partnerMenuOpen ? 'partner-menu-desktop' : undefined}
-                          aria-haspopup="true"
-                          aria-expanded={partnerMenuOpen ? 'true' : undefined}
-                          onClick={handlePartnerMenuOpen}
-                          sx={{
-                            my: 2,
-                            mx: 1.5,
-                            color: 'text.primary',
-                            display: 'flex',
-                            alignItems: 'center',
-                            '&:hover': {
-                              color: 'primary.main',
-                            }
-                          }}
-                          endIcon={<ArrowDropDownIcon />}
-                      >
-                        {t('partnership')}
-                      </Button>
-                      <Menu
-                          id="partner-menu-desktop"
-                          anchorEl={partnerMenuAnchorEl}
-                          open={partnerMenuOpen}
-                          onClose={handlePartnerMenuClose}
-                          MenuListProps={{
-                            'aria-labelledby': 'partner-button',
-                          }}
-                      >
-                        {partnerSubMenuItems.map((item) => (
-                            <MenuItem key={item.text} onClick={item.onClick}>
-                              {item.text}
-                            </MenuItem>
-                        ))}
-                      </Menu>
-                    </Box>
+                    
+                    <Button
+                        onClick={navigateToFAQ}
+                        sx={{
+                          my: 2,
+                          mx: 1.5,
+                          color: 'text.primary',
+                          display: 'flex',
+                          alignItems: 'center',
+                          '&:hover': {
+                            color: 'primary.main',
+                          }
+                        }}
+                    >
+                      {t('howItWorks')}
+                    </Button>
+                      
+                    <Button
+                        ref={partnerButtonRef}
+                        aria-controls={partnerMenuOpen ? 'partner-menu-desktop' : undefined}
+                        aria-haspopup="true"
+                        aria-expanded={partnerMenuOpen ? 'true' : undefined}
+                        onClick={handlePartnerMenuOpen}
+                        sx={{
+                          my: 2,
+                          mx: 1.5,
+                          color: 'text.primary',
+                          display: 'flex',
+                          alignItems: 'center',
+                          '&:hover': {
+                            color: 'primary.main',
+                          }
+                        }}
+                        endIcon={<ArrowDropDownIcon />}
+                    >
+                      {t('partnership')}
+                    </Button>
+                    <Menu
+                        id="partner-menu-desktop"
+                        anchorEl={partnerMenuAnchorEl}
+                        open={partnerMenuOpen}
+                        onClose={handlePartnerMenuClose}
+                        MenuListProps={{
+                          'aria-labelledby': 'partner-button',
+                        }}
+                    >
+                      {partnerSubMenuItems.map((item) => (
+                          <MenuItem key={item.text} onClick={item.onClick}>
+                            {item.text}
+                          </MenuItem>
+                      ))}
+                    </Menu>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     {isAuthenticated ? (
