@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.travellight.dto.UserDto;
 import org.example.travellight.entity.User;
+import org.example.travellight.entity.Role;
 import org.example.travellight.exception.CustomException;
 import org.example.travellight.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -106,5 +107,25 @@ public class UserServiceImpl implements UserService {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .build();
+    }
+
+    @Override
+    public boolean isEmailExists(String email) {
+        return userRepository.findByEmail(email).isPresent();
+    }
+    
+    @Override
+    @Transactional
+    public void updateUserRoleByEmail(String email, String roleName) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + email));
+        
+        try {
+            Role role = Role.valueOf(roleName);
+            user.setRole(role);
+            userRepository.save(user);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("유효하지 않은 역할입니다: " + roleName);
+        }
     }
 } 

@@ -35,7 +35,7 @@ const Navbar: React.FC = () => {
   const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isPartner, isWaiting, logout } = useAuth();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
 
@@ -109,14 +109,37 @@ const Navbar: React.FC = () => {
         navigate('/FAQ');
   };
 
+  const navigateToPartner = () => {
+    handlePartnerMenuClose();
+    
+    if (!isAuthenticated) {
+      // 로그인하지 않은 경우 로그인 페이지로 이동
+      navigate('/login', { state: { from: '/partner' } });
+      return;
+    }
+    
+    if (isPartner) {
+      // PARTNER 역할: 매장 관리 페이지로 직접 이동
+      navigate('/partner-dashboard');
+    } else if (isWaiting) {
+      // WAIT 역할: 대기 화면으로 이동
+      navigate('/partner-dashboard'); // 대시보드에서 대기 화면 표시됨
+    } else {
+      // USER 역할: 기본 파트너 페이지
+      navigate('/partner');
+    }
+  };
+
   const menuItems = [
     { text: t('home'), href: '#home' },
     { text: t('services'), href: '#services' },
+    { text: t('howItWorks'), href: '#how-it-works' },
     { text: t('pricing'), href: '#pricing' },
-    // 'howItWorks'와 '제휴·협업 문의'는 별도로 처리
+    // '제휴·협업 문의' is now handled separately for the dropdown
   ];
 
   const partnerSubMenuItems = [
+    { text: 'FAQ',onClick: navigateToFAQ },
     { text: t('storageService'), onClick: navigateToStoragePartnership },
     { text: t('eventStorage'), onClick: navigateToEventStorage },
     { text: '1:1 문의', onClick: navigateToInquiry },
@@ -134,11 +157,11 @@ const Navbar: React.FC = () => {
                 <ListItemText primary={item.text} />
               </ListItem>
           ))}
-          
+
           <ListItemButton onClick={navigateToFAQ} sx={{ textAlign: 'center', color: 'inherit' }}>
             <ListItemText primary={t('howItWorks')} />
           </ListItemButton>
-          
+
           <ListItemButton onClick={handlePartnerMenuOpen} sx={{ textAlign: 'center', color: 'inherit' }}>
             <ListItemText primary={t('partnership')} />
           </ListItemButton>
@@ -158,6 +181,13 @@ const Navbar: React.FC = () => {
             ))}
           </Menu>
           
+          <ListItemButton
+              onClick={navigateToPartner}
+              sx={{ textAlign: 'center', color: 'inherit' }}
+          >
+            <ListItemText primary={t('partner')} />
+          </ListItemButton>
+
           {/* 언어 설정 */}
           <ListItemButton onClick={handleLangMenuOpen} sx={{ textAlign: 'center', color: 'primary.main' }}>
             <ListItemText primary={t('language')} />
@@ -303,7 +333,7 @@ const Navbar: React.FC = () => {
                           {item.text}
                         </Button>
                     ))}
-                    
+
                     <Button
                         onClick={navigateToFAQ}
                         sx={{
@@ -319,7 +349,7 @@ const Navbar: React.FC = () => {
                     >
                       {t('howItWorks')}
                     </Button>
-                      
+
                     <Button
                         ref={partnerButtonRef}
                         aria-controls={partnerMenuOpen ? 'partner-menu-desktop' : undefined}
@@ -355,6 +385,22 @@ const Navbar: React.FC = () => {
                           </MenuItem>
                       ))}
                     </Menu>
+
+                    <Button
+                      onClick={navigateToPartner}
+                      sx={{
+                        my: 2,
+                        mx: 1.5,
+                        color: 'text.primary',
+                        display: 'flex',
+                        alignItems: 'center',
+                        '&:hover': {
+                          color: 'primary.main',
+                        }
+                      }}
+                    >
+                      {t('partner')}
+                    </Button>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     {isAuthenticated ? (

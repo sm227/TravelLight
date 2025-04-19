@@ -7,4 +7,6 @@ public interface UserService {
     UserDto.UserResponse login(UserDto.LoginRequest request);
     void changePassword(Long userId, UserDto.PasswordChangeRequest request);
     UserDto.UserResponse getUserById(Long userId);
+    boolean isEmailExists(String email);
+    void updateUserRoleByEmail(String email, String roleName);
 } 
