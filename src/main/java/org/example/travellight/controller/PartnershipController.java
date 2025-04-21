@@ -84,10 +84,12 @@ public class PartnershipController {
             }
 
             Partnership updatedPartnership = partnershipService.updatePartnershipStatus(id, newStatus);
-            return ResponseEntity.ok(ApiResponse.success(
-                "제휴점 상태가 " + (newStatus.equals("APPROVED") ? "승인" : "거절") + "되었습니다.", 
-                updatedPartnership
-            ));
+            
+            String successMessage = "APPROVED".equals(newStatus) 
+                ? "제휴점이 승인되었습니다. 해당 사용자의 권한이 파트너로 업데이트되었습니다." 
+                : "제휴 신청이 거절되었습니다.";
+                
+            return ResponseEntity.ok(ApiResponse.success(successMessage, updatedPartnership));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("상태 업데이트 중 오류가 발생했습니다: " + e.getMessage()));

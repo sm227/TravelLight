@@ -26,6 +26,9 @@ import FAQ from './pages/FAQ';
 import Inquiry from './pages/Inquiry';
 import AdminPartnerships from './pages/admin/AdminPartnerships';
 import { useTranslation } from 'react-i18next';
+import Partner from './pages/Partner';
+import PartnerSignup from './pages/PartnerSignup';
+import PartnerDashboard from './pages/PartnerDashboard';
 
 // 네이버 맵 상태를 위한 전역 타입 확장
 declare global {
@@ -271,6 +274,9 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/StoragePartnership" element={<StoragePartnership />} />
+            <Route path="/partner" element={<Partner />} />
+            <Route path="/partner-signup" element={<PartnerSignup />} />
+            <Route path="/partner-dashboard" element={<PartnerDashboard />} />
             <Route path="/FAQ" element={<FAQ />} />"
             <Route path="/Inquiry" element={<Inquiry />} />
             <Route path="/carry" element={<Carry />}/>
