@@ -65,7 +65,17 @@ const AdminPartnerships: React.FC = () => {
     const handleStatusChange = async (id: number, newStatus: 'APPROVED' | 'REJECTED') => {
         try {
             const response = await axios.put(`/api/partnership/${id}/status`, { status: newStatus });
-            toast.success(response.data.message);
+            const successMessage = response.data.message;
+            toast.success(successMessage);
+            
+            if (newStatus === 'APPROVED') {
+                // 파트너 승인 시 추가 안내 메시지 표시
+                toast.info('해당 사용자는 이제 파트너 기능을 사용할 수 있습니다.', {
+                    autoClose: 5000,
+                    position: 'top-center'
+                });
+            }
+            
             fetchPartnerships();
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || '상태 업데이트에 실패했습니다.';

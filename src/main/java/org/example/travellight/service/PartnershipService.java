@@ -21,6 +21,9 @@ public class PartnershipService {
     private PartnershipRepository partnershipRepository;
 
     private final AddressTsService addressTsService;
+    
+    @Autowired
+    private UserService userService;
 
     public PartnershipService(PartnershipRepository partnershipRepository, AddressTsService addressTsService) {
         this.addressTsService = addressTsService;
@@ -88,6 +91,15 @@ public class PartnershipService {
         // 고유 신청 ID 생성
         partnership.setSubmissionId(generateSubmissionId());
 
+        // 사용자 역할을 WAIT으로 설정
+        try {
+            userService.updateUserRoleByEmail(dto.getEmail(), "WAIT");
+            System.out.println("사용자 역할이 WAIT으로 업데이트되었습니다: " + dto.getEmail());
+        } catch (Exception e) {
+            System.err.println("사용자 역할 업데이트 중 오류 발생: " + e.getMessage());
+            // 역할 업데이트 실패해도 파트너십 상태는 설정
+        }
+
         // 저장 및 반환
         return partnershipRepository.save(partnership);
     }
@@ -129,6 +141,18 @@ public class PartnershipService {
         }
         
         partnership.setStatus(newStatus);
+        
+        // APPROVED 상태로 변경되면 해당 사용자의 역할을 PARTNER로 업데이트
+        if ("APPROVED".equals(newStatus)) {
+            try {
+                userService.updateUserRoleByEmail(partnership.getEmail(), "PARTNER");
+                System.out.println("사용자 역할이 PARTNER로 업데이트되었습니다: " + partnership.getEmail());
+            } catch (Exception e) {
+                System.err.println("사용자 역할 업데이트 중 오류 발생: " + e.getMessage());
+                // 역할 업데이트 실패해도 파트너십 상태는 변경
+            }
+        }
+        
         return partnershipRepository.save(partnership);
     }
 }

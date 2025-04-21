@@ -47,12 +47,6 @@ public class PartnershipController {
             // 서비스를 통해 데이터 저장
             Partnership savedPartnership = partnershipService.createPartnership(partnershipDto);
 
-            // 저장된 위도 경도 확인
-//            System.out.println("ID: " + savedPartnership.getId());
-//            System.out.println("제출 ID: " + savedPartnership.getSubmissionId());
-            System.out.println("위도: " + savedPartnership.getLatitude());
-            System.out.println("경도: " + savedPartnership.getLongitude());
-
             // 클라이언트에 전달할 응답 데이터
             Map<String, Object> data = new HashMap<>();
             data.put("id", savedPartnership.getId());
@@ -90,10 +84,12 @@ public class PartnershipController {
             }
 
             Partnership updatedPartnership = partnershipService.updatePartnershipStatus(id, newStatus);
-            return ResponseEntity.ok(ApiResponse.success(
-                "제휴점 상태가 " + (newStatus.equals("APPROVED") ? "승인" : "거절") + "되었습니다.", 
-                updatedPartnership
-            ));
+            
+            String successMessage = "APPROVED".equals(newStatus) 
+                ? "제휴점이 승인되었습니다. 해당 사용자의 권한이 파트너로 업데이트되었습니다." 
+                : "제휴 신청이 거절되었습니다.";
+                
+            return ResponseEntity.ok(ApiResponse.success(successMessage, updatedPartnership));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("상태 업데이트 중 오류가 발생했습니다: " + e.getMessage()));

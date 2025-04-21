@@ -1,3 +1,8 @@
+/* 지도 부드러운 줌 애니메이션을 위한 스타일 추가 */
+#map {
+    transition: transform 0.3s ease-out;
+}
+
 .map-button-container {
     position: fixed;
     bottom: 20px;
@@ -16,11 +21,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, transform 0.15s ease;
 }
 
 .map-button:hover {
     background-color: #f5f5f5;
+    transform: scale(1.05);
+}
+
+.map-button:active {
+    transform: scale(0.95);
 }
 
 .map-button-icon {
@@ -207,6 +217,13 @@
 
 .ellipsis {
     margin-bottom: 8px;
+}
+
+.english-address {
+    color: #3949ab;
+    margin-bottom: 8px;
+    font-style: italic;
+    font-size: 12px;
 }
 
 .phone {

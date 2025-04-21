@@ -26,19 +26,33 @@ import {
     DialogContent,
     DialogContentText,
     DialogActions,
-    InputAdornment
+    InputAdornment,
+    FormHelperText,
+    Link,
+    IconButton
 } from '@mui/material';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import { styled } from '@mui/material/styles';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 // 카카오 맵 및 주소 검색 타입 선언 (TypeScript 지원을 위해)
 declare global {
     interface Window {
         daum: any;
         kakao: any;
+        naver: any;
+        naverMapLoaded?: boolean;
     }
 }
 
@@ -77,77 +91,126 @@ const StoragePartnership: React.FC = () => {
     const [submissionId, setSubmissionId] = useState('');
     // const [isAddressModalOpen, setAddressModalOpen] = useState(false);
 
-    // 카카오 API 스크립트 로드 (주소 검색 및 지오코딩)
+    // 네이버 지도 API 초기화 - 지오코더 사용
     useEffect(() => {
-        // 주소 검색 API 스크립트 로드
-        const postcodeScript = document.createElement('script');
-        postcodeScript.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
-        postcodeScript.async = true;
-        document.body.appendChild(postcodeScript);
-
-        // 지오코딩을 위한 맵 API 스크립트 로드
-        const mapScript = document.createElement('script');
-        mapScript.src = '//dapi.kakao.com/v2/maps/sdk.js?appkey=92f721d745fe5ca9c85f8fa735e6979b&libraries=services';
-        mapScript.async = true;
-        document.body.appendChild(mapScript);
-
-        return () => {
-            document.body.removeChild(postcodeScript);
-            if (document.body.contains(mapScript)) {
-                document.body.removeChild(mapScript);
+        // 전역 naverMapLoaded 플래그를 확인하는 함수
+        const checkNaverMapLoaded = () => {
+            return window.naverMapLoaded === true && window.naver && window.naver.maps && window.naver.maps.Service;
+        };
+        
+        const waitForNaverMaps = () => {
+            if (checkNaverMapLoaded()) {
+                console.log('네이버 지도 API 로드 완료');
+                clearInterval(checkInterval);
             }
+        };
+        
+        // 정기적으로 로드 상태 확인 (간격 증가: 500ms)
+        const checkInterval = setInterval(waitForNaverMaps, 500);
+        
+        // 10초로 시간 초과 처리 시간 증가
+        setTimeout(() => {
+            clearInterval(checkInterval);
+            if (!checkNaverMapLoaded()) {
+                console.error('네이버 지도 API 로드 시간 초과');
+            }
+        }, 10000);
+        
+        // 언어 변경 이벤트 리스너 등록
+        const handleMapLanguageChange = () => {
+            console.log("언어 변경 감지, 네이버 지도 API 다시 확인");
+            
+            // 기존 인터벌 클리어
+            clearInterval(checkInterval);
+            
+            // 새로운 인터벌 시작
+            const newCheckInterval = setInterval(() => {
+                if (checkNaverMapLoaded()) {
+                    console.log('(언어 변경 후) 네이버 지도 API 로드 완료');
+                    clearInterval(newCheckInterval);
+                }
+            }, 500);
+            
+            // 10초 후 시간 초과 처리
+            setTimeout(() => {
+                clearInterval(newCheckInterval);
+                if (!checkNaverMapLoaded()) {
+                    console.error('(언어 변경 후) 네이버 지도 API 로드 시간 초과');
+                }
+            }, 10000);
+        };
+        
+        window.addEventListener('naverMapLanguageChanged', handleMapLanguageChange);
+        
+        return () => {
+            clearInterval(checkInterval);
+            window.removeEventListener('naverMapLanguageChanged', handleMapLanguageChange);
         };
     }, []);
 
-    // 지오코딩 함수
+    // 지오코딩 함수 (네이버맵 API 사용)
     const getCoordinates = (address: string) => {
         return new Promise<{ lat: number; lng: number }>((resolve, reject) => {
-            // api 호출 횟수 관리 -> 최대 10
+            // API 호출 횟수 관리 -> 최대 15로 증가
             let attempts = 0;
-            const maxAttempts = 10;
+            const maxAttempts = 15;
 
-            // 카카오맵 api 로드되었는지 확인
+            // 네이버맵 API 로드 확인 - 개선된 버전
             const checkAndExecute = () => {
                 attempts++;
-                if (window.kakao && window.kakao.maps && window.kakao.maps.services) {
-                    console.log('카카오 맵 API 로드 완료, 좌표 변환 시도');
+                
+                // 네이버 지도 API 및 지오코딩 서비스 가용성 확인
+                // 특히 Service.geocode가 존재하는지 확인
+                if (window.naver?.maps?.Service?.geocode) {
+                    console.log('네이버 맵 API 로드 확인, 좌표 변환 시도');
                     
-                    const geocoder = new window.kakao.maps.services.Geocoder();
+                    try {
+                        // 주소 -> 좌표 변환 (geocode 서비스 사용)
+                        window.naver.maps.Service.geocode({
+                            query: address
+                        }, function(status: any, response: any) {
+                            // 응답 상태 확인
+                            if (status === window.naver.maps.Service.Status.OK) {
+                                // 주소 데이터 확인
+                                if (response?.v2?.addresses && response.v2.addresses.length > 0) {
+                                    const result = response.v2.addresses[0];
+                                    console.log('좌표 변환 결과:', result);
+                                    
+                                    // 검색된 주소를 바탕으로 한 좌표 추출
+                                    const coords = {
+                                        lat: parseFloat(result.y),
+                                        lng: parseFloat(result.x)
+                                    };
 
-                    // 주소 -> 위, 경도 좌표 변환
-                    geocoder.addressSearch(address, (result: any, status: any) => {
-                        if (status === window.kakao.maps.services.Status.OK) {
-                            console.log('좌표 변환 결과:', result);
-                            // 검색된 주소를 바탕으로 한 좌표 추출
-                            // y가 위도, x 가 경도
-                            const coords = {
-                                lat: parseFloat(result[0].y),
-                                lng: parseFloat(result[0].x)
-                            };
-
-                            // 좌표 유효성 검사
-                            if (isNaN(coords.lat) || isNaN(coords.lng)) {
-                                console.error('변환된 좌표가 숫자가 아닙니다:', result);
-                                reject(new Error('유효하지 않은 좌표입니다.'));
+                                    // 좌표 유효성 검사
+                                    if (isNaN(coords.lat) || isNaN(coords.lng)) {
+                                        console.error('변환된 좌표가 숫자가 아닙니다:', result);
+                                        reject(new Error('유효하지 않은 좌표입니다.'));
+                                    } else {
+                                        console.log('최종 변환 좌표:', coords);
+                                        resolve(coords);
+                                    }
+                                } else {
+                                    console.error('주소 변환 결과가 없습니다.');
+                                    reject(new Error('주소를 좌표로 변환할 수 없습니다.'));
+                                }
                             } else {
-                                console.log('최종 변환 좌표:', coords);
-
-                                setTimeout(() => {
-                                    resolve(coords);
-                                }, 500);
+                                console.error('주소 변환 실패:', status);
+                                reject(new Error('주소를 좌표로 변환할 수 없습니다.'));
                             }
-                        } else {
-                            console.error('주소 변환 실패:', status);
-                            reject(new Error('주소를 좌표로 변환할 수 없습니다.'));
-                        }
-                    });
+                        });
+                    } catch (error) {
+                        console.error('좌표 변환 과정에서 오류 발생:', error);
+                        reject(new Error('좌표 변환 처리 중 오류가 발생했습니다.'));
+                    }
                 } else {
-                    console.log(`카카오 맵 API 로드 대기 중... (시도: ${attempts}/${maxAttempts})`);
+                    console.log(`네이버 맵 API 로드 대기 중... (시도: ${attempts}/${maxAttempts})`);
                     if (attempts < maxAttempts) {
-                        setTimeout(checkAndExecute, 1000);
+                        // 대기 시간 증가 (지수 백오프)
+                        setTimeout(checkAndExecute, 500 * Math.min(attempts, 3));
                     } else {
-                        console.error('카카오 맵 API 로드 실패');
-                        reject(new Error('카카오 맵 API가 로드되지 않았습니다.'));
+                        console.error('네이버 맵 API 로드 실패');
+                        reject(new Error('네이버 맵 API가 로드되지 않았습니다.'));
                     }
                 }
             };
@@ -171,28 +234,33 @@ const StoragePartnership: React.FC = () => {
 
                     console.log('검색된 주소:', fullAddress);
 
+                    // 검색된 주소로 폼 데이터 먼저 업데이트
+                    setFormData(prev => ({
+                        ...prev,
+                        address: completeAddress,
+                        latitude: 0,
+                        longitude: 0
+                    }));
 
                     try {
-                        setFormData(prev => ({
-                            ...prev,
-                            address: completeAddress,
-                            latitude: 0,
-                            longitude: 0
-                        }));
+                        // 좌표 변환 시도 전에 네이버 맵 로드 상태 확인
+                        if (window.naver && window.naver.maps && window.naver.maps.Service) {
+                            // 좌표 변환
+                            console.log('좌표 변환 시작...');
+                            const coords = await getCoordinates(fullAddress);
+                            console.log('좌표 변환 성공:', coords);
 
-                        // 좌표 변환
-                        // await 사용해 비동기 처리
-                        console.log('좌표 변환 시작...');
-                        const coords = await getCoordinates(fullAddress);
-                        console.log('좌표 변환 성공:', coords);
-
-                        setFormData(prev => ({
-                            ...prev,
-                            latitude: coords.lat,
-                            longitude: coords.lng
-                        }));
-                        
-                        console.log(`주소 좌표 변환 완료 및 저장: 위도 ${coords.lat}, 경도 ${coords.lng}`);
+                            setFormData(prev => ({
+                                ...prev,
+                                latitude: coords.lat,
+                                longitude: coords.lng
+                            }));
+                            
+                            console.log(`주소 좌표 변환 완료 및 저장: 위도 ${coords.lat}, 경도 ${coords.lng}`);
+                        } else {
+                            console.warn('네이버 지도 API가 로드되지 않아 좌표 변환을 진행할 수 없습니다.');
+                            setError('지도 서비스가 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                        }
                     } catch (error) {
                         console.error('좌표 변환 오류:', error);
                         setError('주소를 좌표로 변환하는 중 오류가 발생했습니다. 다시 시도해 주세요.');

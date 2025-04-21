@@ -35,7 +35,7 @@ const Navbar: React.FC = () => {
   const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isPartner, isWaiting, logout } = useAuth();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
 
@@ -76,8 +76,16 @@ const Navbar: React.FC = () => {
   };
 
   const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
+    // 현재 언어 저장
+    localStorage.setItem('preferredLanguage', lng);
+    
+    // 언어 메뉴 닫기
     handleLangMenuClose();
+    
+    // 0.5초 후 페이지 새로고침 (언어 설정이 저장될 시간 확보)
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   };
 
   // Navigation to Partnership Pages
@@ -99,6 +107,27 @@ const Navbar: React.FC = () => {
   const navigateToFAQ = () => {
         handlePartnerMenuClose();
         navigate('/FAQ');
+  };
+
+  const navigateToPartner = () => {
+    handlePartnerMenuClose();
+    
+    if (!isAuthenticated) {
+      // 로그인하지 않은 경우 로그인 페이지로 이동
+      navigate('/login', { state: { from: '/partner' } });
+      return;
+    }
+    
+    if (isPartner) {
+      // PARTNER 역할: 매장 관리 페이지로 직접 이동
+      navigate('/partner-dashboard');
+    } else if (isWaiting) {
+      // WAIT 역할: 대기 화면으로 이동
+      navigate('/partner-dashboard'); // 대시보드에서 대기 화면 표시됨
+    } else {
+      // USER 역할: 기본 파트너 페이지
+      navigate('/partner');
+    }
   };
 
   const menuItems = [
@@ -128,6 +157,11 @@ const Navbar: React.FC = () => {
                 <ListItemText primary={item.text} />
               </ListItem>
           ))}
+
+          <ListItemButton onClick={navigateToFAQ} sx={{ textAlign: 'center', color: 'inherit' }}>
+            <ListItemText primary={t('howItWorks')} />
+          </ListItemButton>
+
           <ListItemButton onClick={handlePartnerMenuOpen} sx={{ textAlign: 'center', color: 'inherit' }}>
             <ListItemText primary={t('partnership')} />
           </ListItemButton>
@@ -147,6 +181,13 @@ const Navbar: React.FC = () => {
             ))}
           </Menu>
           
+          <ListItemButton
+              onClick={navigateToPartner}
+              sx={{ textAlign: 'center', color: 'inherit' }}
+          >
+            <ListItemText primary={t('partner')} />
+          </ListItemButton>
+
           {/* 언어 설정 */}
           <ListItemButton onClick={handleLangMenuOpen} sx={{ textAlign: 'center', color: 'primary.main' }}>
             <ListItemText primary={t('language')} />
@@ -292,43 +333,74 @@ const Navbar: React.FC = () => {
                           {item.text}
                         </Button>
                     ))}
-                    <Box sx={{ position: 'relative' }}>
-                      <Button
-                          ref={partnerButtonRef}
-                          aria-controls={partnerMenuOpen ? 'partner-menu-desktop' : undefined}
-                          aria-haspopup="true"
-                          aria-expanded={partnerMenuOpen ? 'true' : undefined}
-                          onClick={handlePartnerMenuOpen}
-                          sx={{
-                            my: 2,
-                            mx: 1.5,
-                            color: 'text.primary',
-                            display: 'flex',
-                            alignItems: 'center',
-                            '&:hover': {
-                              color: 'primary.main',
-                            }
-                          }}
-                          endIcon={<ArrowDropDownIcon />}
-                      >
-                        {t('partnership')}
-                      </Button>
-                      <Menu
-                          id="partner-menu-desktop"
-                          anchorEl={partnerMenuAnchorEl}
-                          open={partnerMenuOpen}
-                          onClose={handlePartnerMenuClose}
-                          MenuListProps={{
-                            'aria-labelledby': 'partner-button',
-                          }}
-                      >
-                        {partnerSubMenuItems.map((item) => (
-                            <MenuItem key={item.text} onClick={item.onClick}>
-                              {item.text}
-                            </MenuItem>
-                        ))}
-                      </Menu>
-                    </Box>
+
+                    <Button
+                        onClick={navigateToFAQ}
+                        sx={{
+                          my: 2,
+                          mx: 1.5,
+                          color: 'text.primary',
+                          display: 'flex',
+                          alignItems: 'center',
+                          '&:hover': {
+                            color: 'primary.main',
+                          }
+                        }}
+                    >
+                      {t('howItWorks')}
+                    </Button>
+
+                    <Button
+                        ref={partnerButtonRef}
+                        aria-controls={partnerMenuOpen ? 'partner-menu-desktop' : undefined}
+                        aria-haspopup="true"
+                        aria-expanded={partnerMenuOpen ? 'true' : undefined}
+                        onClick={handlePartnerMenuOpen}
+                        sx={{
+                          my: 2,
+                          mx: 1.5,
+                          color: 'text.primary',
+                          display: 'flex',
+                          alignItems: 'center',
+                          '&:hover': {
+                            color: 'primary.main',
+                          }
+                        }}
+                        endIcon={<ArrowDropDownIcon />}
+                    >
+                      {t('partnership')}
+                    </Button>
+                    <Menu
+                        id="partner-menu-desktop"
+                        anchorEl={partnerMenuAnchorEl}
+                        open={partnerMenuOpen}
+                        onClose={handlePartnerMenuClose}
+                        MenuListProps={{
+                          'aria-labelledby': 'partner-button',
+                        }}
+                    >
+                      {partnerSubMenuItems.map((item) => (
+                          <MenuItem key={item.text} onClick={item.onClick}>
+                            {item.text}
+                          </MenuItem>
+                      ))}
+                    </Menu>
+
+                    <Button
+                      onClick={navigateToPartner}
+                      sx={{
+                        my: 2,
+                        mx: 1.5,
+                        color: 'text.primary',
+                        display: 'flex',
+                        alignItems: 'center',
+                        '&:hover': {
+                          color: 'primary.main',
+                        }
+                      }}
+                    >
+                      {t('partner')}
+                    </Button>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     {isAuthenticated ? (
