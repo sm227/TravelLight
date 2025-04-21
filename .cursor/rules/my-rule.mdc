@@ -1,0 +1,18 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+
+이 프로젝트는 스프링 부트 + 리액트(타입스크립트) 프로젝트입니다.
+MVC 패턴을 준수하세요.
+디자인 시 tailwind css 를 사용하세요.
+
+한국어로 대답하세요.

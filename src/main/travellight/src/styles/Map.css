@@ -1,0 +1,25 @@
+/* 은행 마커 스타일 */
+.bank-marker-container {
+  position: absolute;
+  transform: translate(-50%, -100%);
+}
+
+.bank-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #1976d2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.bank-icon {
+  width: 20px;
+  height: 20px;
+  background-image: url('../assets/bank-icon.png'); /* 은행 아이콘 경로 확인 필요 */
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+} 

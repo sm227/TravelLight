@@ -1,0 +1,354 @@
+/* 지도 부드러운 줌 애니메이션을 위한 스타일 추가 */
+#map {
+    transition: transform 0.3s ease-out;
+}
+
+.map-button-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.map-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: white;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.map-button:hover {
+    background-color: #f5f5f5;
+    transform: scale(1.05);
+}
+
+.map-button:active {
+    transform: scale(0.95);
+}
+
+.map-button-icon {
+    color: #3B5998;
+    font-size: 24px;
+}
+
+/* 사용자 위치 마커 스타일 */
+.custom-marker {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.marker-circle {
+    width: 15px;
+    height: 15px;
+    background-color: #fa4141;
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.marker-wave {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background-color: rgba(255, 107, 107, 0.4);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 0.4;
+    }
+    70% {
+        transform: scale(1.8);
+        opacity: 0.1;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 0;
+    }
+}
+
+/* 은행 마커 스타일 */
+.bank-marker-container {
+    position: absolute;
+    transform: translate(-50%, -100%);
+}
+
+.bank-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: #1a73e8;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.bank-marker.selected {
+    background-color: #e53935;
+    transform: scale(1.1);
+    box-shadow: 0 4px 6px rgba(229, 57, 53, 0.3);
+    z-index: 2;
+}
+
+.bank-text {
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+}
+
+.marker-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+}
+
+/* 편의점 마커 스타일 */
+.store-marker-container {
+    position: absolute;
+    transform: translate(-50%, -100%);
+}
+
+.store-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: #1a73e8;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.store-marker.selected {
+    background-color: #e53935;
+    transform: scale(1.1);
+    box-shadow: 0 4px 6px rgba(229, 57, 53, 0.3);
+    z-index: 2;
+}
+
+.store-text {
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+}
+
+/* 정보 창 스타일 개선 */
+.info-window {
+    position: relative;
+    background-color: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    min-width: 220px;
+    max-width: 280px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.info-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.bank-name, .store-name {
+    font-weight: 600;
+    color: #202124;
+    font-size: 15px;
+}
+
+.close {
+    cursor: pointer;
+    font-size: 16px;
+    color: #5f6368;
+    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.close:hover {
+    color: #202124;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.body {
+    padding: 5px 0;
+}
+
+.desc {
+    font-size: 13px;
+    color: #5f6368;
+    line-height: 1.5;
+}
+
+.ellipsis {
+    margin-bottom: 8px;
+}
+
+.english-address {
+    color: #3949ab;
+    margin-bottom: 8px;
+    font-style: italic;
+    font-size: 12px;
+}
+
+.phone {
+    color: #1a73e8;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.hours {
+    color: #188038;
+    font-weight: 500;
+}
+
+.info-tail {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 8px;
+    overflow: hidden;
+}
+
+.info-tail:after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 0;
+    width: 16px;
+    height: 16px;
+    background-color: white;
+    transform: rotate(45deg);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+    box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* 제휴점 마커 스타일 */
+.partnership-marker-container {
+    position: absolute;
+    transform: translate(-50%, -100%);
+}
+
+.partnership-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: #1a73e8; /* 파란색 배경 */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.partnership-marker.selected {
+    background-color: #e53935;
+    transform: scale(1.1);
+    box-shadow: 0 4px 6px rgba(229, 57, 53, 0.3);
+    z-index: 2;
+}
+
+/* 제휴점 타입별 마커 스타일 */
+.partnership-marker.편의점 {
+    background-color: #1a73e8;
+}
+
+.partnership-marker.은행 {
+    background-color: #1a73e8;
+}
+
+.partnership-marker.카페 {
+    background-color: #1a73e8;
+}
+
+.partnership-marker.식당 {
+    background-color: #1a73e8;
+}
+
+.partnership-marker.숙박 {
+    background-color: #1a73e8;
+}
+
+.business-type {
+    margin-bottom: 8px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* 비즈니스 타입별 태그 스타일 */
+.business-type-카페 {
+    color: #0097A7;
+    background-color: rgba(0, 151, 167, 0.1);
+}
+
+.business-type-편의점 {
+    color: #F57C00;
+    background-color: rgba(245, 124, 0, 0.1);
+}
+
+.business-type-숙박 {
+    color: #7B1FA2;
+    background-color: rgba(123, 31, 162, 0.1);
+}
+
+.business-type-식당 {
+    color: #D32F2F;
+    background-color: rgba(211, 47, 47, 0.1);
+}
+
+.business-type-은행 {
+    color: #388E3C;
+    background-color: rgba(56, 142, 60, 0.1);
+}
+
+.business-type-소매점 {
+    color: #303F9F;
+    background-color: rgba(48, 63, 159, 0.1);
+}
+
+.business-type-기타 {
+    color: #616161;
+    background-color: rgba(97, 97, 97, 0.1);
+} 
