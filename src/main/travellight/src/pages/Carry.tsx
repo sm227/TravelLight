@@ -236,7 +236,9 @@ const LuggageDeliveryForm = () => {
                             label="수거 희망일"
                             value={formData.pickupDate}
                             onChange={(date) => handleDateChange('pickupDate', date)}
-                            renderInput={(params) => <TextField {...params} fullWidth margin="normal" />}
+                            slots={{
+                                textField: (params) => <TextField {...params} fullWidth margin="normal" />
+                            }}
                         />
                     </LocalizationProvider>
                 </Grid>
@@ -247,7 +249,9 @@ const LuggageDeliveryForm = () => {
                             label="배송 희망일"
                             value={formData.deliveryDate}
                             onChange={(date) => handleDateChange('deliveryDate', date)}
-                            renderInput={(params) => <TextField {...params} fullWidth margin="normal" />}
+                            slots={{
+                                textField: (params) => <TextField {...params} fullWidth margin="normal" />
+                            }}
                         />
                     </LocalizationProvider>
                 </Grid>

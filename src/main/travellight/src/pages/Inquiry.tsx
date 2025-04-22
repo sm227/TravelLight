@@ -50,7 +50,11 @@ const InquiryPage = () => {
     const [isSubmitted, setIsSubmitted] = useState(false);
 
     // 알림 상태
-    const [notification, setNotification] = useState({
+    const [notification, setNotification] = useState<{
+        open: boolean;
+        message: string;
+        severity: 'success' | 'error' | 'warning' | 'info';
+    }>({
         open: false,
         message: '',
         severity: 'success'
