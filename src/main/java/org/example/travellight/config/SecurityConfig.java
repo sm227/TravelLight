@@ -26,6 +26,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // Swagger UI 관련 경로 허용
+                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/users/register", "/api/users/login", "/api/partnership", 
                                 "/api/reservations/**", "/api/EventStorage", 
                                 "/api/admin/EventStorage/**", 

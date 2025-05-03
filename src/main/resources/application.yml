@@ -1,0 +1,11 @@
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  api-docs:
+    path: /api-docs
+  packages-to-scan: org.example.travellight.controller
+  paths-to-match: /**
+
+spring:
+  # 기존 설정들... 
