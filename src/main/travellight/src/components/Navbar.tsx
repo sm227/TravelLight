@@ -265,6 +265,7 @@ const Navbar: React.FC = () => {
   const isLangMenuOpen = Boolean(langMenuAnchorEl);
 
   return (
+    <>
       <AppBar position="fixed" color="default" elevation={0} sx={{ backgroundColor: 'white' }}>
         <Container maxWidth="lg">
           <Toolbar disableGutters>
@@ -405,14 +406,7 @@ const Navbar: React.FC = () => {
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     {isAuthenticated ? (
                         <>
-                          <Button
-                              component={RouterLink}
-                              to="/mypage"
-                              color="primary"
-                              sx={{ mx: 1 }}
-                          >
-                            {t('myPage')}
-                          </Button>
+                          
                           
                           <IconButton
                               aria-label={t('language')}
@@ -498,6 +492,8 @@ const Navbar: React.FC = () => {
           <MenuItem onClick={() => changeLanguage('en')}>{t('english')}</MenuItem>
         </Menu>
       </AppBar>
+      <Box sx={{ height: '64px' }} /> {/* AppBar 높이만큼의 여백 추가 */}
+    </>
   );
 };
 

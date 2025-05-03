@@ -21,7 +21,12 @@ import {
   Alert,
   useTheme,
   Divider,
-  useMediaQuery
+  useMediaQuery,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import StoreIcon from '@mui/icons-material/Store';
@@ -90,14 +95,34 @@ const reservations = [
   }
 ];
 
-// 임시 매장 정보
-const storeInfo = {
-  name: '트래블라이트 강남점',
-  address: '서울시 강남구 테헤란로 123',
-  businessHours: '09:00 - 18:00',
-  capacity: '소형 10개, 중형 5개, 대형 3개',
-  status: '영업 중'
-};
+interface Store {
+  id: number;
+  name: string;
+  address: string;
+  businessHours: string;
+  capacity: string;
+  status: string;
+}
+
+// 임시 매장 목록 데이터
+const stores: Store[] = [
+  {
+    id: 1,
+    name: '트래블라이트 강남점',
+    address: '서울시 강남구 테헤란로 123',
+    businessHours: '09:00 - 18:00',
+    capacity: '소형 10개, 중형 5개, 대형 3개',
+    status: '영업 중'
+  },
+  {
+    id: 2,
+    name: '트래블라이트 홍대점',
+    address: '서울시 마포구 홍대로 456',
+    businessHours: '10:00 - 20:00',
+    capacity: '소형 8개, 중형 4개, 대형 2개',
+    status: '영업 중'
+  }
+];
 
 const PartnerDashboard: React.FC = () => {
   const { t } = useTranslation();
@@ -109,6 +134,8 @@ const PartnerDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [selectedStore, setSelectedStore] = useState<Store>(stores[0]);
+  const [storeList, setStoreList] = useState<Store[]>(stores);
 
   useEffect(() => {
     // 인증 및 권한 확인
@@ -137,6 +164,17 @@ const PartnerDashboard: React.FC = () => {
 
   const handleChangeTab = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+  };
+
+  const handleStoreChange = (event: SelectChangeEvent<number>) => {
+    const store = storeList.find(s => s.id === event.target.value);
+    if (store) {
+      setSelectedStore(store);
+    }
+  };
+
+  const handleAddStore = () => {
+    navigate('/partner-signup');
   };
 
   if (loading) {
@@ -218,20 +256,48 @@ const PartnerDashboard: React.FC = () => {
         }}
       >
         <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Box>
-              <Typography variant="h4" component="h1" gutterBottom>
-                파트너 대시보드
-              </Typography>
-              <Typography variant="subtitle1">
-                {storeInfo.name} · {storeInfo.status}
-              </Typography>
-            </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h4" component="h1">
+              파트너 대시보드
+            </Typography>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleAddStore}
+              sx={{ 
+                backgroundColor: 'white',
+                color: 'primary.main',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)'
+                }
+              }}
+            >
+              매장 추가하기
+            </Button>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <FormControl sx={{ minWidth: 300, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 1 }}>
+              <Select
+                value={selectedStore.id}
+                onChange={handleStoreChange}
+                sx={{ 
+                  color: 'white',
+                  '.MuiSelect-icon': { color: 'white' },
+                  '&:before': { borderColor: 'white' },
+                  '&:after': { borderColor: 'white' }
+                }}
+              >
+                {storeList.map((store) => (
+                  <MenuItem key={store.id} value={store.id}>
+                    {store.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <Chip 
-              label="매장 정보 수정" 
+              label={selectedStore.status} 
               color="primary" 
               variant="outlined" 
-              onClick={() => setTabValue(2)}
               sx={{ 
                 color: 'white', 
                 borderColor: 'white',
@@ -283,28 +349,28 @@ const PartnerDashboard: React.FC = () => {
                         <Typography variant="body2" color="textSecondary">상호명</Typography>
                       </Grid>
                       <Grid item xs={8}>
-                        <Typography variant="body1">{storeInfo.name}</Typography>
+                        <Typography variant="body1">{selectedStore.name}</Typography>
                       </Grid>
                       
                       <Grid item xs={4}>
                         <Typography variant="body2" color="textSecondary">주소</Typography>
                       </Grid>
                       <Grid item xs={8}>
-                        <Typography variant="body1">{storeInfo.address}</Typography>
+                        <Typography variant="body1">{selectedStore.address}</Typography>
                       </Grid>
                       
                       <Grid item xs={4}>
                         <Typography variant="body2" color="textSecondary">영업시간</Typography>
                       </Grid>
                       <Grid item xs={8}>
-                        <Typography variant="body1">{storeInfo.businessHours}</Typography>
+                        <Typography variant="body1">{selectedStore.businessHours}</Typography>
                       </Grid>
                       
                       <Grid item xs={4}>
                         <Typography variant="body2" color="textSecondary">보관 용량</Typography>
                       </Grid>
                       <Grid item xs={8}>
-                        <Typography variant="body1">{storeInfo.capacity}</Typography>
+                        <Typography variant="body1">{selectedStore.capacity}</Typography>
                       </Grid>
                     </Grid>
                   </CardContent>

@@ -273,7 +273,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/StoragePartnership" element={<StoragePartnership />} />
+            {/*<Route path="/StoragePartnership" element={<StoragePartnership />} />*/}
             <Route path="/partner" element={<Partner />} />
             <Route path="/partner-signup" element={<PartnerSignup />} />
             <Route path="/partner-dashboard" element={<PartnerDashboard />} />
