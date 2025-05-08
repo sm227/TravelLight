@@ -159,9 +159,12 @@ const MyPage = () => {
           setPasswordSuccess(null);
         }, 3000);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('비밀번호 변경 중 오류:', error);
-      const errorMessage = error.response?.data?.message || '비밀번호 변경 중 오류가 발생했습니다';
+      const errorMessage = error && typeof error === 'object' && 'response' in error && 
+        error.response && typeof error.response === 'object' && 'data' in error.response && 
+        error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data ? 
+        (error.response.data.message as string) : '비밀번호 변경 중 오류가 발생했습니다';
       setPasswordError(errorMessage);
     }
   };
@@ -250,8 +253,19 @@ const MyPage = () => {
                                 </div>
                               </div>
 
-                              <div>
+                              <div className="button-container" style={{ display: 'flex', gap: '10px' }}>
                                 <button className="detail-button">{t('viewDetails')}</button>
+                                <button className="delivery-button" style={{ 
+                                  backgroundColor: '#4CAF50', 
+                                  color: 'white',
+                                  border: 'none',
+                                  padding: '8px 16px',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer'
+                                }}>
+                                  배달 신청하기
+                          
+                                </button>
                               </div>
                             </div>
                         ))}
