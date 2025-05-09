@@ -14,9 +14,13 @@ public class Delivery {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reservation_id")
+    private Reservation reservation;
 
     @Column(nullable = false)
     private String pickupAddress;
@@ -42,4 +46,12 @@ public class Delivery {
 
     @Column
     private LocalDateTime estimatedDeliveryTime;
+
+    // 연관관계 편의 메서드
+    public void setReservation(Reservation reservation) {
+        this.reservation = reservation;
+        if (reservation != null && !reservation.getDeliveries().contains(this)) {
+            reservation.getDeliveries().add(this);
+        }
+    }
 } 

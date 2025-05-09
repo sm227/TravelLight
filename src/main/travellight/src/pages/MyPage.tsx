@@ -75,6 +75,22 @@ const ModalStyle = {
 
 const deliverySteps = ['배달 방식 선택', '배달 정보 입력', '정보 확인 및 신청'];
 
+// 배달 상태 정보와 스텝 추가
+const deliveryStatusSteps = [
+  { status: 'PENDING', label: '배송접수' },
+  { status: 'ACCEPTED', label: '배송준비' },
+  { status: 'PICKED_UP', label: '배송중' },
+  { status: 'DELIVERED', label: '배송완료' }
+];
+
+// CSS 스타일 추가
+const DeliveryStatusContainer = styled('div')(({ theme }) => ({
+  marginTop: '16px',
+  padding: '16px',
+  borderTop: '1px solid #e0e0e0',
+  borderRadius: '0 0 8px 8px',
+}));
+
 const MyPage = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [myTrips, setMyTrips] = useState<ReservationDto[]>([]);
@@ -107,6 +123,10 @@ const MyPage = () => {
   const [searchResults, setSearchResults] = useState<Partnership[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // 배달 상태 정보 추가
+  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [loadingDeliveries, setLoadingDeliveries] = useState(false);
+
   // 예약 상태를 체크하고 업데이트하는 함수
   const checkAndUpdateReservationStatus = (reservations: ReservationDto[]): ReservationDto[] => {
     const now = new Date();
@@ -123,13 +143,42 @@ const MyPage = () => {
     });
   };
 
+  // 배달 상태 정보 조회
+  const fetchDeliveryStatus = async (reservationId: number) => {
+    try {
+      setLoadingDeliveries(true);
+      const response = await axios.get(`/api/deliveries/reservation/${reservationId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('배달 정보를 불러오는데 실패했습니다:', error);
+      return [];
+    } finally {
+      setLoadingDeliveries(false);
+    }
+  };
+
+  // 배달 상태 스텝 인덱스 계산
+  const getDeliveryStatusIndex = (status: string) => {
+    const index = deliveryStatusSteps.findIndex(step => step.status === status);
+    return index >= 0 ? index : 0;
+  };
+
+  // 예약 목록 조회 시 각 예약에 대한 배달 정보도 함께 조회
   useEffect(() => {
-    const fetchReservations = async () => {
+    const fetchReservationsWithDeliveries = async () => {
       if (user?.id) {
         try {
           const reservations = await getMyReservations(user.id);
           const updatedReservations = checkAndUpdateReservationStatus(reservations);
           setMyTrips(updatedReservations);
+
+          // 각 예약에 대한 배달 정보 조회
+          const deliveryPromises = updatedReservations.map(reservation => 
+            fetchDeliveryStatus(reservation.id)
+          );
+          
+          const deliveryResults = await Promise.all(deliveryPromises);
+          setDeliveries(deliveryResults.flat());
         } catch (error) {
           console.error('예약 정보를 불러오는데 실패했습니다:', error);
         } finally {
@@ -138,7 +187,7 @@ const MyPage = () => {
       }
     };
 
-    fetchReservations();
+    fetchReservationsWithDeliveries();
 
     // 1분마다 상태를 체크하고 업데이트
     const interval = setInterval(() => {
@@ -147,6 +196,11 @@ const MyPage = () => {
 
     return () => clearInterval(interval);
   }, [user]);
+
+  // 해당 예약에 대한 배달 정보 조회
+  const getDeliveriesForReservation = (reservationId: number) => {
+    return deliveries.filter(delivery => delivery.reservationId === reservationId);
+  };
 
   const handleTabChange = (newValue: number) => {
     setActiveTab(newValue);
@@ -343,6 +397,7 @@ const MyPage = () => {
     try {
       const deliveryData = {
         userId: user.id,
+        reservationId: currentReservation.id,
         pickupAddress: currentReservation.placeName,
         deliveryAddress: deliveryType === 'partner' && selectedPartner 
           ? selectedPartner.address 
@@ -716,6 +771,24 @@ const MyPage = () => {
     );
   };
 
+  // 배달 상태 스텝 렌더링
+  const renderDeliveryStatusSteps = (delivery: any) => {
+    const activeStep = getDeliveryStatusIndex(delivery.status);
+    
+    return (
+      <div className="delivery-status-container">
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>배달 진행 상태</Typography>
+        <Stepper activeStep={activeStep} sx={{ width: '100%' }}>
+          {deliveryStatusSteps.map((step, index) => (
+            <Step key={step.status} completed={index <= activeStep}>
+              <StepLabel>{step.label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </div>
+    );
+  };
+
   // 기존 마이페이지 화면 렌더링
   const renderMyPageView = () => {
     return (
@@ -773,7 +846,11 @@ const MyPage = () => {
                       </div>
                   ) : (
                       <div>
-                        {myTrips.map((trip) => (
+                        {myTrips.map((trip) => {
+                          const tripDeliveries = getDeliveriesForReservation(trip.id);
+                          const hasDelivery = tripDeliveries.length > 0;
+                          
+                          return (
                             <div className="trip-card" key={trip.id}>
                               <div className="trip-header">
                                 <div className="trip-title">
@@ -802,17 +879,32 @@ const MyPage = () => {
                                 </div>
                               </div>
 
-                              <div className="button-container" style={{ display: 'flex', gap: '10px' }}>
-                                <button className="detail-button">{t('viewDetails')}</button>
-                                <button 
-                                  className="delivery-button" 
-                                  onClick={() => handleStartDelivery(trip)}
-                                >
-                                  배달 신청하기
-                                </button>
-                              </div>
+                              {hasDelivery ? (
+                                <DeliveryStatusContainer>
+                                  {tripDeliveries.map((delivery, index) => (
+                                    <Box key={delivery.id} sx={{ mb: index < tripDeliveries.length - 1 ? 2 : 0 }}>
+                                      {renderDeliveryStatusSteps(delivery)}
+                                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                                        배달 신청일: {new Date(delivery.requestedAt).toLocaleString()}
+                                      </Typography>
+                                    </Box>
+                                  ))}
+                                </DeliveryStatusContainer>
+                              ) : (
+                                <div className="button-container" style={{ display: 'flex', gap: '10px' }}>
+                                  <button className="detail-button">{t('viewDetails')}</button>
+                                  <button 
+                                    className="delivery-button" 
+                                    onClick={() => handleStartDelivery(trip)}
+                                    disabled={trip.status !== 'COMPLETED' && trip.status !== 'RESERVED'}
+                                  >
+                                    배달 신청하기
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                        ))}
+                          );
+                        })}
                       </div>
                   )}
                 </>

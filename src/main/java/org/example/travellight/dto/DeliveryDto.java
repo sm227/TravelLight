@@ -9,6 +9,7 @@ public class DeliveryDto {
     @Setter
     public static class DeliveryRequest {
         private Long userId;
+        private Long reservationId;
         private String pickupAddress;
         private String deliveryAddress;
         private String itemDescription;
@@ -20,6 +21,7 @@ public class DeliveryDto {
     public static class DeliveryResponse {
         private Long id;
         private Long userId;
+        private Long reservationId;
         private String pickupAddress;
         private String deliveryAddress;
         private String itemDescription;
