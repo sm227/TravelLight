@@ -461,4 +461,120 @@
 .MuiStepLabel-label.Mui-active {
   font-weight: 600 !important;
   color: #4CAF50 !important;
+}
+
+/* 검색 컨테이너 스타일 */
+.search-container {
+  margin-bottom: 20px;
+}
+
+.search-container .MuiTextField-root {
+  background-color: #f8f9fa;
+  border-radius: 12px;
+}
+
+.search-container .MuiOutlinedInput-root {
+  border-radius: 12px;
+}
+
+.search-container .MuiOutlinedInput-notchedOutline {
+  border: none;
+}
+
+.search-container .MuiInputBase-input {
+  padding: 14px 16px;
+}
+
+.search-container .MuiButton-root {
+  margin: 8px;
+  border-radius: 8px;
+  text-transform: none;
+  font-weight: 500;
+}
+
+/* 검색 결과 스타일 */
+.partner-store-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.partner-store-item {
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.partner-store-item:hover {
+  background-color: #f0f2f5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.partner-store-item.selected {
+  background-color: #e8f0fe;
+  border-color: #1a73e8;
+}
+
+.store-name {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 4px;
+  color: #1a73e8;
+}
+
+.store-type {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.store-type-cafe {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.store-type-convenience {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+
+.store-type-restaurant {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+.store-type-accommodation {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.store-info {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.price-info {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.price-label {
+  font-size: 14px;
+  color: #666;
+  margin-right: 8px;
+}
+
+.price-value {
+  font-weight: 600;
+  color: #1a73e8;
 } 

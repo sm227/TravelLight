@@ -34,6 +34,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import PriceCheckIcon from '@mui/icons-material/PriceCheck';
+import axios from 'axios';
 
 // Custom styled components
 const StyledButton = styled(Button)(({ theme }) => ({
@@ -100,6 +101,11 @@ const MyPage = () => {
   const [selectedPartner, setSelectedPartner] = useState<Partnership | null>(null);
   const [loadingPartners, setLoadingPartners] = useState(false);
   const [estimatedPrice, setEstimatedPrice] = useState<number>(0);
+
+  // 검색 관련 상태
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Partnership[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // 예약 상태를 체크하고 업데이트하는 함수
   const checkAndUpdateReservationStatus = (reservations: ReservationDto[]): ReservationDto[] => {
@@ -332,23 +338,21 @@ const MyPage = () => {
   };
 
   const handleDeliverySubmit = async () => {
-    if (!currentReservation) return;
+    if (!currentReservation || !user) return;
     
     try {
-      const deliveryData: DeliveryRequest = {
-        reservationId: currentReservation.id,
-        deliveryType,
-        estimatedPrice,
+      const deliveryData = {
+        userId: user.id,
+        pickupAddress: currentReservation.placeName,
+        deliveryAddress: deliveryType === 'partner' && selectedPartner 
+          ? selectedPartner.address 
+          : customAddress,
+        itemDescription: `소형 ${currentReservation.smallBags}개, 중형 ${currentReservation.mediumBags}개, 대형 ${currentReservation.largeBags}개`,
+        weight: currentReservation.smallBags + currentReservation.mediumBags + currentReservation.largeBags
       };
       
-      if (deliveryType === 'partner' && selectedPartner) {
-        deliveryData.partnerId = selectedPartner.id;
-      } else if (deliveryType === 'custom') {
-        deliveryData.customAddress = customAddress;
-      }
-      
       // 배달 요청 API 호출
-      await partnershipService.requestDelivery(deliveryData);
+      const response = await axios.post('/api/deliveries', deliveryData);
       
       // 성공 메시지 표시
       alert('배달 신청이 완료되었습니다.');
@@ -358,6 +362,40 @@ const MyPage = () => {
     } catch (error) {
       console.error('배달 신청 중 오류:', error);
       alert('배달 신청 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 검색 기능 구현
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await partnershipService.getAllPartnerships();
+      const approvedPartners = response.data.filter(p => p.status === 'APPROVED');
+      
+      // 검색어로 필터링
+      const filteredPartners = approvedPartners.filter(partner => 
+        partner.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        partner.address.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      
+      setSearchResults(filteredPartners);
+    } catch (error) {
+      console.error('매장 검색 중 오류:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // 검색어 변경 핸들러
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(event.target.value);
+    if (event.target.value.trim() === '') {
+      setSearchResults([]);
     }
   };
 
@@ -428,16 +466,67 @@ const MyPage = () => {
             </Typography>
             
             {deliveryType === 'partner' ? (
-              // 제휴 매장 목록
               <>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  배달받을 제휴 매장을 선택해주세요
+                  배달받을 제휴 매장을 검색하거나 선택해주세요
                 </Typography>
+                
+                <div className="search-container" style={{ marginBottom: '20px' }}>
+                  <TextField
+                    fullWidth
+                    label="매장명 또는 주소로 검색"
+                    variant="outlined"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    InputProps={{
+                      endAdornment: (
+                        <Button 
+                          variant="contained" 
+                          onClick={handleSearch}
+                          disabled={isSearching}
+                          sx={{ whiteSpace: 'nowrap' }}
+                        >
+                          {isSearching ? <CircularProgress size={24} /> : '검색'}
+                        </Button>
+                      ),
+                    }}
+                  />
+                </div>
                 
                 {loadingPartners ? (
                   <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
                     <CircularProgress size={30} />
                   </Box>
+                ) : searchResults.length > 0 ? (
+                  <div className="partner-store-list">
+                    {searchResults.map((partner) => (
+                      <div 
+                        key={partner.id} 
+                        className={`partner-store-item ${selectedPartner?.id === partner.id ? 'selected' : ''}`}
+                        onClick={() => handlePartnerSelect(partner)}
+                      >
+                        <div className="store-name">{partner.businessName}</div>
+                        <div className={`store-type store-type-${partner.businessType}`}>
+                          {partner.businessType}
+                        </div>
+                        <div className="store-info">{partner.address}</div>
+                        <div className="store-info">
+                          {partner.is24Hours ? '24시간 영업' : '영업시간: 09:00-18:00'}
+                        </div>
+                        {selectedPartner?.id === partner.id && estimatedPrice > 0 && (
+                          <div className="price-info">
+                            <span className="price-label">예상 배달 가격:</span>
+                            <span className="price-value">{estimatedPrice.toLocaleString()}원</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : searchQuery ? (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    검색 결과가 없습니다.
+                  </Alert>
                 ) : partnerStores.length === 0 ? (
                   <Alert severity="info" sx={{ mt: 2 }}>
                     이용 가능한 제휴 매장이 없습니다.

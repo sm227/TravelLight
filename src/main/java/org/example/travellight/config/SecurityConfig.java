@@ -32,7 +32,8 @@ public class SecurityConfig {
                                 "/api/reservations/**", "/api/EventStorage", 
                                 "/api/admin/EventStorage/**", 
                                 "/api/users/{userId}", "/api/users/{userId}/password",
-                                "/api/partnership/{id}/status").permitAll()
+                                "/api/partnership/{id}/status",
+                                "/api/deliveries").permitAll()
                 .anyRequest().authenticated()
             );
         
