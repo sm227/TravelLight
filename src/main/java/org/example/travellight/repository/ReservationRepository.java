@@ -17,4 +17,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     
     // 사용자 ID로 예약 조회
     List<Reservation> findByUserId(Long userId);
+    
+    // 매장명으로 예약 조회
+    List<Reservation> findByPlaceName(String placeName);
 } 

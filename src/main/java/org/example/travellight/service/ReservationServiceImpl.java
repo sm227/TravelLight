@@ -140,6 +140,16 @@ public class ReservationServiceImpl implements ReservationService {
         reservationRepository.delete(reservation);
     }
     
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReservationDto> getReservationsByPlaceName(String placeName) {
+        // 매장명으로 필터된 예약 조회
+        List<Reservation> reservations = reservationRepository.findByPlaceName(placeName);
+        return reservations.stream()
+            .map(this::mapToDto)
+            .collect(Collectors.toList());
+    }
+    
     // 엔티티를 DTO로 변환하는 헬퍼 메소드
     private ReservationDto mapToDto(Reservation reservation) {
         return ReservationDto.builder()

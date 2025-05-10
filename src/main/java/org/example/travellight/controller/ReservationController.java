@@ -56,4 +56,12 @@ public class ReservationController {
         reservationService.cancelReservation(id);
         return ResponseEntity.noContent().build();
     }
+    
+    // 파트너 대시보드를 위한 매장명별 예약 조회
+    @GetMapping("/store/{placeName}")
+    public ResponseEntity<List<ReservationDto>> getReservationsByPlace(
+            @PathVariable("placeName") String placeName) {
+        List<ReservationDto> reservations = reservationService.getReservationsByPlaceName(placeName);
+        return ResponseEntity.ok(reservations);
+    }
 } 

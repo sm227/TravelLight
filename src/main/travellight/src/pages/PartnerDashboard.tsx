@@ -37,6 +37,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
+import api, { ApiResponse } from '../services/api';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -61,40 +62,6 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-// 임시 예약 데이터
-const reservations = [
-  {
-    id: 1,
-    customerName: '김영희',
-    date: '2023-11-01',
-    startTime: '14:00',
-    endTime: '16:00',
-    status: '예약 완료',
-    items: '소형 2, 중형 1',
-    total: '15,000원'
-  },
-  {
-    id: 2,
-    customerName: '이철수',
-    date: '2023-11-02',
-    startTime: '10:00',
-    endTime: '18:00',
-    status: '이용 완료',
-    items: '대형 1',
-    total: '10,000원'
-  },
-  {
-    id: 3,
-    customerName: '박지민',
-    date: '2023-11-03',
-    startTime: '09:00',
-    endTime: '20:00',
-    status: '예약 완료',
-    items: '중형 2',
-    total: '16,000원'
-  }
-];
-
 interface Store {
   id: number;
   name: string;
@@ -103,26 +70,6 @@ interface Store {
   capacity: string;
   status: string;
 }
-
-// 임시 매장 목록 데이터
-const stores: Store[] = [
-  {
-    id: 1,
-    name: '트래블라이트 강남점',
-    address: '서울시 강남구 테헤란로 123',
-    businessHours: '09:00 - 18:00',
-    capacity: '소형 10개, 중형 5개, 대형 3개',
-    status: '영업 중'
-  },
-  {
-    id: 2,
-    name: '트래블라이트 홍대점',
-    address: '서울시 마포구 홍대로 456',
-    businessHours: '10:00 - 20:00',
-    capacity: '소형 8개, 중형 4개, 대형 2개',
-    status: '영업 중'
-  }
-];
 
 const PartnerDashboard: React.FC = () => {
   const { t } = useTranslation();
@@ -134,8 +81,9 @@ const PartnerDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [checkingStatus, setCheckingStatus] = useState(false);
-  const [selectedStore, setSelectedStore] = useState<Store>(stores[0]);
-  const [storeList, setStoreList] = useState<Store[]>(stores);
+  const [storeList, setStoreList] = useState<Store[]>([]);
+  const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const [reservations, setReservations] = useState<any[]>([]);
 
   useEffect(() => {
     // 인증 및 권한 확인
@@ -176,6 +124,66 @@ const PartnerDashboard: React.FC = () => {
   const handleAddStore = () => {
     navigate('/partner-signup');
   };
+
+  // 파트너의 매장 목록을 API로부터 가져옵니다.
+  useEffect(() => {
+    const fetchStores = async () => {
+      try {
+        const response = await api.get<ApiResponse<any[]>>('/partnership');
+        const data = response.data.data;
+        const userStores = data.filter((p: any) => p.email === user?.email && p.status === 'APPROVED');
+        const mappedStores = userStores.map((p: any) => ({
+          id: p.id,
+          name: p.businessName,
+          address: p.address,
+          businessHours: Object.values(p.businessHours).join(', '),
+          capacity: p.spaceSize,
+          status: p.status === 'APPROVED' ? '영업 중' : p.status === 'PENDING' ? '승인 대기 중' : '거절됨',
+        }));
+        setStoreList(mappedStores);
+        if (mappedStores.length > 0) {
+          setSelectedStore(mappedStores[0]);
+        }
+      } catch (e) {
+        setError('매장 정보를 불러오는 중 오류가 발생했습니다.');
+      }
+    };
+    if (user && user.email) {
+      fetchStores();
+    }
+  }, [user]);
+
+  // 선택된 매장의 예약 목록을 API로부터 가져옵니다.
+  useEffect(() => {
+    const fetchReservations = async () => {
+      if (!selectedStore) return;
+      try {
+        const result = await api.get<any[]>(`/reservations/store/${encodeURIComponent(selectedStore.name)}`);
+        const data: any[] = result.data;
+        const mapped = data.map(r => {
+          const items = [
+            r.smallBags ? `소형 ${r.smallBags}` : null,
+            r.mediumBags ? `중형 ${r.mediumBags}` : null,
+            r.largeBags ? `대형 ${r.largeBags}` : null
+          ].filter(Boolean).join(', ');
+          return {
+            id: r.id,
+            customerName: r.userName,
+            date: r.storageDate,
+            startTime: r.storageStartTime,
+            endTime: r.storageEndTime,
+            items,
+            total: `${r.totalPrice.toLocaleString()}원`,
+            status: r.status === 'RESERVED' ? '예약 완료' : r.status === 'COMPLETED' ? '이용 완료' : r.status,
+          };
+        });
+        setReservations(mapped);
+      } catch (e) {
+        setError('예약 정보를 불러오는 중 오류가 발생했습니다.');
+      }
+    };
+    fetchReservations();
+  }, [selectedStore]);
 
   if (loading) {
     return (
@@ -278,7 +286,7 @@ const PartnerDashboard: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <FormControl sx={{ minWidth: 300, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 1 }}>
               <Select
-                value={selectedStore.id}
+                value={selectedStore?.id}
                 onChange={handleStoreChange}
                 sx={{ 
                   color: 'white',
@@ -295,7 +303,7 @@ const PartnerDashboard: React.FC = () => {
               </Select>
             </FormControl>
             <Chip 
-              label={selectedStore.status} 
+              label={selectedStore?.status} 
               color="primary" 
               variant="outlined" 
               sx={{ 
@@ -349,28 +357,43 @@ const PartnerDashboard: React.FC = () => {
                         <Typography variant="body2" color="textSecondary">상호명</Typography>
                       </Grid>
                       <Grid item xs={8}>
-                        <Typography variant="body1">{selectedStore.name}</Typography>
+                        <Typography variant="body1">{selectedStore?.name}</Typography>
                       </Grid>
                       
                       <Grid item xs={4}>
                         <Typography variant="body2" color="textSecondary">주소</Typography>
                       </Grid>
                       <Grid item xs={8}>
-                        <Typography variant="body1">{selectedStore.address}</Typography>
+                        <Typography variant="body1">{selectedStore?.address}</Typography>
                       </Grid>
                       
                       <Grid item xs={4}>
                         <Typography variant="body2" color="textSecondary">영업시간</Typography>
                       </Grid>
                       <Grid item xs={8}>
-                        <Typography variant="body1">{selectedStore.businessHours}</Typography>
+                        <Typography variant="body1">
+                          {selectedStore?.businessHours ? Object.entries(selectedStore.businessHours).map(([day, hours]) => {
+                            const formattedDay = day === 'mon' ? '월요일' :
+                                                 day === 'tue' ? '화요일' :
+                                                 day === 'wed' ? '수요일' :
+                                                 day === 'thu' ? '목요일' :
+                                                 day === 'fri' ? '금요일' :
+                                                 day === 'sat' ? '토요일' :
+                                                 day === 'sun' ? '일요일' : day;
+                            return (
+                              <div key={day}>
+                                {formattedDay}: {hours}
+                              </div>
+                            );
+                          }) : '영업 시간이 없습니다.'}
+                        </Typography>
                       </Grid>
                       
                       <Grid item xs={4}>
                         <Typography variant="body2" color="textSecondary">보관 용량</Typography>
                       </Grid>
                       <Grid item xs={8}>
-                        <Typography variant="body1">{selectedStore.capacity}</Typography>
+                        <Typography variant="body1">{selectedStore?.capacity}</Typography>
                       </Grid>
                     </Grid>
                   </CardContent>
