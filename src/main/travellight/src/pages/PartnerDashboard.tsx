@@ -88,7 +88,7 @@ const PartnerDashboard: React.FC = () => {
   useEffect(() => {
     // 인증 및 권한 확인
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: '/partner-dashboard' } });
+      // navigate('/login', { state: { from: '/partner-dashboard' } });
     } else {
       // 데이터 로딩 시뮬레이션
       const timer = setTimeout(() => {
