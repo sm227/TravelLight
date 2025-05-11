@@ -262,7 +262,7 @@ const PartnerDashboard: React.FC = () => {
           storageDate.getFullYear() === now.getFullYear();
         
         // 상태 업데이트
-        if (isToday && reservation.status === 'RESERVED') {
+        if (reservation.status === 'RESERVED') {
           if (now < startDateTime) {
             updatedReservation.displayStatus = '예약 완료';
           } else if (now >= startDateTime && now < endDateTime) {
