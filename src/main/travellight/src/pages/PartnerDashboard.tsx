@@ -536,16 +536,16 @@ const PartnerDashboard: React.FC = () => {
                             <div>24시간 영업</div>
                           ) : (
                             selectedStore?.businessHours ? (
-                              ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(day => {
+                              ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => {
                                 const hours = selectedStore.businessHours[day];
                                 if (!hours) return null;
-                                const formattedDay = day === 'mon' ? '월요일' :
-                                                    day === 'tue' ? '화요일' :
-                                                    day === 'wed' ? '수요일' :
-                                                    day === 'thu' ? '목요일' :
-                                                    day === 'fri' ? '금요일' :
-                                                    day === 'sat' ? '토요일' :
-                                                    day === 'sun' ? '일요일' : day;
+                                const formattedDay = day === 'MONDAY' ? '월요일' :
+                                                    day === 'TUESDAY' ? '화요일' :
+                                                    day === 'WEDNESDAY' ? '수요일' :
+                                                    day === 'THURSDAY' ? '목요일' :
+                                                    day === 'FRIDAY' ? '금요일' :
+                                                    day === 'SATURDAY' ? '토요일' :
+                                                    day === 'SUNDAY' ? '일요일' : day;
                                 return (
                                   <div key={day}>
                                     {formattedDay}: {hours}
