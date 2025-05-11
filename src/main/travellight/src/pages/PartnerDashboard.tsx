@@ -85,6 +85,11 @@ const PartnerDashboard: React.FC = () => {
   const [storeList, setStoreList] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [reservations, setReservations] = useState<any[]>([]);
+  
+  // 예약 상태별 카운트를 추적하는 상태 변수들 추가
+  const [reservedCount, setReservedCount] = useState(0);
+  const [inUseCount, setInUseCount] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
 
   useEffect(() => {
     // 인증 및 권한 확인
@@ -162,12 +167,22 @@ const PartnerDashboard: React.FC = () => {
       try {
         const result = await api.get<any[]>(`/reservations/store/${encodeURIComponent(selectedStore.name)}`);
         const data: any[] = result.data;
-        const mapped = data.map(r => {
+        console.log("API에서 받아온 예약 데이터:", data); // 디버깅용 로그 추가
+        
+        // 현재 시간에 따라 예약 상태 업데이트
+        const now = new Date();
+        const updatedData = updateReservationStatuses(data, now);
+        
+        const mapped = updatedData.map(r => {
           const items = [
             r.smallBags ? `소형 ${r.smallBags}` : null,
             r.mediumBags ? `중형 ${r.mediumBags}` : null,
             r.largeBags ? `대형 ${r.largeBags}` : null
           ].filter(Boolean).join(', ');
+          
+          // 표시용 상태 텍스트
+          const displayStatus = r.displayStatus || (r.status === 'RESERVED' ? '예약 완료' : r.status === 'COMPLETED' ? '이용 완료' : r.status);
+          
           return {
             id: r.id,
             customerName: r.userName,
@@ -176,16 +191,159 @@ const PartnerDashboard: React.FC = () => {
             endTime: r.storageEndTime,
             items,
             total: `${r.totalPrice.toLocaleString()}원`,
-            status: r.status === 'RESERVED' ? '예약 완료' : r.status === 'COMPLETED' ? '이용 완료' : r.status,
+            status: displayStatus,
+            rawStatus: r.status // 원본 상태값 추가로 저장
           };
         });
         setReservations(mapped);
+        
+        // 예약 상태별 카운트 계산
+        const { reserved, inUse, completed } = calculateReservationCounts(mapped);
+        setReservedCount(reserved);
+        setInUseCount(inUse);
+        setCompletedCount(completed);
+        
       } catch (e) {
+        console.error("예약 정보 로딩 중 오류:", e); // 더 자세한 오류 정보
         setError('예약 정보를 불러오는 중 오류가 발생했습니다.');
       }
     };
     fetchReservations();
+
+    // 추가: 1분마다 예약 정보 새로고침
+    const refreshInterval = setInterval(fetchReservations, 60000);
+    return () => clearInterval(refreshInterval);
   }, [selectedStore]);
+
+  // 백엔드 예약 데이터에 시간 기반 상태 추가
+  const updateReservationStatuses = (reservations: any[], now: Date) => {
+    return reservations.map(reservation => {
+      const updatedReservation = { ...reservation };
+      
+      // 날짜와 시간 파싱
+      if (reservation.storageDate && reservation.storageStartTime && reservation.storageEndTime) {
+        // 시간 파싱
+        const parseTime = (timeStr: string) => {
+          const parts = timeStr.split(':');
+          if (parts.length >= 2) {
+            return {
+              hours: parseInt(parts[0], 10),
+              minutes: parseInt(parts[1], 10)
+            };
+          }
+          return { hours: 0, minutes: 0 };
+        };
+        
+        // 날짜 파싱
+        const parseDate = (dateStr: string) => {
+          try {
+            return new Date(dateStr);
+          } catch (e) {
+            console.error("날짜 파싱 오류:", e);
+            return new Date();
+          }
+        };
+        
+        const storageDate = parseDate(reservation.storageDate);
+        const startTime = parseTime(reservation.storageStartTime);
+        const endTime = parseTime(reservation.storageEndTime);
+        
+        // 시작 및 종료 일시 생성
+        const startDateTime = new Date(storageDate);
+        startDateTime.setHours(startTime.hours, startTime.minutes, 0);
+        
+        const endDateTime = new Date(storageDate);
+        endDateTime.setHours(endTime.hours, endTime.minutes, 0);
+        
+        // 오늘인지 확인
+        const isToday = 
+          storageDate.getDate() === now.getDate() &&
+          storageDate.getMonth() === now.getMonth() &&
+          storageDate.getFullYear() === now.getFullYear();
+        
+        // 상태 업데이트
+        if (isToday && reservation.status === 'RESERVED') {
+          if (now < startDateTime) {
+            updatedReservation.displayStatus = '예약 완료';
+          } else if (now >= startDateTime && now < endDateTime) {
+            updatedReservation.displayStatus = '이용 중';
+          } else if (now >= endDateTime) {
+            updatedReservation.displayStatus = '이용 완료';
+            
+            // 선택적으로 백엔드 API 호출하여 상태 업데이트 가능
+            // 여기서는 표시용 상태만 변경
+          }
+        } else if (reservation.status === 'COMPLETED') {
+          updatedReservation.displayStatus = '이용 완료';
+        }
+      }
+      
+      return updatedReservation;
+    });
+  };
+  
+  // 예약 상태에 따라 카운트를 계산하는 함수 개선
+  const calculateReservationCounts = (reservations: any[]) => {
+    const now = new Date();
+    let reserved = 0;
+    let inUse = 0;
+    let completed = 0;
+
+    console.log("상태 계산 시작:", now.toLocaleTimeString(), "총 예약수:", reservations.length); // 디버깅용 로그
+
+    // 오늘 날짜인지 확인하는 함수
+    const isToday = (dateStr: string) => {
+      if (!dateStr) return false;
+      
+      const today = new Date();
+      const date = new Date(dateStr);
+      return date.getDate() === today.getDate() &&
+        date.getMonth() === today.getMonth() &&
+        date.getFullYear() === today.getFullYear();
+    };
+
+    reservations.forEach(res => {
+      // 오늘 날짜의 예약만 필터링
+      if (!isToday(res.date)) return;
+
+      console.log(`예약 ID: ${res.id}, 상태: ${res.status}, 시작: ${res.startTime}, 종료: ${res.endTime}`);
+
+      // 표시 상태에 따라 카운트
+      if (res.status === '예약 완료') {
+        reserved++;
+        console.log(`  => 예약 완료 카운트 증가 (ID: ${res.id})`);
+      } else if (res.status === '이용 중') {
+        inUse++;
+        console.log(`  => 이용 중 카운트 증가 (ID: ${res.id})`);
+      } else if (res.status === '이용 완료') {
+        completed++;
+        console.log(`  => 금일 완료 카운트 증가 (ID: ${res.id})`);
+      }
+    });
+
+    console.log(`계산 결과 - 예약 완료: ${reserved}, 이용 중: ${inUse}, 금일 완료: ${completed}`);
+    return { reserved, inUse, completed };
+  };
+
+  // 주기적으로 예약 상태 업데이트 (1분마다)
+  useEffect(() => {
+    if (!reservations.length) return;
+    
+    const intervalId = setInterval(() => {
+      const { reserved, inUse, completed } = calculateReservationCounts(reservations);
+      setReservedCount(reserved);
+      setInUseCount(inUse);
+      setCompletedCount(completed);
+    }, 60000); // 1분마다 업데이트
+    
+    // 초기 실행
+    const { reserved, inUse, completed } = calculateReservationCounts(reservations);
+    setReservedCount(reserved);
+    setInUseCount(inUse);
+    setCompletedCount(completed);
+    
+    return () => clearInterval(intervalId);
+  }, [reservations]);
 
   if (loading) {
     return (
@@ -419,15 +577,15 @@ const PartnerDashboard: React.FC = () => {
                     <Divider sx={{ my: 2 }} />
                     <Box sx={{ display: 'flex', justifyContent: 'space-around', mb: 3 }}>
                       <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="primary">3</Typography>
+                        <Typography variant="h4" color="primary">{reservedCount}</Typography>
                         <Typography variant="body2" color="textSecondary">예약 완료</Typography>
                       </Box>
                       <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="primary">2</Typography>
+                        <Typography variant="h4" color="primary">{inUseCount}</Typography>
                         <Typography variant="body2" color="textSecondary">이용 중</Typography>
                       </Box>
                       <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="primary">1</Typography>
+                        <Typography variant="h4" color="primary">{completedCount}</Typography>
                         <Typography variant="body2" color="textSecondary">금일 완료</Typography>
                       </Box>
                     </Box>
@@ -451,15 +609,25 @@ const PartnerDashboard: React.FC = () => {
                     <Divider sx={{ my: 2 }} />
                     <Box sx={{ display: 'flex', justifyContent: 'space-around', py: 3 }}>
                       <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="primary">12</Typography>
+                        <Typography variant="h4" color="primary">{reservations.length}</Typography>
                         <Typography variant="body2" color="textSecondary">총 예약 수</Typography>
                       </Box>
                       <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="primary">152,000원</Typography>
+                        <Typography variant="h4" color="primary">
+                          {reservations.reduce((sum, reservation) => {
+                            const priceStr = reservation.total.replace(/[^0-9]/g, '');
+                            return sum + (parseInt(priceStr) || 0);
+                          }, 0).toLocaleString()}원
+                        </Typography>
                         <Typography variant="body2" color="textSecondary">총 매출</Typography>
                       </Box>
                       <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="primary">136,800원</Typography>
+                        <Typography variant="h4" color="primary">
+                          {Math.floor(reservations.reduce((sum, reservation) => {
+                            const priceStr = reservation.total.replace(/[^0-9]/g, '');
+                            return sum + (parseInt(priceStr) || 0);
+                          }, 0) * 0.9).toLocaleString()}원
+                        </Typography>
                         <Typography variant="body2" color="textSecondary">정산 예정액</Typography>
                       </Box>
                     </Box>
