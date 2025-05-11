@@ -66,7 +66,8 @@ interface Store {
   id: number;
   name: string;
   address: string;
-  businessHours: string;
+  businessHours: Record<string, string>;
+  is24Hours: boolean;
   capacity: string;
   status: string;
 }
@@ -136,7 +137,8 @@ const PartnerDashboard: React.FC = () => {
           id: p.id,
           name: p.businessName,
           address: p.address,
-          businessHours: Object.values(p.businessHours).join(', '),
+          businessHours: p.businessHours,
+          is24Hours: p.is24Hours,
           capacity: p.spaceSize,
           status: p.status === 'APPROVED' ? '영업 중' : p.status === 'PENDING' ? '승인 대기 중' : '거절됨',
         }));
@@ -372,20 +374,28 @@ const PartnerDashboard: React.FC = () => {
                       </Grid>
                       <Grid item xs={8}>
                         <Typography variant="body1">
-                          {selectedStore?.businessHours ? Object.entries(selectedStore.businessHours).map(([day, hours]) => {
-                            const formattedDay = day === 'mon' ? '월요일' :
-                                                 day === 'tue' ? '화요일' :
-                                                 day === 'wed' ? '수요일' :
-                                                 day === 'thu' ? '목요일' :
-                                                 day === 'fri' ? '금요일' :
-                                                 day === 'sat' ? '토요일' :
-                                                 day === 'sun' ? '일요일' : day;
-                            return (
-                              <div key={day}>
-                                {formattedDay}: {hours}
-                              </div>
-                            );
-                          }) : '영업 시간이 없습니다.'}
+                          {selectedStore?.is24Hours ? (
+                            <div>24시간 영업</div>
+                          ) : (
+                            selectedStore?.businessHours ? (
+                              ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(day => {
+                                const hours = selectedStore.businessHours[day];
+                                if (!hours) return null;
+                                const formattedDay = day === 'mon' ? '월요일' :
+                                                    day === 'tue' ? '화요일' :
+                                                    day === 'wed' ? '수요일' :
+                                                    day === 'thu' ? '목요일' :
+                                                    day === 'fri' ? '금요일' :
+                                                    day === 'sat' ? '토요일' :
+                                                    day === 'sun' ? '일요일' : day;
+                                return (
+                                  <div key={day}>
+                                    {formattedDay}: {hours}
+                                  </div>
+                                );
+                              }).filter(Boolean)
+                            ) : '영업 시간이 없습니다.'
+                          )}
                         </Typography>
                       </Grid>
                       
