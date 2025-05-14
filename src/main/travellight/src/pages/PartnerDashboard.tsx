@@ -38,6 +38,16 @@ import Footer from '../components/Footer';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
 import api, { ApiResponse } from '../services/api';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Avatar from '@mui/material/Avatar';
+import PersonIcon from '@mui/icons-material/Person';
+import EmailIcon from '@mui/icons-material/Email';
+import CloseIcon from '@mui/icons-material/Close';
+import IconButton from '@mui/material/IconButton';
+import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -344,6 +354,37 @@ const PartnerDashboard: React.FC = () => {
     
     return () => clearInterval(intervalId);
   }, [reservations]);
+
+  // 예약 관리 탭 고객 상세보기
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{
+    name: string;
+    email: string;
+    reservationNumber?: string; // 예약번호 필드 추가
+  } | null>(null);
+
+  const handleOpenUserDetail = async (reservationId: number) => {
+    try {
+      // API에서 예약 정보와 사용자 정보 가져오기
+      const response = await api.get<ApiResponse<any>>(`/reservations/${reservationId}`);
+      const reservationData = response.data.data;
+
+      // 상태 업데이트
+      setSelectedUser({
+        name: reservationData.userName || reservationData.user.name,
+        email: reservationData.userEmail || reservationData.user.email,
+        reservationNumber: reservationData.reservationNumber
+      });
+      setOpenDialog(true);
+    } catch (e) {
+      console.error("예약 및 사용자 정보를 불러오는 중 오류 발생:", e);
+      setError('사용자 정보를 불러올 수 없습니다.');
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
 
   if (loading) {
     return (
@@ -682,7 +723,12 @@ const PartnerDashboard: React.FC = () => {
                           />
                         </TableCell>
                         <TableCell>
-                          <Button size="small">상세보기</Button>
+                          <Button
+                              size="small"
+                              onClick={() => handleOpenUserDetail(row.id)}
+                          >
+                            상세보기
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -718,7 +764,103 @@ const PartnerDashboard: React.FC = () => {
           </Box>
         </TabPanel>
       </Container>
-      
+      <Dialog
+          open={openDialog}
+          onClose={handleCloseDialog}
+          PaperProps={{
+            sx: {
+              width: '400px',
+              maxWidth: '95vw',
+              borderRadius: 2,
+              overflow: 'hidden'
+            }
+          }}
+      >
+        <DialogTitle
+            sx={{
+              bgcolor: 'primary.main',
+              color: 'white',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              py: 2
+            }}
+        >
+          <Typography variant="h6">고객 상세 정보</Typography>
+          <IconButton
+              edge="end"
+              color="inherit"
+              onClick={handleCloseDialog}
+              aria-label="close"
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, py: 4 }}>
+          {selectedUser && (
+              <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2
+              }}>
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  p: 1.5,
+                  bgcolor: 'grey.50',
+                  borderRadius: 1
+                }}>
+                  <ConfirmationNumberIcon color="primary" />
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">예약번호</Typography>
+                    <Typography variant="body1" fontWeight="medium">{selectedUser.reservationNumber || '-'}</Typography>
+                  </Box>
+                </Box>
+
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  p: 1.5,
+                  bgcolor: 'grey.50',
+                  borderRadius: 1
+                }}>
+                  <PersonIcon color="primary" />
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">이름</Typography>
+                    <Typography variant="body1" fontWeight="medium">{selectedUser.name}</Typography>
+                  </Box>
+                </Box>
+
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  p: 1.5,
+                  bgcolor: 'grey.50',
+                  borderRadius: 1
+                }}>
+                  <EmailIcon color="primary" />
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">이메일</Typography>
+                    <Typography variant="body1" fontWeight="medium">{selectedUser.email}</Typography>
+                  </Box>
+                </Box>
+              </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, bgcolor: 'grey.50' }}>
+          <Button
+              onClick={handleCloseDialog}
+              variant="contained"
+              fullWidth
+              sx={{ borderRadius: 2 }}
+          >
+            닫기
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Footer />
     </Box>
   );
