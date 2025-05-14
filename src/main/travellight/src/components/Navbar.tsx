@@ -114,7 +114,7 @@ const Navbar: React.FC = () => {
   const menuItems = [
     { text: t('home'), href: '/#home' },
     { text: t('services'), href: '/#services' },
-    { text: t('howItWorks'), href: '/#how-it-works' },
+    { text: t('howItWorks'), onClick: navigateToFAQ },
     { text: t('pricing'), href: '/#pricing' },
     { text: t('partner'), onClick: navigateToPartner },
   ];
@@ -299,7 +299,7 @@ const Navbar: React.FC = () => {
             width: 400,
             maxWidth: '90vw',
             height: '100vh',
-            background: 'rgba(255,255,255,0.92)',
+            background: 'rgba(255,255,255,1)',
             boxShadow: '-2px 0 16px rgba(0,0,0,0.08)',
             position: 'relative',
             zIndex: 2,
@@ -313,17 +313,20 @@ const Navbar: React.FC = () => {
             opacity: overlayOpen ? 1 : 0,
             pointerEvents: overlayOpen ? 'auto' : 'none',
             flexShrink: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
           }}
         >
           {/* 나가기 버튼 */}
           <IconButton
             onClick={handleOverlayClose}
             sx={{
-              position: 'absolute',
+              position: 'sticky',
               top: 24,
               right: 24,
               width: 48,
               height: 48,
+              zIndex: 10,
               background: '#fff',
               boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
               '&:hover': { background: '#f5f5f5' },
@@ -350,7 +353,7 @@ const Navbar: React.FC = () => {
                   transition: `opacity 0.4s ${idx * 0.05}s, transform 0.4s ${idx * 0.05}s`,
                   cursor: 'pointer',
                   position: 'relative',
-                  width: 'fit-content'
+                  width: 'fit-content',
                 }}
                 onClick={() => {
                   setOverlayOpen(false);
