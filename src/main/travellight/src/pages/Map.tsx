@@ -30,6 +30,7 @@ import {ko} from 'date-fns/locale';
 import { useAuth } from "../services/AuthContext";
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 declare global {
     interface Window {
@@ -78,22 +79,20 @@ interface BusinessHourDto {
 
 //영문 지도 변환
 const Map = () => {
+    const location = useLocation();
     const { t } = useTranslation();
-
     const { user, isAuthenticated } = useAuth();
-
-
 
     const mapRef = useRef<HTMLDivElement>(null);
     const [userPosition, setUserPosition] = useState<{lat: number, lng: number} | null>(null);
     const [isMapMoved, setIsMapMoved] = useState(false);
     const [mapInstance, setMapInstance] = useState<NaverMap | null>(null);
-    const [searchKeyword, setSearchKeyword] = useState<string>("");
+    const [searchKeyword, setSearchKeyword] = useState('');
     const [selectedPlace, setSelectedPlace] = useState<any>(null);
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [startTime, setStartTime] = useState("09:30");
-    const [endTime, setEndTime] = useState("17:00");
+    const [startTime, setStartTime] = useState('09:00');
+    const [endTime, setEndTime] = useState('18:00');
     const [partnershipMarkers, setPartnershipMarkers] = useState<any[]>([]);
     const [isReservationOpen, setIsReservationOpen] = useState(false);
     const [bagSizes, setBagSizes] = useState({
@@ -182,6 +181,98 @@ const Map = () => {
         '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00',
         '22:30', '23:00', '23:30'
     ];
+
+    // Hero 컴포넌트에서 전달받은 상태 확인
+    const { searchQuery = '', searchResults: initialSearchResults = [], initialPosition, searchType } = (location.state as any) || {};
+    
+    // 컴포넌트 마운트 시 검색어와 검색 결과 설정
+    useEffect(() => {
+        if (searchQuery) {
+            setSearchKeyword(searchQuery);
+            
+            // 지역명 검색인 경우 바로 검색 실행
+            if (searchType === 'location') {
+                console.log('지역명 검색 모드로 실행:', searchQuery);
+                // 약간 지연을 주어 컴포넌트가 완전히 마운트된 후 검색 실행
+                setTimeout(() => {
+                    if (mapInstance) {
+                        searchPlaces();
+                    } else {
+                        // 지도 인스턴스가 아직 초기화되지 않은 경우, 더 큰 지연 후 재시도
+                        console.log('지도 인스턴스 대기 중... 1초 후 재시도');
+                        setTimeout(() => searchPlaces(), 1000);
+                    }
+                }, 500);
+            }
+        }
+        
+        if (initialSearchResults && initialSearchResults.length > 0) {
+            // 검색 결과를 place 형식으로 변환
+            const convertedResults = initialSearchResults.map((p: any) => ({
+                place_name: p.businessName,
+                address_name: p.address,
+                phone: p.phone,
+                category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+                x: p.longitude.toString(),
+                y: p.latitude.toString(),
+                opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+            }));
+            
+            // 시간에 따른 필터링
+            const timeFilteredPlaces = filterPlacesByTime(convertedResults, startTime, endTime);
+            setSearchResults(timeFilteredPlaces);
+        }
+    }, [searchQuery, initialSearchResults, startTime, endTime, searchType, mapInstance]);
+    
+    // 초기 위치 설정 - Hero 컴포넌트에서 받은 위치 정보가 있으면 사용
+    useEffect(() => {
+        if (initialPosition && mapInstance) {
+            console.log('Hero에서 전달받은 초기 위치 정보:', initialPosition);
+            const { latitude, longitude } = initialPosition;
+            
+            if (!latitude || !longitude) {
+                console.error('유효하지 않은 좌표 정보:', initialPosition);
+                return;
+            }
+            
+            try {
+                const moveLatLng = new window.naver.maps.LatLng(latitude, longitude);
+                console.log('이동할 좌표:', latitude, longitude);
+                
+                // 부드러운 이동 처리
+                const currentZoom = mapInstance.getZoom();
+                console.log('현재 줌 레벨:', currentZoom);
+                
+                // 위치 이동
+                console.log('지도 중심 이동 시도');
+                mapInstance.setCenter(moveLatLng);
+                console.log('지도 중심 이동 완료');
+                
+                // 애니메이션 효과 (줌 아웃 후 줌 인)
+                setTimeout(() => {
+                    try {
+                        console.log('줌 아웃 시도');
+                        mapInstance.setZoom(currentZoom - 1);
+                        console.log('줌 아웃 완료');
+                        
+                        setTimeout(() => {
+                            try {
+                                console.log('줌 인 시도');
+                                mapInstance.setZoom(currentZoom);
+                                console.log('줌 인 완료');
+                            } catch (error) {
+                                console.error('줌 인 중 오류:', error);
+                            }
+                        }, 250);
+                    } catch (error) {
+                        console.error('줌 아웃 중 오류:', error);
+                    }
+                }, 50);
+            } catch (error) {
+                console.error('초기 위치 설정 중 오류:', error);
+            }
+        }
+    }, [initialPosition, mapInstance]);
 
     useEffect(() => {
         const container = document.getElementById("map") as HTMLElement;
@@ -889,18 +980,24 @@ const Map = () => {
         }
     }, [userPosition, mapInstance]);
 
-    // 초기 시작 시간 설정 함수 수정
+    // 초기 시작 시간 설정 함수
     const getInitialStartTime = () => {
         const now = new Date();
         const hours = now.getHours();
         const minutes = now.getMinutes();
-
-        // 현재 시간을 30분 단위로 올림
+        
+        // 현재 시간이 9시 이전이면 9:00 반환
+        if (hours < 9) return '09:00';
+        
+        // 현재 시간이 18시 이후면 18:00 반환
+        if (hours >= 18) return '18:00';
+        
+        // 현재 시간을 30분 단위로 반올림
         const roundedMinutes = Math.ceil(minutes / 30) * 30;
-        const roundedHours = hours + Math.floor(roundedMinutes / 60);
-        const finalMinutes = roundedMinutes % 60;
-
-        return `${String(roundedHours).padStart(2, '0')}:${String(finalMinutes).padStart(2, '0')}`;
+        const adjustedHours = roundedMinutes === 60 ? hours + 1 : hours;
+        const adjustedMinutes = roundedMinutes === 60 ? 0 : roundedMinutes;
+        
+        return `${adjustedHours.toString().padStart(2, '0')}:${adjustedMinutes.toString().padStart(2, '0')}`;
     };
 
     // 영업 시간 체크 함수 수정
@@ -938,68 +1035,341 @@ const Map = () => {
     // searchPlaces 함수 수정 - 네이버맵 API에 맞게 수정
     const searchPlaces = () => {
         if (!searchKeyword.trim()) return;
+        
+        console.log('검색 실행:', searchKeyword, '검색 타입:', searchType);
+        
+        // 지도 인스턴스가 준비되지 않았다면 잠시 대기 후 재시도
+        if (!mapInstance) {
+            console.log('지도 인스턴스가 아직 준비되지 않았습니다. 잠시 후 재시도합니다.');
+            setTimeout(() => searchPlaces(), 500);
+            return;
+        }
 
-        const searchOptions = {
-            query: searchKeyword
-        };
+        // 지역명 검색 모드인 경우 네이버 지도 API 사용
+        if (searchType === 'location') {
+            console.log('네이버 지도 API로 지역 검색 시도:', searchKeyword);
+            
+            const searchOptions = {
+                query: searchKeyword
+            };
 
-        // 네이버 서치 API를 통한 검색
-        window.naver.maps.Service.geocode(searchOptions, (status: any, response: any) => {
-            if (status === window.naver.maps.Service.Status.OK) {
-                const results = response.v2.addresses;
-                if (results.length > 0) {
-                    const firstResult = results[0];
-                    const moveLatLng = new window.naver.maps.LatLng(firstResult.y, firstResult.x);
-                    
-                    // 부드러운 이동 처리
-                    if (mapInstance) {
-                        // 현재 줌 레벨 저장
-                        const currentZoom = mapInstance.getZoom();
-                        
-                        // 1단계: 먼저 위치 이동
-                        mapInstance.setCenter(moveLatLng);
-                        
-                        // 2단계: 이동 후 애니메이션 효과 (줌 아웃 후 줌 인)
-                        setTimeout(() => {
-                            // 줌 아웃
-                            mapInstance.setZoom(currentZoom - 1);
-                            
-                            // 잠시 후 다시 원래 줌으로
-                            setTimeout(() => {
-                                mapInstance.setZoom(currentZoom);
-                            }, 250);
-                        }, 50);
+            // 네이버 서치 API를 통한 검색
+            window.naver.maps.Service.geocode(searchOptions, (status: any, response: any) => {
+                console.log('네이버 지도 API 응답:', status);
+                console.log('응답 데이터 전체:', response);
+                
+                if (status === window.naver.maps.Service.Status.OK) {
+                    // 응답 구조 확인
+                    if (!response || !response.v2 || !response.v2.addresses || !Array.isArray(response.v2.addresses)) {
+                        console.error('예상치 못한 응답 구조:', response);
+                        searchPlacesByKeyword(searchKeyword); // places API로 대체 검색
+                        return;
                     }
+                    
+                    const results = response.v2.addresses;
+                    console.log('검색 결과 주소 목록:', results);
+                    
+                    if (results.length > 0) {
+                        const firstResult = results[0];
+                        console.log('선택된 결과:', firstResult);
+                        
+                        // 필수 좌표 정보 확인
+                        if (!firstResult.y || !firstResult.x) {
+                            console.error('좌표 정보 없음:', firstResult);
+                            searchPlacesByKeyword(searchKeyword); // places API로 대체 검색
+                            return;
+                        }
+                        
+                        moveToLocation(firstResult.y, firstResult.x);
+                        searchNearbyPartnerships(firstResult.y, firstResult.x, firstResult.roadAddress || firstResult.jibunAddress || '');
 
-                    // 검색 결과를 partnerships에서 필터링
-                    const filteredPartnerships = partnerships.filter(p => {
-                        // 검색어와 비즈니스 이름 또는 주소가 부분적으로 일치하는지 확인
-                        return p.businessName.includes(searchKeyword) || 
-                               p.address.includes(searchKeyword);
-                    });
+                        // partnerships를 place 형식으로 변환하여 검색 결과에 추가
+                        const filteredPartnerships = partnerships.filter(p => {
+                            // 주소의 일부가 검색 결과와 일치하는지 확인
+                            return p.address.includes(firstResult.roadAddress) || 
+                                  p.address.includes(firstResult.jibunAddress) ||
+                                  firstResult.roadAddress.includes(p.address) ||
+                                  firstResult.jibunAddress.includes(p.address) ||
+                                  // 추가: 검색 지역 근처 5km 이내의 매장도 포함
+                                  calculateDistance(
+                                    parseFloat(firstResult.y), 
+                                    parseFloat(firstResult.x), 
+                                    p.latitude, 
+                                    p.longitude
+                                  ) < 5;
+                        });
+                        
+                        const convertedPlaces = filteredPartnerships.map(p => ({
+                            place_name: p.businessName,
+                            address_name: p.address,
+                            phone: p.phone,
+                            category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+                            x: p.longitude.toString(),
+                            y: p.latitude.toString(),
+                            opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+                        }));
 
-                    // partnerships를 place 형식으로 변환하여 검색 결과에 추가
-                    const convertedPlaces = filteredPartnerships.map(p => ({
-                        place_name: p.businessName,
-                        address_name: p.address,
-                        phone: p.phone,
-                        category_group_code: getCategoryCodeFromBusinessType(p.businessType),
-                        x: p.longitude.toString(),
-                        y: p.latitude.toString(),
-                        opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
-                    }));
-
-                    // 시간에 따른 필터링
-                    const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
-                    setSearchResults(timeFilteredPlaces);
-                    setSelectedPlace(null);
+                        // 시간에 따른 필터링
+                        const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
+                        setSearchResults(timeFilteredPlaces);
+                        setSelectedPlace(null);
+                        
+                        // 검색 결과가 없어도 지도는 이동
+                        if (timeFilteredPlaces.length === 0) {
+                            console.log('검색된 지역 근처에 제휴 매장이 없습니다.');
+                        }
+                    } else {
+                        console.log('주소 검색 결과 없음, 장소 검색으로 전환');
+                        searchPlacesByKeyword(searchKeyword); // places API로 대체 검색
+                    }
+                } else {
+                    console.log('주소 검색 실패, 장소 검색으로 전환');
+                    searchPlacesByKeyword(searchKeyword); // places API로 대체 검색
                 }
-            } else {
-                alert("검색 결과가 없습니다.");
-            }
-        });
-    };
+            });
+        } else {
+            // 먼저 제휴 매장 검색 시도
+            const filteredPartnerships = partnerships.filter(p => {
+                // 검색어와 비즈니스 이름 또는 주소가 부분적으로 일치하는지 확인 (대소문자 무시)
+                return p.businessName.toLowerCase().includes(searchKeyword.toLowerCase()) || 
+                       p.address.toLowerCase().includes(searchKeyword.toLowerCase());
+            });
 
+            // 매장명 또는 주소로 매장을 찾은 경우
+            if (filteredPartnerships.length > 0) {
+                // 첫 번째 매칭된 매장으로 지도 이동
+                const firstMatch = filteredPartnerships[0];
+                const moveLatLng = new window.naver.maps.LatLng(firstMatch.latitude, firstMatch.longitude);
+                
+                // 부드러운 이동 처리
+                if (mapInstance) {
+                    // 현재 줌 레벨 저장
+                    const currentZoom = mapInstance.getZoom();
+                    
+                    // 1단계: 먼저 위치 이동
+                    mapInstance.setCenter(moveLatLng);
+                    
+                    // 2단계: 이동 후 애니메이션 효과 (줌 아웃 후 줌 인)
+                    setTimeout(() => {
+                        // 줌 아웃
+                        mapInstance.setZoom(currentZoom - 1);
+                        
+                        // 잠시 후 다시 원래 줌으로
+                        setTimeout(() => {
+                            mapInstance.setZoom(currentZoom);
+                        }, 250);
+                    }, 50);
+                }
+
+                // partnerships를 place 형식으로 변환하여 검색 결과에 추가
+                const convertedPlaces = filteredPartnerships.map(p => ({
+                    place_name: p.businessName,
+                    address_name: p.address,
+                    phone: p.phone,
+                    category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+                    x: p.longitude.toString(),
+                    y: p.latitude.toString(),
+                    opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+                }));
+
+                // 시간에 따른 필터링
+                const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
+                setSearchResults(timeFilteredPlaces);
+                setSelectedPlace(null);
+            } else {
+                // 매장명/주소 검색 결과가 없는 경우 지역명으로 검색 시도
+                console.log('매장명/주소 검색 결과 없음, 지역명 검색으로 전환');
+                
+                const searchOptions = {
+                    query: searchKeyword
+                };
+
+                // 네이버 서치 API를 통한 검색
+                window.naver.maps.Service.geocode(searchOptions, (status: any, response: any) => {
+                    console.log('네이버 지도 API 응답:', status);
+                    console.log('응답 데이터 전체:', response);
+                    
+                    if (status === window.naver.maps.Service.Status.OK) {
+                        // 응답 구조 확인
+                        if (!response || !response.v2 || !response.v2.addresses || !Array.isArray(response.v2.addresses)) {
+                            console.error('예상치 못한 응답 구조:', response);
+                            alert("검색 결과를 처리할 수 없습니다. 다른 검색어를 시도해보세요.");
+                            return;
+                        }
+                        
+                        const results = response.v2.addresses;
+                        console.log('검색 결과 주소 목록:', results);
+                        
+                        if (results.length > 0) {
+                            const firstResult = results[0];
+                            console.log('선택된 결과:', firstResult);
+                            
+                            // 필수 좌표 정보 확인
+                            if (!firstResult.y || !firstResult.x) {
+                                console.error('좌표 정보 없음:', firstResult);
+                                alert("검색 결과에 위치 정보가 없습니다. 다른 검색어를 시도해보세요.");
+                                return;
+                            }
+                            
+                            const moveLatLng = new window.naver.maps.LatLng(firstResult.y, firstResult.x);
+                            console.log('이동할 좌표:', firstResult.y, firstResult.x);
+                            
+                            // 부드러운 이동 처리
+                            if (mapInstance) {
+                                // 현재 줌 레벨 저장
+                                const currentZoom = mapInstance.getZoom();
+                                console.log('현재 줌 레벨:', currentZoom);
+                                
+                                try {
+                                    // 1단계: 먼저 위치 이동
+                                    console.log('지도 중심 이동 시도');
+                                    mapInstance.setCenter(moveLatLng);
+                                    console.log('지도 중심 이동 완료');
+                                    
+                                    // 2단계: 이동 후 애니메이션 효과 (줌 아웃 후 줌 인)
+                                    setTimeout(() => {
+                                        try {
+                                            // 줌 아웃
+                                            console.log('줌 아웃 시도');
+                                            mapInstance.setZoom(currentZoom - 1);
+                                            console.log('줌 아웃 완료');
+                                            
+                                            // 잠시 후 다시 원래 줌으로
+                                            setTimeout(() => {
+                                                try {
+                                                    console.log('줌 인 시도');
+                                                    mapInstance.setZoom(currentZoom);
+                                                    console.log('줌 인 완료');
+                                                } catch (error) {
+                                                    console.error('줌 인 중 오류:', error);
+                                                }
+                                            }, 250);
+                                        } catch (error) {
+                                            console.error('줌 아웃 중 오류:', error);
+                                        }
+                                    }, 50);
+                                } catch (error) {
+                                    console.error('지도 이동 중 오류:', error);
+                                }
+                            } else {
+                                console.error('지도 인스턴스가 없습니다.');
+                            }
+
+                            // 검색 결과를 partnerships에서 필터링 (주소 기반으로만)
+                            const nearbyPartnerships = partnerships.filter(p => {
+                                // 주소의 일부가 검색 결과와 일치하는지 확인
+                                return p.address.includes(firstResult.roadAddress) || 
+                                       p.address.includes(firstResult.jibunAddress) ||
+                                       firstResult.roadAddress.includes(p.address) ||
+                                       firstResult.jibunAddress.includes(p.address) ||
+                                       // 추가: 검색 지역 근처 5km 이내의 매장도 포함
+                                       calculateDistance(
+                                         parseFloat(firstResult.y), 
+                                         parseFloat(firstResult.x), 
+                                         p.latitude, 
+                                         p.longitude
+                                       ) < 5;
+                            });
+
+                            // partnerships를 place 형식으로 변환하여 검색 결과에 추가
+                            const convertedPlaces = nearbyPartnerships.map(p => ({
+                                place_name: p.businessName,
+                                address_name: p.address,
+                                phone: p.phone,
+                                category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+                                x: p.longitude.toString(),
+                                y: p.latitude.toString(),
+                                opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+                            }));
+
+                            // 시간에 따른 필터링
+                            const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
+                            setSearchResults(timeFilteredPlaces);
+                            setSelectedPlace(null);
+                            
+                            // 검색 결과가 없어도 지도는 이동
+                            if (timeFilteredPlaces.length === 0) {
+                                console.log('검색된 지역 근처에 제휴 매장이 없습니다.');
+                            }
+                        } else {
+                            alert("검색 결과가 없습니다.");
+                        }
+                    } else {
+                        alert("검색 결과가 없습니다. 다른 검색어를 시도해보세요.");
+                    }
+                });
+            }
+        }
+    };
+    
+    // 거리 계산 함수 추가 (위도/경도 좌표 간의 거리를 km 단위로 계산)
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+        const R = 6371; // 지구 반경 (km)
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    };
+    
+    // 제휴점 내에서만 검색하는 함수 분리
+    const searchPartnerships = () => {
+        // 매장명/주소로 제휴점 검색
+        const filteredPartnerships = partnerships.filter(p => {
+            // 검색어와 비즈니스 이름 또는 주소가 부분적으로 일치하는지 확인 (대소문자 무시)
+            return p.businessName.toLowerCase().includes(searchKeyword.toLowerCase()) || 
+                   p.address.toLowerCase().includes(searchKeyword.toLowerCase());
+        });
+
+        // 매장명 또는 주소로 매장을 찾은 경우
+        if (filteredPartnerships.length > 0) {
+            // 첫 번째 매칭된 매장으로 지도 이동
+            const firstMatch = filteredPartnerships[0];
+            const moveLatLng = new window.naver.maps.LatLng(firstMatch.latitude, firstMatch.longitude);
+            
+            // 부드러운 이동 처리
+            if (mapInstance) {
+                // 현재 줌 레벨 저장
+                const currentZoom = mapInstance.getZoom();
+                
+                // 1단계: 먼저 위치 이동
+                mapInstance.setCenter(moveLatLng);
+                
+                // 2단계: 이동 후 애니메이션 효과 (줌 아웃 후 줌 인)
+                setTimeout(() => {
+                    // 줌 아웃
+                    mapInstance.setZoom(currentZoom - 1);
+                    
+                    // 잠시 후 다시 원래 줌으로
+                    setTimeout(() => {
+                        mapInstance.setZoom(currentZoom);
+                    }, 250);
+                }, 50);
+            }
+
+            // partnerships를 place 형식으로 변환하여 검색 결과에 추가
+            const convertedPlaces = filteredPartnerships.map(p => ({
+                place_name: p.businessName,
+                address_name: p.address,
+                phone: p.phone,
+                category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+                x: p.longitude.toString(),
+                y: p.latitude.toString(),
+                opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+            }));
+
+            // 시간에 따른 필터링
+            const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
+            setSearchResults(timeFilteredPlaces);
+            setSelectedPlace(null);
+        } else {
+            alert("검색 결과가 없습니다. 다른 검색어를 시도해보세요.");
+        }
+    };
+    
     // 비즈니스 타입에 따른 카테고리 코드 반환 함수
     const getCategoryCodeFromBusinessType = (businessType: string): string => {
         switch (businessType) {
@@ -1386,6 +1756,146 @@ const Map = () => {
                 // 결제 진행 상태 비활성화
                 setIsProcessingPayment(false);
             }
+        }
+    };
+
+    // 장소 검색 함수 추가 (랜드마크, 지하철역 등을 검색하기 위함)
+    const searchPlacesByKeyword = (keyword: string) => {
+        console.log('장소 검색 시도:', keyword);
+        
+        if (!window.naver || !window.naver.maps || !window.naver.maps.Service) {
+            console.error('네이버 지도 서비스가 초기화되지 않았습니다.');
+            alert('지도 서비스가 준비되지 않았습니다. 페이지를 새로고침해주세요.');
+            return;
+        }
+        
+        const placesSearchOptions = {
+            query: keyword,
+            displayCount: 1 // 첫 번째 결과만 필요
+        };
+        
+        // 네이버 지도 장소 검색 API 사용
+        try {
+            // Places는 생성자가 아니라 네임스페이스이므로 직접 search 메서드 호출
+            window.naver.maps.Service.Places.search(placesSearchOptions, (status: any, response: any) => {
+                console.log('장소 검색 API 응답:', status);
+                console.log('장소 검색 응답 데이터:', response);
+                
+                if (status === window.naver.maps.Service.Status.OK) {
+                    if (response && response.v1 && response.v1.items && response.v1.items.length > 0) {
+                        const firstPlace = response.v1.items[0];
+                        console.log('검색된 장소:', firstPlace);
+                        
+                        if (firstPlace.mapx && firstPlace.mapy) {
+                            // 네이버 지도 API의 좌표체계 변환 필요
+                            // UTM-K 좌표를 WGS84 좌표로 변환
+                            const utmk = new window.naver.maps.Point(firstPlace.mapx, firstPlace.mapy);
+                            const latLng = window.naver.maps.TransCoord.utmkToLatLng(utmk);
+                            
+                            console.log('변환된 좌표:', latLng.lat(), latLng.lng());
+                            moveToLocation(latLng.lat(), latLng.lng());
+                            searchNearbyPartnerships(latLng.lat(), latLng.lng(), firstPlace.address || '');
+                        } else {
+                            console.error('장소 좌표 정보 없음:', firstPlace);
+                            alert('검색 결과에 위치 정보가 없습니다. 다른 검색어를 시도해보세요.');
+                        }
+                    } else {
+                        console.error('장소 검색 결과 없음');
+                        alert('검색 결과가 없습니다. 다른 검색어를 시도해보세요.');
+                    }
+                } else {
+                    console.error('장소 검색 실패:', status);
+                    alert('검색 결과가 없습니다. 다른 검색어를 시도해보세요.');
+                }
+            });
+        } catch (error) {
+            console.error('장소 검색 중 오류 발생:', error);
+            alert('검색 중 오류가 발생했습니다. 다른 검색어를 시도해보세요.');
+        }
+    };
+
+    // 지도 이동 함수 분리
+    const moveToLocation = (lat: number, lng: number) => {
+        if (!mapInstance) {
+            console.error('지도 인스턴스가 없습니다.');
+            return;
+        }
+        
+        try {
+            const moveLatLng = new window.naver.maps.LatLng(lat, lng);
+            console.log('이동할 좌표:', lat, lng);
+            
+            // 부드러운 이동 처리
+            const currentZoom = mapInstance.getZoom();
+            console.log('현재 줌 레벨:', currentZoom);
+            
+            // 1단계: 먼저 위치 이동
+            console.log('지도 중심 이동 시도');
+            mapInstance.setCenter(moveLatLng);
+            console.log('지도 중심 이동 완료');
+            
+            // 2단계: 이동 후 애니메이션 효과 (줌 아웃 후 줌 인)
+            setTimeout(() => {
+                try {
+                    // 줌 아웃
+                    console.log('줌 아웃 시도');
+                    mapInstance.setZoom(currentZoom - 1);
+                    console.log('줌 아웃 완료');
+                    
+                    // 잠시 후 다시 원래 줌으로
+                    setTimeout(() => {
+                        try {
+                            console.log('줌 인 시도');
+                            mapInstance.setZoom(currentZoom);
+                            console.log('줌 인 완료');
+                        } catch (error) {
+                            console.error('줌 인 중 오류:', error);
+                        }
+                    }, 250);
+                } catch (error) {
+                    console.error('줌 아웃 중 오류:', error);
+                }
+            }, 50);
+        } catch (error) {
+            console.error('지도 이동 중 오류:', error);
+        }
+    };
+    
+    // 근처 제휴점 검색 함수 분리
+    const searchNearbyPartnerships = (lat: number, lng: number, address: string) => {
+        // 검색 결과를 partnerships에서 필터링 (주소 기반으로만)
+        const nearbyPartnerships = partnerships.filter(p => {
+            // 주소의 일부가 검색 결과와 일치하는지 확인
+            const addressMatch = address ? 
+                p.address.includes(address) || address.includes(p.address) : false;
+                
+            // 검색 지역 근처 5km 이내의 매장 포함
+            const distanceMatch = calculateDistance(lat, lng, p.latitude, p.longitude) < 5;
+            
+            return addressMatch || distanceMatch;
+        });
+
+        console.log('근처 제휴점 검색 결과:', nearbyPartnerships.length);
+
+        // partnerships를 place 형식으로 변환하여 검색 결과에 추가
+        const convertedPlaces = nearbyPartnerships.map(p => ({
+            place_name: p.businessName,
+            address_name: p.address,
+            phone: p.phone,
+            category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+            x: p.longitude.toString(),
+            y: p.latitude.toString(),
+            opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+        }));
+
+        // 시간에 따른 필터링
+        const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
+        setSearchResults(timeFilteredPlaces);
+        setSelectedPlace(null);
+        
+        // 검색 결과가 없어도 지도는 이동
+        if (timeFilteredPlaces.length === 0) {
+            console.log('검색된 지역 근처에 제휴 매장이 없습니다.');
         }
     };
 

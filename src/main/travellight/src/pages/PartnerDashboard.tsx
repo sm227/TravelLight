@@ -34,7 +34,6 @@ import EventNoteIcon from '@mui/icons-material/EventNote';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
 import api, { ApiResponse } from '../services/api';
@@ -391,7 +390,6 @@ const PartnerDashboard: React.FC = () => {
           <Container sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CircularProgress />
           </Container>
-          <Footer />
         </Box>
     );
   }
@@ -442,7 +440,6 @@ const PartnerDashboard: React.FC = () => {
               </Box>
             </Paper>
           </Container>
-          <Footer />
         </Box>
     );
   }
@@ -801,8 +798,6 @@ const PartnerDashboard: React.FC = () => {
             <Button onClick={handleCloseDialog} color="primary">닫기</Button>
           </DialogActions>
         </Dialog>
-
-        <Footer />
       </Box>
   );
 };

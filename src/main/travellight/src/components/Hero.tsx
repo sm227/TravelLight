@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Box, 
   Container, 
@@ -10,7 +10,9 @@ import {
   useMediaQuery,
   InputBase,
   Paper,
-  IconButton
+  IconButton,
+  Autocomplete,
+  TextField
 } from '@mui/material';
 import { keyframes } from '@mui/system';
 import LuggageIcon from '@mui/icons-material/Luggage';
@@ -19,6 +21,8 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import SearchIcon from '@mui/icons-material/Search';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
+import api, { partnershipService } from '../services/api';
 
 // 애니메이션 정의
 const fadeIn = keyframes`
@@ -48,6 +52,116 @@ const Hero: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    setErrorMessage(null);
+    
+    try {
+      console.log('API 요청 시작: 제휴점 목록 가져오기');
+      
+      // 제휴 매장 데이터 가져오기
+      const response = await partnershipService.getAllPartnerships();
+      console.log('API 응답 받음:', response);
+      
+      // API 응답 구조에 맞게 데이터 추출
+      const partnerships = response.data || [];
+      console.log('파싱된 데이터:', partnerships);
+
+      // 검색어로 필터링 (매장명 또는 주소) - 대소문자 구분 없이 검색
+      const filteredResults = partnerships.filter((p: any) => 
+        p.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.address.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      
+      console.log('검색 결과:', filteredResults.length);
+      setSearchResults(filteredResults);
+
+      // 검색 결과가 있으면 지도 페이지로 이동
+      if (filteredResults.length > 0) {
+        // 첫 번째 검색 결과의 위치 정보 추출
+        const firstResult = filteredResults[0];
+        
+        navigate('/map', { 
+          state: { 
+            searchQuery,
+            searchResults: filteredResults,
+            // 첫 번째 매장의 위치 정보 추가
+            initialPosition: {
+              latitude: firstResult.latitude,
+              longitude: firstResult.longitude
+            },
+            // 검색 타입 정보 추가 (매장명 검색임을 표시)
+            searchType: 'partnership'
+          }
+        });
+      } else {
+        // 매장명/주소 검색 결과가 없는 경우, 지역명으로 검색 시도
+        console.log('매장명/주소 검색 결과 없음, 지역명 검색으로 전환');
+        
+        try {
+          // 네이버 지도 API를 사용할 수 없으므로 지도 페이지로 이동하여 검색 처리
+          navigate('/map', { 
+            state: { 
+              searchQuery,
+              searchResults: [],
+              // 지역명 검색임을 표시
+              searchType: 'location'
+            }
+          });
+        } catch (locError) {
+          console.error('지역명 검색 중 오류:', locError);
+          setErrorMessage('검색 결과가 없습니다. 다른 검색어를 시도해보세요.');
+        }
+      }
+    } catch (error) {
+      console.error('검색 중 오류 발생:', error);
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          // 서버에서 응답을 받았으나 오류 상태 코드를 반환한 경우
+          console.error('API 오류 응답:', error.response);
+          
+          switch(error.response.status) {
+            case 403:
+              setErrorMessage('서버에 접근 권한이 없습니다. 관리자에게 문의하세요.');
+              break;
+            case 404:
+              setErrorMessage('서버에서 데이터를 찾을 수 없습니다.');
+              break;
+            default:
+              setErrorMessage(`서버 오류가 발생했습니다: ${error.response.status}`);
+          }
+        } else if (error.request) {
+          // 요청은 보냈으나 응답을 받지 못한 경우
+          console.error('응답 없음:', error.request);
+          setErrorMessage('서버로부터 응답이 없습니다. 백엔드 서버가 실행 중인지 확인하세요.');
+        } else {
+          // 요청 구성 중 오류가 발생한 경우
+          setErrorMessage(`요청 구성 중 오류: ${error.message}`);
+        }
+      } else {
+        // 다른 유형의 오류
+        setErrorMessage('알 수 없는 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSearch();
+    }
+  };
 
   return (
     <Box
@@ -154,11 +268,16 @@ const Hero: React.FC = () => {
               </IconButton>
               <InputBase
                 sx={{ ml: 1, flex: 1, py: 1.2 }}
-                placeholder="장소 또는 주소 검색"
-                inputProps={{ 'aria-label': '장소 또는 주소 검색' }}
+                placeholder="매장명 또는 주소 검색"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={handleKeyPress}
+                inputProps={{ 'aria-label': '매장명 또는 주소 검색' }}
               />
               <Button
                 variant="contained"
+                onClick={handleSearch}
+                disabled={isSearching}
                 sx={{
                   borderRadius: '40px',
                   py: 1,
@@ -169,7 +288,7 @@ const Hero: React.FC = () => {
                   background: 'linear-gradient(90deg, #2E7DF1 0%, #5D9FFF 100%)'
                 }}
               >
-                검색
+                {isSearching ? '검색 중...' : '검색'}
               </Button>
             </Paper>
             
