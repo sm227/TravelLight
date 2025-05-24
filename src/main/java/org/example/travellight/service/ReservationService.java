@@ -19,4 +19,7 @@ public interface ReservationService {
     
     // 예약 취소
     void cancelReservation(Long id);
+    
+    // 매장명으로 예약 조회
+    List<ReservationDto> getReservationsByPlaceName(String placeName);
 } 

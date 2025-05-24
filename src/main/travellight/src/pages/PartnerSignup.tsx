@@ -135,10 +135,7 @@ const PartnerSignup: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  if (!isAuthenticated) {
-    navigate('/login', { state: { from: '/partner-signup' } });
-    return null;
-  }
+  
 
   // 네이버 지도 API 초기화 - 지오코더 사용
   useEffect(() => {
@@ -196,6 +193,12 @@ const PartnerSignup: React.FC = () => {
       window.removeEventListener('naverMapLanguageChanged', handleMapLanguageChange);
     };
   }, []);
+
+  if (!isAuthenticated) {
+    navigate('/login', { state: { from: '/partner-signup' } });
+    return null;
+  }
+
 
   // 지오코딩 함수 (네이버맵 API 사용)
   const getCoordinates = (address: string) => {
