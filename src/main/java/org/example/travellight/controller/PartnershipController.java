@@ -1,5 +1,11 @@
 package org.example.travellight.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.travellight.dto.ApiResponse;
 import org.example.travellight.dto.PartnershipDto;
 import org.example.travellight.entity.Partnership;
@@ -13,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Tag(name = "제휴점 관리", description = "제휴점 신청 및 관리 API")
 @RestController
 @RequestMapping("/api/partnership")
 public class PartnershipController {
@@ -20,6 +27,13 @@ public class PartnershipController {
     @Autowired
     private PartnershipService partnershipService;
 
+    @Operation(summary = "모든 제휴점 조회", description = "등록된 모든 제휴점의 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공", 
+            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", 
+            content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
     @GetMapping
     public ResponseEntity<?> getAllPartnerships() {
         try {
@@ -31,8 +45,19 @@ public class PartnershipController {
         }
     }
 
+    @Operation(summary = "제휴점 신청", description = "새로운 제휴점 신청을 등록합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "신청 성공", 
+            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", 
+            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", 
+            content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
     @PostMapping
-    public ResponseEntity<?> createPartnership(@RequestBody PartnershipDto partnershipDto) {
+    public ResponseEntity<?> createPartnership(
+            @Parameter(description = "제휴점 신청 정보", required = true)
+            @RequestBody PartnershipDto partnershipDto) {
         try {
             // 간단한 유효성 검사
             if (partnershipDto.getBusinessName() == null || partnershipDto.getBusinessName().isEmpty() ||
@@ -61,8 +86,17 @@ public class PartnershipController {
         }
     }
 
+    @Operation(summary = "제휴점 신청 조회", description = "제출 ID로 제휴점 신청 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공", 
+            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "신청 정보를 찾을 수 없음", 
+            content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
     @GetMapping("/{submissionId}")
-    public ResponseEntity<?> getPartnershipBySubmissionId(@PathVariable String submissionId) {
+    public ResponseEntity<?> getPartnershipBySubmissionId(
+            @Parameter(description = "제출 ID", required = true)
+            @PathVariable String submissionId) {
         try {
             Partnership partnership = partnershipService.getPartnershipBySubmissionId(submissionId);
             return ResponseEntity.ok(ApiResponse.success("제휴 신청 정보를 찾았습니다.", partnership));
@@ -72,9 +106,20 @@ public class PartnershipController {
         }
     }
 
+    @Operation(summary = "제휴점 상태 업데이트", description = "제휴점 신청의 상태를 승인 또는 거절로 업데이트합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "상태 업데이트 성공", 
+            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 상태 값", 
+            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", 
+            content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updatePartnershipStatus(
+            @Parameter(description = "제휴점 ID", required = true)
             @PathVariable(name = "id") Long id,
+            @Parameter(description = "상태 업데이트 정보", required = true)
             @RequestBody Map<String, String> statusUpdate) {
         try {
             String newStatus = statusUpdate.get("status");

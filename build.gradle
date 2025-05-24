@@ -44,6 +44,9 @@ dependencies {
     
     //JSON 라이브러리 의존성 추가
     implementation 'org.json:json:20240303'
+
+    // Swagger 의존성 추가
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
 }
 
 tasks.named('test') {

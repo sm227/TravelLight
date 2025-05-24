@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "reservations")
@@ -70,6 +72,9 @@ public class Reservation {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
+    @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Delivery> deliveries = new ArrayList<>();
+    
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -82,5 +87,16 @@ public class Reservation {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    // 연관관계 편의 메서드
+    public void addDelivery(Delivery delivery) {
+        deliveries.add(delivery);
+        delivery.setReservation(this);
+    }
+
+    public void removeDelivery(Delivery delivery) {
+        deliveries.remove(delivery);
+        delivery.setReservation(null);
     }
 } 
