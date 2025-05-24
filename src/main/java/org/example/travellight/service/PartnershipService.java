@@ -91,14 +91,22 @@ public class PartnershipService {
         // 고유 신청 ID 생성
         partnership.setSubmissionId(generateSubmissionId());
 
-        // 사용자 역할을 WAIT으로 설정
-        try {
-            userService.updateUserRoleByEmail(dto.getEmail(), "WAIT");
-            System.out.println("사용자 역할이 WAIT으로 업데이트되었습니다: " + dto.getEmail());
-        } catch (Exception e) {
-            System.err.println("사용자 역할 업데이트 중 오류 발생: " + e.getMessage());
-            // 역할 업데이트 실패해도 파트너십 상태는 설정
-        }
+        // 파트너십 신청 후 파트너로 등급 변경 DB 제약 조건 수정
+        // 수정 사항에 대한 내용을 주석처리 해둠 + 이미 수정 사항이었다면 문제 없음.
+        //ALTER TABLE users DROP CONSTRAINT users_role_check;
+        //ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (
+        //    role::text = ANY (ARRAY[
+        //      'ADMIN'::character varying, 
+        //      'USER'::character varying, 
+        //      'PARTNER'::character varying, 
+        //      'WAIT'::character varying
+        //    ]::text[])
+        //  );
+        // 수정사항 - WAIT 상태 (USER로 기본 상태 유지중이지만 WAIT 상태 -> 파트너십 신청 후 파트너로 등급 변경)
+
+        // 사용자 역할을 USER로 유지하고, 파트너십 상태만 PENDING으로 설정
+        // 기본 상태는 이미 PENDING으로 설정되어 있음
+        System.out.println("파트너십 신청이 접수되었습니다."); 
 
         // 저장 및 반환
         return partnershipRepository.save(partnership);
