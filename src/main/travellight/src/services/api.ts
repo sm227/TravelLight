@@ -18,12 +18,14 @@ api.interceptors.request.use(
     if (userStr) {
       try {
         const user = JSON.parse(userStr);
-        // 토큰이 있으면 헤더에 추가 (Bearer 스키마 없이)
+        // 토큰이 있으면 헤더에 추가 (Bearer 스키마 포함)
         if (user.token) {
-          config.headers['Authorization'] = user.token;
+          config.headers['Authorization'] = `Bearer ${user.token}`;
         }
       } catch (error) {
         console.error('로컬 스토리지의 사용자 정보 파싱 오류:', error);
+        // 파싱 오류 시 localStorage에서 제거
+        // localStorage.removeItem('user');
       }
     }
     return config;
@@ -41,6 +43,14 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('API 응답 오류:', error);
+    
+    // 401 또는 403 오류 시 토큰 만료로 간주하고 로그아웃 처리
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      localStorage.removeItem('user');
+      // 필요시 로그인 페이지로 리다이렉트
+      // window.location.href = '/login';
+    }
+    
     return Promise.reject(error);
   }
 );
@@ -92,6 +102,9 @@ export interface Partnership {
   is24Hours: boolean;
   businessHours: Record<string, BusinessHourDto>;
   status: string;
+  smallBagsAvailable?: number;
+  mediumBagsAvailable?: number;
+  largeBagsAvailable?: number;
 }
 
 export interface BusinessHourDto {
@@ -155,6 +168,19 @@ export const partnershipService = {
     return response.data;
   },
   
+  // 보관 용량 업데이트 추가
+  updateStorageCapacity: async (
+    id: number, 
+    storage: {
+      smallBagsAvailable: number;
+      mediumBagsAvailable: number;
+      largeBagsAvailable: number;
+    }
+  ): Promise<ApiResponse<any>> => {
+    const response = await api.put<ApiResponse<any>>(`/partnership/${id}/storage`, storage);
+    return response.data;
+  },
+  
   // 배달 가격 견적 계산
   calculateDeliveryEstimate: async (
     originLatitude: number,
@@ -195,4 +221,4 @@ export const partnershipService = {
   }
 };
 
-export default api; 
+export default api;

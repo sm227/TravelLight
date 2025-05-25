@@ -143,7 +143,7 @@ public class PartnershipController {
 
     @PutMapping("/{id}/storage")
     public ResponseEntity<?> updateStorageCapacity(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody Map<String, Integer> storageUpdate) {
         try {
             Partnership partnership = partnershipService.getPartnershipById(id);

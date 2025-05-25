@@ -43,6 +43,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import { partnershipService } from '../services/api';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -147,32 +148,40 @@ const PartnerDashboard: React.FC = () => {
   };
 
   // 파트너의 매장 목록을 API로부터 가져옵니다.
-  useEffect(() => {
-    const fetchStores = async () => {
-      try {
-        const response = await api.get<ApiResponse<any[]>>('/partnership');
-        const data = response.data.data;
-        const userStores = data.filter((p: any) => p.email === user?.email && p.status === 'APPROVED');
-        const mappedStores = userStores.map((p: any) => ({
-          id: p.id,
-          name: p.businessName,
-          address: p.address,
-          businessHours: p.businessHours,
-          is24Hours: p.is24Hours,
-          capacity: p.spaceSize,
-          status: p.status === 'APPROVED' ? '영업 중' : p.status === 'PENDING' ? '승인 대기 중' : '거절됨',
-          smallBagsAvailable: p.smallBagsAvailable,
-          mediumBagsAvailable: p.mediumBagsAvailable,
-          largeBagsAvailable: p.largeBagsAvailable,
-        }));
-        setStoreList(mappedStores);
-        if (mappedStores.length > 0) {
-          setSelectedStore(mappedStores[0]);
+  const fetchStores = async () => {
+    try {
+      const response = await api.get<ApiResponse<any[]>>('/partnership');
+      const data = response.data.data;
+      const userStores = data.filter((p: any) => p.email === user?.email && p.status === 'APPROVED');
+      const mappedStores = userStores.map((p: any) => ({
+        id: p.id,
+        name: p.businessName,
+        address: p.address,
+        businessHours: p.businessHours,
+        is24Hours: p.is24Hours,
+        capacity: p.spaceSize,
+        status: p.status === 'APPROVED' ? '영업 중' : p.status === 'PENDING' ? '승인 대기 중' : '거절됨',
+        smallBagsAvailable: p.smallBagsAvailable,
+        mediumBagsAvailable: p.mediumBagsAvailable,
+        largeBagsAvailable: p.largeBagsAvailable,
+      }));
+      setStoreList(mappedStores);
+      
+      // 현재 선택된 매장이 있다면 업데이트된 정보로 교체
+      if (selectedStore) {
+        const updatedSelectedStore = mappedStores.find(store => store.id === selectedStore.id);
+        if (updatedSelectedStore) {
+          setSelectedStore(updatedSelectedStore);
         }
-      } catch (e) {
-        setError('매장 정보를 불러오는 중 오류가 발생했습니다.');
+      } else if (mappedStores.length > 0) {
+        setSelectedStore(mappedStores[0]);
       }
-    };
+    } catch (e) {
+      setError('매장 정보를 불러오는 중 오류가 발생했습니다.');
+    }
+  };
+
+  useEffect(() => {
     if (user && user.email) {
       fetchStores();
     }
@@ -413,20 +422,34 @@ const PartnerDashboard: React.FC = () => {
   };
 
   const handleSaveStorage = async () => {
+    if (!selectedStore?.id) {
+      alert('매장 정보를 찾을 수 없습니다.');
+      return;
+    }
+
     setSaving(true);
     try {
-      await api.put(`/partnership/${selectedStore.id}/storage`, {
+      // partnershipService 사용
+      await partnershipService.updateStorageCapacity(selectedStore.id, {
         smallBagsAvailable: editStorage.small,
         mediumBagsAvailable: editStorage.medium,
         largeBagsAvailable: editStorage.large,
       });
-      // 저장 후 매장 정보 새로고침
-      // fetchStores() 등 호출 필요
+      
       alert('보관 용량이 저장되었습니다.');
-    } catch (e) {
-      alert('저장 중 오류가 발생했습니다.');
+      
+      // 매장 정보 새로고침
+      await fetchStores();
+    } catch (error) {
+      console.error('Storage save error:', error);
+      if (error.response?.status === 403) {
+        alert('권한이 없습니다. 로그인 상태를 확인해주세요.');
+      } else {
+        alert('저장 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   if (loading) {

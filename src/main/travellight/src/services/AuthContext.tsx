@@ -16,6 +16,7 @@ interface ExtendedUserResponse extends UserResponse {
 // 로컬 스토리지에 저장할 최소한의 정보만 포함하는 인터페이스
 interface StoredUserData {
   id: number;
+  token: string;
 }
 
 export interface AuthContextType {
@@ -47,7 +48,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isWaiting, setIsWaiting] = useState<boolean>(false);
 
   useEffect(() => {
-    // 로컬 스토리지에서 사용자 ID만 불러오기
+    // 로컬 스토리지에서 사용자 ID와 토큰 불러오기
     const storedUserData = localStorage.getItem("authData");
     if (storedUserData) {
       try {
@@ -69,14 +70,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await userService.getUserInfo(userId);
       if (response.data) {
+        const token = `user-${userId}`;
         const fullUserData: ExtendedUserResponse = {
           ...response.data,
+          token: token,
           isAdmin: response.data.role === "ADMIN",
         };
         setUser(fullUserData);
         setIsAdmin(fullUserData.isAdmin || false);
         setIsPartner(fullUserData.role === "PARTNER");
         setIsWaiting(fullUserData.role === "WAIT");
+        
+        // API 요청을 위해 사용자 정보 저장 (토큰 포함)
+        localStorage.setItem("user", JSON.stringify(fullUserData));
       }
     } catch (error) {
       console.error("Failed to load user from server:", error);
@@ -102,17 +108,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [user?.id]); // user.id가 변경될 때마다 이 useEffect를 재실행
 
   const login = (userData: ExtendedUserResponse) => {
-    setUser(userData);
+    // 사용자 ID 기반 토큰 생성
+    const token = `user-${userData.id}`;
+    const userWithToken = { ...userData, token };
+    
+    setUser(userWithToken);
     setIsAuthenticated(true);
     setIsAdmin(!!userData.isAdmin);
     setIsPartner(userData.role === "PARTNER");
     setIsWaiting(userData.role === "WAIT");
 
-    // 로컬 스토리지에는 ID만 저장
+    // 로컬 스토리지에는 ID와 토큰 저장
     const authData: StoredUserData = {
       id: userData.id,
+      token: token,
     };
     localStorage.setItem("authData", JSON.stringify(authData));
+    
+    // API 요청을 위해 별도로 사용자 정보 저장 (토큰 포함)
+    localStorage.setItem("user", JSON.stringify(userWithToken));
   };
 
   const logout = () => {
@@ -122,6 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsPartner(false);
     setIsWaiting(false);
     localStorage.removeItem("authData");
+    localStorage.removeItem("user"); // API 요청용 사용자 정보도 제거
   };
 
   const adminLogin = async (credentials: {
@@ -131,12 +146,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await userService.adminLogin(credentials);
       if (response.data && response.data.role === "ADMIN") {
+        const token = `user-${response.data.id}`;
         const adminData: ExtendedUserResponse = {
           id: response.data.id,
           name: response.data.name,
           email: response.data.email,
           role: response.data.role,
-          token: "admin-token", // 추후 실제 토큰으로 교체
+          token: token,
           isAdmin: true,
         };
         setUser(adminData);
@@ -145,11 +161,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsPartner(adminData.role === "PARTNER");
         setIsWaiting(adminData.role === "WAIT");
 
-        // 로컬 스토리지에는 ID만 저장
+        // 로컬 스토리지에는 ID와 토큰 저장
         const authData: StoredUserData = {
           id: adminData.id,
+          token: token,
         };
         localStorage.setItem("authData", JSON.stringify(authData));
+        
+        // API 요청을 위해 별도로 사용자 정보 저장 (토큰 포함)
+        localStorage.setItem("user", JSON.stringify(adminData));
       } else {
         throw new Error("관리자 권한이 없습니다.");
       }
@@ -169,6 +189,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const updatedUser = {
           ...user,
           ...response.data,
+          token: user.token, // 기존 토큰 유지
           isAdmin: response.data.role === "ADMIN",
         };
 
@@ -177,7 +198,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsPartner(updatedUser.role === "PARTNER");
         setIsWaiting(updatedUser.role === "WAIT");
 
-        // 로컬 스토리지에는 ID만 저장 (이미 저장되어 있으므로 업데이트 불필요)
+        // API 요청을 위해 사용자 정보 업데이트 (토큰 포함)
+        localStorage.setItem("user", JSON.stringify(updatedUser));
       }
     } catch (error) {
       console.error("사용자 정보 업데이트 실패:", error);
