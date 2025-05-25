@@ -140,4 +140,27 @@ public class PartnershipController {
                     .body(ApiResponse.error("상태 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
+
+    @PutMapping("/{id}/storage")
+    public ResponseEntity<?> updateStorageCapacity(
+            @PathVariable Long id,
+            @RequestBody Map<String, Integer> storageUpdate) {
+        try {
+            Partnership partnership = partnershipService.getPartnershipById(id);
+            if (storageUpdate.containsKey("smallBagsAvailable")) {
+                partnership.setSmallBagsAvailable(storageUpdate.get("smallBagsAvailable"));
+            }
+            if (storageUpdate.containsKey("mediumBagsAvailable")) {
+                partnership.setMediumBagsAvailable(storageUpdate.get("mediumBagsAvailable"));
+            }
+            if (storageUpdate.containsKey("largeBagsAvailable")) {
+                partnership.setLargeBagsAvailable(storageUpdate.get("largeBagsAvailable"));
+            }
+            partnershipService.save(partnership);
+            return ResponseEntity.ok(ApiResponse.success("보관 용량이 성공적으로 수정되었습니다.", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("보관 용량 수정 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
 }

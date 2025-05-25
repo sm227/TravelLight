@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class PartnershipService {
@@ -71,6 +72,11 @@ public class PartnershipService {
         partnership.setAgreeTerms(dto.isAgreeTerms());
         partnership.setIs24Hours(dto.isIs24Hours());
 
+        // 가방 보관 가능 개수 매핑
+        partnership.setSmallBagsAvailable(dto.getSmallBagsAvailable());
+        partnership.setMediumBagsAvailable(dto.getMediumBagsAvailable());
+        partnership.setLargeBagsAvailable(dto.getLargeBagsAvailable());
+
         // 영업시간 정보 변환 및 설정
         Map<String, String> businessHoursMap = new HashMap<>();
         if (dto.getBusinessHours() != null) {
@@ -109,6 +115,10 @@ public class PartnershipService {
         return "PT-" + uuid.substring(0, 4) + "-" + uuid.substring(4, 8);
     }
 
+    public List<Partnership> getAllPartnerships() {
+        return partnershipRepository.findAll();
+    }
+
     public Partnership getPartnershipBySubmissionId(String submissionId) {
         return partnershipRepository.findBySubmissionId(submissionId)
                 .orElseThrow(() -> new RuntimeException("제휴 신청 정보를 찾을 수 없습니다: " + submissionId));
@@ -124,10 +134,6 @@ public class PartnershipService {
         partnership.setLongitude(latLng[1]);
 
         return partnershipRepository.save(partnership);
-    }
-
-    public List<Partnership> getAllPartnerships() {
-        return partnershipRepository.findAll();
     }
 
     @Transactional
@@ -153,6 +159,15 @@ public class PartnershipService {
             }
         }
         
+        return partnershipRepository.save(partnership);
+    }
+
+    public Partnership getPartnershipById(Long id) {
+        return partnershipRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("제휴점을 찾을 수 없습니다: " + id));
+    }
+
+    public Partnership save(Partnership partnership) {
         return partnershipRepository.save(partnership);
     }
 }

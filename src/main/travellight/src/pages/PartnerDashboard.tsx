@@ -26,7 +26,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  SelectChangeEvent
+  SelectChangeEvent,
+  TextField
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import StoreIcon from '@mui/icons-material/Store';
@@ -74,6 +75,9 @@ interface Store {
   is24Hours: boolean;
   capacity: string;
   status: string;
+  smallBagsAvailable?: number;
+  mediumBagsAvailable?: number;
+  largeBagsAvailable?: number;
 }
 
 const PartnerDashboard: React.FC = () => {
@@ -94,6 +98,13 @@ const PartnerDashboard: React.FC = () => {
   const [reservedCount, setReservedCount] = useState(0);
   const [inUseCount, setInUseCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
+
+  const [editStorage, setEditStorage] = useState({
+    small: selectedStore?.smallBagsAvailable ?? 0,
+    medium: selectedStore?.mediumBagsAvailable ?? 0,
+    large: selectedStore?.largeBagsAvailable ?? 0,
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     // 인증 및 권한 확인
@@ -150,6 +161,9 @@ const PartnerDashboard: React.FC = () => {
           is24Hours: p.is24Hours,
           capacity: p.spaceSize,
           status: p.status === 'APPROVED' ? '영업 중' : p.status === 'PENDING' ? '승인 대기 중' : '거절됨',
+          smallBagsAvailable: p.smallBagsAvailable,
+          mediumBagsAvailable: p.mediumBagsAvailable,
+          largeBagsAvailable: p.largeBagsAvailable,
         }));
         setStoreList(mappedStores);
         if (mappedStores.length > 0) {
@@ -384,6 +398,37 @@ const PartnerDashboard: React.FC = () => {
     setOpenDialog(false);
   };
 
+  useEffect(() => {
+    if (selectedStore) {
+      setEditStorage({
+        small: selectedStore.smallBagsAvailable ?? 0,
+        medium: selectedStore.mediumBagsAvailable ?? 0,
+        large: selectedStore.largeBagsAvailable ?? 0,
+      });
+    }
+  }, [selectedStore]);
+
+  const handleEditStorageChange = (type, value) => {
+    setEditStorage(prev => ({ ...prev, [type]: Number(value) }));
+  };
+
+  const handleSaveStorage = async () => {
+    setSaving(true);
+    try {
+      await api.put(`/partnership/${selectedStore.id}/storage`, {
+        smallBagsAvailable: editStorage.small,
+        mediumBagsAvailable: editStorage.medium,
+        largeBagsAvailable: editStorage.large,
+      });
+      // 저장 후 매장 정보 새로고침
+      // fetchStores() 등 호출 필요
+      alert('보관 용량이 저장되었습니다.');
+    } catch (e) {
+      alert('저장 중 오류가 발생했습니다.');
+    }
+    setSaving(false);
+  };
+
   if (loading) {
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -600,7 +645,11 @@ const PartnerDashboard: React.FC = () => {
                           <Typography variant="body2" color="textSecondary">보관 용량</Typography>
                         </Grid>
                         <Grid item xs={8}>
-                          <Typography variant="body1">{selectedStore?.capacity}</Typography>
+                          <Typography variant="body1">
+                            {selectedStore
+                              ? `소형: ${selectedStore.smallBagsAvailable ?? 0}개, 중형: ${selectedStore.mediumBagsAvailable ?? 0}개, 대형: ${selectedStore.largeBagsAvailable ?? 0}개`
+                              : '-'}
+                          </Typography>
                         </Grid>
                       </Grid>
                     </CardContent>
@@ -742,12 +791,40 @@ const PartnerDashboard: React.FC = () => {
               <Typography variant="h5" gutterBottom>
                 매장 설정
               </Typography>
-              <Typography variant="body1" paragraph>
-                매장 정보 수정 기능은 개발 중입니다. 곧 제공될 예정입니다.
-              </Typography>
-              <Button variant="contained" disabled>
-                설정 저장하기
-              </Button>
+              <Grid container spacing={2}>
+                <Grid item xs={4}>
+                  <TextField
+                    label="소형"
+                    type="number"
+                    value={editStorage.small}
+                    onChange={e => handleEditStorageChange('small', e.target.value)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField
+                    label="중형"
+                    type="number"
+                    value={editStorage.medium}
+                    onChange={e => handleEditStorageChange('medium', e.target.value)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField
+                    label="대형"
+                    type="number"
+                    value={editStorage.large}
+                    onChange={e => handleEditStorageChange('large', e.target.value)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Button variant="contained" onClick={handleSaveStorage} disabled={saving}>
+                    저장하기
+                  </Button>
+                </Grid>
+              </Grid>
             </Box>
           </TabPanel>
 

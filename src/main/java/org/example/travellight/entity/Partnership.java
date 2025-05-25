@@ -36,6 +36,10 @@ public class Partnership {
     private LocalDateTime createdAt;
     private String status = "PENDING"; // PENDING, APPROVED, REJECTED
 
+    private Integer smallBagsAvailable;
+    private Integer mediumBagsAvailable;
+    private Integer largeBagsAvailable;
+
     // 생성자
     public Partnership() {
         this.createdAt = LocalDateTime.now();
@@ -169,4 +173,16 @@ public class Partnership {
     public void setStatus(String status) {
         this.status = status;
     }
+
+    public Integer getSmallBagsAvailable() { return smallBagsAvailable; }
+
+    public void setSmallBagsAvailable(Integer smallBagsAvailable) { this.smallBagsAvailable = smallBagsAvailable; }
+
+    public Integer getMediumBagsAvailable() { return mediumBagsAvailable; }
+
+    public void setMediumBagsAvailable(Integer mediumBagsAvailable) { this.mediumBagsAvailable = mediumBagsAvailable; }
+
+    public Integer getLargeBagsAvailable() { return largeBagsAvailable; }
+
+    public void setLargeBagsAvailable(Integer largeBagsAvailable) { this.largeBagsAvailable = largeBagsAvailable; }
 }
