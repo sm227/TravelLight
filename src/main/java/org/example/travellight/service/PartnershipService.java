@@ -211,4 +211,49 @@ public class PartnershipService {
         
         return usedCapacity;
     }
+    
+    // 모든 승인된 파트너십의 보관함 현황 조회 (관리자 대시보드용)
+    public List<Map<String, Object>> getAllStorageStatus() {
+        List<Partnership> approvedPartnerships = partnershipRepository.findAll()
+                .stream()
+                .filter(p -> "APPROVED".equals(p.getStatus()))
+                .collect(Collectors.toList());
+        
+        return approvedPartnerships.stream()
+                .map(partnership -> {
+                    Map<String, Integer> currentUsage = getCurrentUsedCapacity(
+                        partnership.getBusinessName(), 
+                        partnership.getAddress()
+                    );
+                    
+                    int maxSmallBags = partnership.getSmallBagsAvailable() != null ? partnership.getSmallBagsAvailable() : 0;
+                    int maxMediumBags = partnership.getMediumBagsAvailable() != null ? partnership.getMediumBagsAvailable() : 0;
+                    int maxLargeBags = partnership.getLargeBagsAvailable() != null ? partnership.getLargeBagsAvailable() : 0;
+                    
+                    int usedSmallBags = currentUsage.get("smallBags");
+                    int usedMediumBags = currentUsage.get("mediumBags");
+                    int usedLargeBags = currentUsage.get("largeBags");
+                    
+                    int totalCapacity = maxSmallBags + maxMediumBags + maxLargeBags;
+                    int totalUsed = usedSmallBags + usedMediumBags + usedLargeBags;
+                    
+                    double usagePercentage = totalCapacity > 0 ? (double) totalUsed / totalCapacity * 100 : 0;
+                    
+                    Map<String, Object> storageStatus = new HashMap<>();
+                    storageStatus.put("name", partnership.getBusinessName());
+                    storageStatus.put("address", partnership.getAddress());
+                    storageStatus.put("usage", Math.round(usagePercentage));
+                    storageStatus.put("total", totalCapacity);
+                    storageStatus.put("used", totalUsed);
+                    storageStatus.put("소형", usedSmallBags);
+                    storageStatus.put("중형", usedMediumBags);
+                    storageStatus.put("대형", usedLargeBags);
+                    storageStatus.put("maxSmall", maxSmallBags);
+                    storageStatus.put("maxMedium", maxMediumBags);
+                    storageStatus.put("maxLarge", maxLargeBags);
+                    
+                    return storageStatus;
+                })
+                .collect(Collectors.toList());
+    }
 }

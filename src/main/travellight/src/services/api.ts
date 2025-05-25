@@ -80,6 +80,21 @@ export interface BusinessHourDto {
   close: string;
 }
 
+// 보관함 현황 타입 정의
+export interface StorageStatus {
+  name: string;
+  address: string;
+  usage: number;
+  total: number;
+  used: number;
+  소형: number;
+  중형: number;
+  대형: number;
+  maxSmall: number;
+  maxMedium: number;
+  maxLarge: number;
+}
+
 // 배달 요청 타입 정의
 export interface DeliveryRequest {
   reservationId: number;
@@ -143,8 +158,14 @@ export const partnershipService = {
       mediumBagsAvailable: number;
       largeBagsAvailable: number;
     }
-  ): Promise<ApiResponse<any>> => {
-    const response = await api.put<ApiResponse<any>>(`/partnership/${id}/storage`, storage);
+  ): Promise<ApiResponse<string>> => {
+    const response = await api.put<ApiResponse<string>>(`/partnership/${id}/storage`, storage);
+    return response.data;
+  },
+  
+  // 전체 보관함 현황 조회 (관리자 대시보드용)
+  getAllStorageStatus: async (): Promise<ApiResponse<StorageStatus[]>> => {
+    const response = await api.get<ApiResponse<StorageStatus[]>>('/partnership/storage-status');
     return response.data;
   },
   

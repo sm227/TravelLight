@@ -225,4 +225,16 @@ public class PartnershipController {
                     .body(ApiResponse.error("사용 가능한 용량 조회 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
+
+    // 관리자 대시보드를 위한 전체 보관함 현황 조회
+    @GetMapping("/storage-status")
+    public ResponseEntity<?> getAllStorageStatus() {
+        try {
+            List<Map<String, Object>> storageStatusList = partnershipService.getAllStorageStatus();
+            return ResponseEntity.ok(ApiResponse.success("전체 보관함 현황 조회 성공", storageStatusList));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("보관함 현황 조회 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
 }

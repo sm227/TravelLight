@@ -9,6 +9,8 @@ import org.example.travellight.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -200,6 +202,16 @@ public class ReservationServiceImpl implements ReservationService {
     public List<ReservationDto> getReservationsByPlaceName(String placeName) {
         // 매장명으로 필터된 예약 조회
         List<Reservation> reservations = reservationRepository.findByPlaceName(placeName);
+        return reservations.stream()
+            .map(this::mapToDto)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReservationDto> getRecentReservations(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        List<Reservation> reservations = reservationRepository.findRecentReservations(pageable);
         return reservations.stream()
             .map(this::mapToDto)
             .collect(Collectors.toList());

@@ -27,13 +27,17 @@ import {
   FormControl,
   InputLabel,
   SelectChangeEvent,
-  TextField
+  TextField,
+  LinearProgress
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import StoreIcon from '@mui/icons-material/Store';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ReceiptIcon from '@mui/icons-material/Receipt';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import BusinessIcon from '@mui/icons-material/Business';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../services/AuthContext';
@@ -656,110 +660,247 @@ const PartnerDashboard: React.FC = () => {
               </Typography>
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
-                  <Card>
+                  <Card sx={{ height: '100%' }}>
                     <CardContent>
-                      <Typography color="textSecondary" gutterBottom>
-                        매장 정보
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <BusinessIcon sx={{ color: 'primary.main', mr: 1 }} />
+                        <Typography color="textSecondary" variant="h6" fontWeight="bold">
+                          매장 정보
+                        </Typography>
+                      </Box>
                       <Divider sx={{ my: 2 }} />
-                      <Grid container spacing={2}>
-                        <Grid item xs={4}>
-                          <Typography variant="body2" color="textSecondary">상호명</Typography>
-                        </Grid>
-                        <Grid item xs={8}>
-                          <Typography variant="body1">{selectedStore?.name}</Typography>
-                        </Grid>
-
-                        <Grid item xs={4}>
-                          <Typography variant="body2" color="textSecondary">주소</Typography>
-                        </Grid>
-                        <Grid item xs={8}>
-                          <Typography variant="body1">{selectedStore?.address}</Typography>
-                        </Grid>
-
-                        <Grid item xs={4}>
-                          <Typography variant="body2" color="textSecondary">영업시간</Typography>
-                        </Grid>
-                        <Grid item xs={8}>
-                          <Typography variant="body1">
-                            {selectedStore?.is24Hours ? (
-                                <div>24시간 영업</div>
-                            ) : (
-                                selectedStore?.businessHours ? (
-                                    ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => {
-                                      const hours = selectedStore.businessHours[day];
-                                      if (!hours) return null;
-                                      const formattedDay = day === 'MONDAY' ? '월요일' :
-                                          day === 'TUESDAY' ? '화요일' :
-                                              day === 'WEDNESDAY' ? '수요일' :
-                                                  day === 'THURSDAY' ? '목요일' :
-                                                      day === 'FRIDAY' ? '금요일' :
-                                                          day === 'SATURDAY' ? '토요일' :
-                                                              day === 'SUNDAY' ? '일요일' : day;
-                                      return (
-                                          <div key={day}>
-                                            {formattedDay}: {hours}
-                                          </div>
-                                      );
-                                    }).filter(Boolean)
-                                ) : '영업 시간이 없습니다.'
-                            )}
+                      
+                      {/* 상호명 */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, p: 2, backgroundColor: 'rgba(46, 125, 241, 0.05)', borderRadius: 2 }}>
+                        <StoreIcon sx={{ color: 'primary.main', mr: 2, fontSize: 24 }} />
+                        <Box>
+                          <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                            상호명
                           </Typography>
-                        </Grid>
-                      </Grid>
+                          <Typography variant="h6" fontWeight="bold" color="primary.main">
+                            {selectedStore?.name || '-'}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* 주소 */}
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3, p: 2, backgroundColor: 'rgba(76, 175, 80, 0.05)', borderRadius: 2 }}>
+                        <LocationOnIcon sx={{ color: 'success.main', mr: 2, fontSize: 24, mt: 0.5 }} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                            매장 주소
+                          </Typography>
+                          <Typography variant="body1" sx={{ lineHeight: 1.5 }}>
+                            {selectedStore?.address || '-'}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* 영업시간 */}
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', p: 2, backgroundColor: 'rgba(255, 152, 0, 0.05)', borderRadius: 2 }}>
+                        <AccessTimeIcon sx={{ color: 'warning.main', mr: 2, fontSize: 24, mt: 0.5 }} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                            영업시간
+                          </Typography>
+                          {selectedStore?.is24Hours ? (
+                            <Chip 
+                              label="24시간 영업" 
+                              color="success" 
+                              variant="outlined"
+                              sx={{ fontWeight: 'bold' }}
+                            />
+                          ) : (
+                            <Box>
+                              {selectedStore?.businessHours ? (
+                                ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => {
+                                  const hours = selectedStore.businessHours[day];
+                                  if (!hours) return null;
+                                  const formattedDay = day === 'MONDAY' ? '월' :
+                                      day === 'TUESDAY' ? '화' :
+                                          day === 'WEDNESDAY' ? '수' :
+                                              day === 'THURSDAY' ? '목' :
+                                                  day === 'FRIDAY' ? '금' :
+                                                      day === 'SATURDAY' ? '토' :
+                                                          day === 'SUNDAY' ? '일' : day;
+                                  return (
+                                      <Box key={day} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+                                        <Typography variant="body2" sx={{ minWidth: '20px', fontWeight: 'medium' }}>
+                                          {formattedDay}
+                                        </Typography>
+                                        <Typography variant="body2" color="textSecondary">
+                                          {hours}
+                                        </Typography>
+                                      </Box>
+                                  );
+                                }).filter(Boolean)
+                              ) : (
+                                <Typography variant="body2" color="textSecondary">
+                                  영업 시간이 설정되지 않았습니다.
+                                </Typography>
+                              )}
+                            </Box>
+                          )}
+                        </Box>
+                      </Box>
                     </CardContent>
                   </Card>
                 </Grid>
 
                 <Grid item xs={12} md={6}>
-                  <Card>
+                  <Card sx={{ height: '100%' }}>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
                         보관 용량 현황
                       </Typography>
                       <Divider sx={{ my: 2 }} />
-                      <Grid container spacing={2}>
-                        <Grid item xs={4}>
+                      
+                      {/* 소형 가방 */}
+                      <Box sx={{ mb: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                          <Typography variant="body2" fontWeight="bold">
+                            소형 가방
+                          </Typography>
                           <Typography variant="body2" color="textSecondary">
-                            최대 보관 용량
+                            {storageUsage ? storageUsage.currentUsage.smallBags : 0} / {selectedStore?.smallBagsAvailable ?? 0}
                           </Typography>
-                        </Grid>
-                        <Grid item xs={8}>
-                          <Typography variant="body1">
-                            {selectedStore
-                              ? `소형: ${selectedStore.smallBagsAvailable ?? 0}개, 중형: ${selectedStore.mediumBagsAvailable ?? 0}개, 대형: ${selectedStore.largeBagsAvailable ?? 0}개`
-                              : '-'}
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={
+                            selectedStore?.smallBagsAvailable 
+                              ? ((storageUsage?.currentUsage.smallBags ?? 0) / selectedStore.smallBagsAvailable) * 100 
+                              : 0
+                          }
+                          sx={{
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                            '& .MuiLinearProgress-bar': {
+                              backgroundColor: 
+                                selectedStore?.smallBagsAvailable 
+                                  ? ((storageUsage?.currentUsage.smallBags ?? 0) / selectedStore.smallBagsAvailable) > 0.8 
+                                    ? '#f44336' // 빨간색 (80% 이상)
+                                    : ((storageUsage?.currentUsage.smallBags ?? 0) / selectedStore.smallBagsAvailable) > 0.6 
+                                      ? '#ff9800' // 주황색 (60-80%)
+                                      : '#4caf50' // 초록색 (60% 이하)
+                                  : '#4caf50'
+                            }
+                          }}
+                        />
+                        <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: 'block' }}>
+                          사용 가능: {storageUsage?.availableCapacity.smallBags ?? (selectedStore?.smallBagsAvailable ?? 0)}개
+                        </Typography>
+                      </Box>
+
+                      {/* 중형 가방 */}
+                      <Box sx={{ mb: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                          <Typography variant="body2" fontWeight="bold">
+                            중형 가방
                           </Typography>
-                        </Grid>
-                        
-                        {/* 현재 사용량 표시 추가 */}
-                        <Grid item xs={4}>
                           <Typography variant="body2" color="textSecondary">
-                            현재 사용 중
+                            {storageUsage ? storageUsage.currentUsage.mediumBags : 0} / {selectedStore?.mediumBagsAvailable ?? 0}
                           </Typography>
-                        </Grid>
-                        <Grid item xs={8}>
-                          <Typography variant="body1" sx={{ color: 'warning.main' }}>
-                            {storageUsage
-                              ? `소형: ${storageUsage.currentUsage.smallBags}개, 중형: ${storageUsage.currentUsage.mediumBags}개, 대형: ${storageUsage.currentUsage.largeBags}개`
-                              : '-'}
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={
+                            selectedStore?.mediumBagsAvailable 
+                              ? ((storageUsage?.currentUsage.mediumBags ?? 0) / selectedStore.mediumBagsAvailable) * 100 
+                              : 0
+                          }
+                          sx={{
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                            '& .MuiLinearProgress-bar': {
+                              backgroundColor: 
+                                selectedStore?.mediumBagsAvailable 
+                                  ? ((storageUsage?.currentUsage.mediumBags ?? 0) / selectedStore.mediumBagsAvailable) > 0.8 
+                                    ? '#f44336' // 빨간색 (80% 이상)
+                                    : ((storageUsage?.currentUsage.mediumBags ?? 0) / selectedStore.mediumBagsAvailable) > 0.6 
+                                      ? '#ff9800' // 주황색 (60-80%)
+                                      : '#4caf50' // 초록색 (60% 이하)
+                                  : '#4caf50'
+                            }
+                          }}
+                        />
+                        <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: 'block' }}>
+                          사용 가능: {storageUsage?.availableCapacity.mediumBags ?? (selectedStore?.mediumBagsAvailable ?? 0)}개
+                        </Typography>
+                      </Box>
+
+                      {/* 대형 가방 */}
+                      <Box sx={{ mb: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                          <Typography variant="body2" fontWeight="bold">
+                            대형 가방
                           </Typography>
-                        </Grid>
-                        
-                        {/* 사용 가능한 용량 표시 추가 */}
-                        <Grid item xs={4}>
                           <Typography variant="body2" color="textSecondary">
-                            사용 가능
+                            {storageUsage ? storageUsage.currentUsage.largeBags : 0} / {selectedStore?.largeBagsAvailable ?? 0}
                           </Typography>
-                        </Grid>
-                        <Grid item xs={8}>
-                          <Typography variant="body1" sx={{ color: 'success.main', fontWeight: 'bold' }}>
-                            {storageUsage
-                              ? `소형: ${storageUsage.availableCapacity.smallBags}개, 중형: ${storageUsage.availableCapacity.mediumBags}개, 대형: ${storageUsage.availableCapacity.largeBags}개`
-                              : '-'}
-                          </Typography>
-                        </Grid>
-                      </Grid>
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={
+                            selectedStore?.largeBagsAvailable 
+                              ? ((storageUsage?.currentUsage.largeBags ?? 0) / selectedStore.largeBagsAvailable) * 100 
+                              : 0
+                          }
+                          sx={{
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                            '& .MuiLinearProgress-bar': {
+                              backgroundColor: 
+                                selectedStore?.largeBagsAvailable 
+                                  ? ((storageUsage?.currentUsage.largeBags ?? 0) / selectedStore.largeBagsAvailable) > 0.8 
+                                    ? '#f44336' // 빨간색 (80% 이상)
+                                    : ((storageUsage?.currentUsage.largeBags ?? 0) / selectedStore.largeBagsAvailable) > 0.6 
+                                      ? '#ff9800' // 주황색 (60-80%)
+                                      : '#4caf50' // 초록색 (60% 이하)
+                                  : '#4caf50'
+                            }
+                          }}
+                        />
+                        <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: 'block' }}>
+                          사용 가능: {storageUsage?.availableCapacity.largeBags ?? (selectedStore?.largeBagsAvailable ?? 0)}개
+                        </Typography>
+                      </Box>
+
+                      {/* 전체 사용률 요약 */}
+                      <Divider sx={{ my: 2 }} />
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" color="textSecondary">
+                          전체 사용률
+                        </Typography>
+                        <Typography variant="body2" fontWeight="bold" sx={{
+                          color: (() => {
+                            const totalMax = (selectedStore?.smallBagsAvailable ?? 0) + 
+                                           (selectedStore?.mediumBagsAvailable ?? 0) + 
+                                           (selectedStore?.largeBagsAvailable ?? 0);
+                            const totalUsed = (storageUsage?.currentUsage.smallBags ?? 0) + 
+                                            (storageUsage?.currentUsage.mediumBags ?? 0) + 
+                                            (storageUsage?.currentUsage.largeBags ?? 0);
+                            const usageRate = totalMax > 0 ? totalUsed / totalMax : 0;
+                            
+                            return usageRate > 0.8 ? '#f44336' : usageRate > 0.6 ? '#ff9800' : '#4caf50';
+                          })()
+                        }}>
+                          {(() => {
+                            const totalMax = (selectedStore?.smallBagsAvailable ?? 0) + 
+                                           (selectedStore?.mediumBagsAvailable ?? 0) + 
+                                           (selectedStore?.largeBagsAvailable ?? 0);
+                            const totalUsed = (storageUsage?.currentUsage.smallBags ?? 0) + 
+                                            (storageUsage?.currentUsage.mediumBags ?? 0) + 
+                                            (storageUsage?.currentUsage.largeBags ?? 0);
+                            const usageRate = totalMax > 0 ? (totalUsed / totalMax * 100).toFixed(1) : '0.0';
+                            
+                            return `${usageRate}%`;
+                          })()}
+                        </Typography>
+                      </Box>
                     </CardContent>
                   </Card>
                 </Grid>
