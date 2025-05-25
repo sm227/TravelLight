@@ -81,6 +81,24 @@ interface Store {
   largeBagsAvailable?: number;
 }
 
+interface StorageUsage {
+  maxCapacity: {
+    smallBags: number;
+    mediumBags: number;
+    largeBags: number;
+  };
+  currentUsage: {
+    smallBags: number;
+    mediumBags: number;
+    largeBags: number;
+  };
+  availableCapacity: {
+    smallBags: number;
+    mediumBags: number;
+    largeBags: number;
+  };
+}
+
 const PartnerDashboard: React.FC = () => {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -94,6 +112,7 @@ const PartnerDashboard: React.FC = () => {
   const [storeList, setStoreList] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [reservations, setReservations] = useState<any[]>([]);
+  const [storageUsage, setStorageUsage] = useState<StorageUsage | null>(null);
 
   // 예약 상태별 카운트를 추적하는 상태 변수들 추가
   const [reservedCount, setReservedCount] = useState(0);
@@ -440,6 +459,11 @@ const PartnerDashboard: React.FC = () => {
       
       // 매장 정보 새로고침
       await fetchStores();
+      
+      // 현재 사용량도 새로고침
+      if (selectedStore?.id) {
+        await fetchStorageUsage(selectedStore.id);
+      }
     } catch (error) {
       console.error('Storage save error:', error);
       if (error.response?.status === 403) {
@@ -451,6 +475,25 @@ const PartnerDashboard: React.FC = () => {
       setSaving(false);
     }
   };
+
+  // 현재 사용량 조회 함수 추가
+  const fetchStorageUsage = async (storeId: number) => {
+    try {
+      const response = await api.get<ApiResponse<StorageUsage>>(`/partnership/${storeId}/current-usage`);
+      if (response.data && response.data.success) {
+        setStorageUsage(response.data.data);
+      }
+    } catch (error) {
+      console.error('현재 사용량 조회 중 오류:', error);
+    }
+  };
+
+  // 선택된 매장이 변경될 때 사용량 조회
+  useEffect(() => {
+    if (selectedStore?.id) {
+      fetchStorageUsage(selectedStore.id);
+    }
+  }, [selectedStore]);
 
   if (loading) {
     return (
@@ -663,9 +706,23 @@ const PartnerDashboard: React.FC = () => {
                             )}
                           </Typography>
                         </Grid>
+                      </Grid>
+                    </CardContent>
+                  </Card>
+                </Grid>
 
+                <Grid item xs={12} md={6}>
+                  <Card>
+                    <CardContent>
+                      <Typography color="textSecondary" gutterBottom>
+                        보관 용량 현황
+                      </Typography>
+                      <Divider sx={{ my: 2 }} />
+                      <Grid container spacing={2}>
                         <Grid item xs={4}>
-                          <Typography variant="body2" color="textSecondary">보관 용량</Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            최대 보관 용량
+                          </Typography>
                         </Grid>
                         <Grid item xs={8}>
                           <Typography variant="body1">
@@ -674,12 +731,40 @@ const PartnerDashboard: React.FC = () => {
                               : '-'}
                           </Typography>
                         </Grid>
+                        
+                        {/* 현재 사용량 표시 추가 */}
+                        <Grid item xs={4}>
+                          <Typography variant="body2" color="textSecondary">
+                            현재 사용 중
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={8}>
+                          <Typography variant="body1" sx={{ color: 'warning.main' }}>
+                            {storageUsage
+                              ? `소형: ${storageUsage.currentUsage.smallBags}개, 중형: ${storageUsage.currentUsage.mediumBags}개, 대형: ${storageUsage.currentUsage.largeBags}개`
+                              : '-'}
+                          </Typography>
+                        </Grid>
+                        
+                        {/* 사용 가능한 용량 표시 추가 */}
+                        <Grid item xs={4}>
+                          <Typography variant="body2" color="textSecondary">
+                            사용 가능
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={8}>
+                          <Typography variant="body1" sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                            {storageUsage
+                              ? `소형: ${storageUsage.availableCapacity.smallBags}개, 중형: ${storageUsage.availableCapacity.mediumBags}개, 대형: ${storageUsage.availableCapacity.largeBags}개`
+                              : '-'}
+                          </Typography>
+                        </Grid>
                       </Grid>
                     </CardContent>
                   </Card>
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>

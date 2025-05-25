@@ -67,6 +67,9 @@ interface Partnership {
     is24Hours: boolean;
     businessHours: Record<string, BusinessHourDto>;
     status: string;
+    smallBagsAvailable?: number;
+    mediumBagsAvailable?: number;
+    largeBagsAvailable?: number;
 }
 
 // 비즈니스 시간 타입 정의
@@ -146,6 +149,7 @@ const Map = () => {
     // 제휴점 데이터 상태 추가
     const [partnerships, setPartnerships] = useState<Partnership[]>([]);
     const [partnershipOverlays, setPartnershipOverlays] = useState<any[]>([]);
+    const [realTimeCapacity, setRealTimeCapacity] = useState<{small: number, medium: number, large: number}>({small: 0, medium: 0, large: 0});
 
     // 공통 스크롤바 스타일 정의
     const scrollbarStyle = {
@@ -633,94 +637,164 @@ const Map = () => {
                             formatBusinessHours(partnership.businessHours) : 
                             "영업시간 정보 없음";
 
-                    // 매장 정보 창 내용 - 세련된 디자인으로 업데이트
-                    const infoWindowContent = `
-                        <div style="
-                            background-color: white;
-                            border-radius: 16px;
-                            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-                            overflow: hidden;
-                            min-width: 220px;
-                            max-width: 300px;
-                            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-                        ">
-                            <div style="
-                                background-color: #2E7DF1;
-                                color: white;
-                                padding: 12px 16px;
-                                display: flex;
-                                justify-content: space-between;
-                                align-items: center;
-                            ">
-                                <span style="
-                                    font-weight: 600;
-                                    font-size: 15px;
-                                    letter-spacing: -0.3px;
-                                ">${partnership.businessName}</span>
-                            </div>
-                            <div style="padding: 14px 16px;">
-                                <div style="
-                                    display: inline-block;
-                                    background-color: #f0f5ff;
-                                    color: #2E7DF1;
-                                    font-size: 12px;
-                                    font-weight: 500;
-                                    padding: 3px 8px;
-                                    border-radius: 12px;
-                                    margin-bottom: 8px;
-                                ">${partnership.businessType}</div>
-                                <div style="
-                                    font-size: 13px;
-                                    line-height: 1.4;
-                                    color: #333;
-                                    margin-bottom: 6px;
-                                    word-break: keep-all;
-                                ">${partnership.address}</div>
-                                <div style="
-                                    font-size: 12px;
-                                    color: #666;
-                                    display: flex;
-                                    align-items: center;
-                                    margin-top: 6px;
-                                ">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
-                                        <path d="M19.44,13c-.22,0-.45-.07-.67-.12a9.44,9.44,0,0,1-1.31-.39,2,2,0,0,0-2.48,1l-.22.45a12.18,12.18,0,0,1-2.66-2,12.18,12.18,0,0,1-2-2.66L10.52,9a2,2,0,0,0,1-2.48,10.33,10.33,0,0,1-.39-1.31c-.05-.22-.09-.45-.12-.68a3,3,0,0,0-3-2.49h-3a3,3,0,0,0-3,3.41A19,19,0,0,0,18.53,21.91l.38,0a3,3,0,0,0,2-.76,3,3,0,0,0,1-2.25v-3A3,3,0,0,0,19.44,13Z"/>
-                                    </svg>
-                                    ${partnership.phone || "전화번호 정보 없음"}
-                                </div>
-                                <div style="
-                                    font-size: 12px;
-                                    color: #666;
-                                    display: flex;
-                                    align-items: center;
-                                    margin-top: 6px;
-                                ">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
-                                        <path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20ZM12,6a1,1,0,0,0-1,1v5a1,1,0,0,0,.5.87l4,2.5a1,1,0,0,0,1.37-.37,1,1,0,0,0-.37-1.37l-3.5-2.18V7A1,1,0,0,0,12,6Z"/>
-                                    </svg>
-                                    ${hours}
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    // 실시간 보관 가능한 개수를 가져오는 함수
+                    const createInfoWindowContent = async () => {
+                        let availableCapacity = { smallBags: 0, mediumBags: 0, largeBags: 0 };
+                        
+                        try {
+                            availableCapacity = await fetchRealTimeCapacity(partnership.businessName, partnership.address);
+                        } catch (error) {
+                            console.error('실시간 용량 조회 실패:', error);
+                            // 실패 시 최대 용량으로 대체
+                            availableCapacity = {
+                                smallBags: partnership.smallBagsAvailable || 0,
+                                mediumBags: partnership.mediumBagsAvailable || 0,
+                                largeBags: partnership.largeBagsAvailable || 0
+                            };
+                        }
 
-                    // 정보 창 생성
-                    const infoWindow = new window.naver.maps.InfoWindow({
-                        content: infoWindowContent,
-                        maxWidth: 300,
-                        backgroundColor: "transparent",
-                        borderColor: "transparent",
-                        disableAnchor: true
-                    });
+                        return `
+                            <div style="
+                                background-color: white;
+                                border-radius: 16px;
+                                box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+                                overflow: hidden;
+                                min-width: 220px;
+                                max-width: 300px;
+                                font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+                            ">
+                                <div style="
+                                    background-color: #2E7DF1;
+                                    color: white;
+                                    padding: 12px 16px;
+                                    display: flex;
+                                    justify-content: space-between;
+                                    align-items: center;
+                                ">
+                                    <span style="
+                                        font-weight: 600;
+                                        font-size: 15px;
+                                        letter-spacing: -0.3px;
+                                    ">${partnership.businessName}</span>
+                                </div>
+                                <div style="padding: 14px 16px;">
+                                    <div style="
+                                        display: inline-block;
+                                        background-color: #f0f5ff;
+                                        color: #2E7DF1;
+                                        font-size: 12px;
+                                        font-weight: 500;
+                                        padding: 3px 8px;
+                                        border-radius: 12px;
+                                        margin-bottom: 8px;
+                                    ">${partnership.businessType}</div>
+                                    <div style="
+                                        font-size: 13px;
+                                        line-height: 1.4;
+                                        color: #333;
+                                        margin-bottom: 6px;
+                                        word-break: keep-all;
+                                    ">${partnership.address}</div>
+                                    
+                                    <!-- 현재 보관 가능한 짐 개수 정보 -->
+                                    <div style="
+                                        background-color: #f8f9fa;
+                                        border-radius: 8px;
+                                        padding: 8px;
+                                        margin: 8px 0;
+                                        border-left: 3px solid #2E7DF1;
+                                    ">
+                                        <div style="
+                                            font-size: 12px;
+                                            font-weight: 600;
+                                            color: #2E7DF1;
+                                            margin-bottom: 4px;
+                                        ">현재 보관 가능한 짐</div>
+                                        <div style="
+                                            display: flex;
+                                            gap: 8px;
+                                            font-size: 11px;
+                                            color: #666;
+                                        ">
+                                            <span style="color: ${availableCapacity.smallBags > 0 ? '#28a745' : '#dc3545'};">
+                                                소형: ${availableCapacity.smallBags}개
+                                            </span>
+                                            <span style="color: ${availableCapacity.mediumBags > 0 ? '#28a745' : '#dc3545'};">
+                                                중형: ${availableCapacity.mediumBags}개
+                                            </span>
+                                            <span style="color: ${availableCapacity.largeBags > 0 ? '#28a745' : '#dc3545'};">
+                                                대형: ${availableCapacity.largeBags}개
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="
+                                        font-size: 12px;
+                                        color: #666;
+                                        display: flex;
+                                        align-items: center;
+                                        margin-top: 6px;
+                                    ">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
+                                            <path d="M19.44,13c-.22,0-.45-.07-.67-.12a9.44,9.44,0,0,1-1.31-.39,2,2,0,0,0-2.48,1l-.22.45a12.18,12.18,0,0,1-2.66-2,12.18,12.18,0,0,1-2-2.66L10.52,9a2,2,0,0,0,1-2.48,10.33,10.33,0,0,1-.39-1.31c-.05-.22-.09-.45-.12-.68a3,3,0,0,0-3-2.49h-3a3,3,0,0,0-3,3.41A19,19,0,0,0,18.53,21.91l.38,0a3,3,0,0,0,2-.76,3,3,0,0,0,1-2.25v-3A3,3,0,0,0,19.44,13Z"/>
+                                        </svg>
+                                        ${partnership.phone || "전화번호 정보 없음"}
+                                    </div>
+                                    <div style="
+                                        font-size: 12px;
+                                        color: #666;
+                                        display: flex;
+                                        align-items: center;
+                                        margin-top: 6px;
+                                    ">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
+                                            <path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20ZM12,6a1,1,0,0,0-1,1v5a1,1,0,0,0,.5.87l4,2.5a1,1,0,0,0,1.37-.37,1,1,0,0,0-.37-1.37l-3.5-2.18V7A1,1,0,0,0,12,6Z"/>
+                                        </svg>
+                                        ${hours}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    };
+
+                    // 정보 창 생성 (비동기로 내용 생성)
+                    let infoWindow: any = null;
 
                     // 마커 클릭 이벤트
-                    window.naver.maps.Event.addListener(marker, 'click', () => {
+                    window.naver.maps.Event.addListener(marker, 'click', async () => {
                         // 현재 열린 정보창이 있으면 닫기
                         if (currentInfoWindow) {
                             currentInfoWindow.close();
                         }
 
-                        // 정보창 열기
+                        // 로딩 중 표시할 임시 내용
+                        const loadingContent = `
+                            <div style="
+                                background-color: white;
+                                border-radius: 16px;
+                                box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+                                overflow: hidden;
+                                min-width: 220px;
+                                max-width: 300px;
+                                font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+                                padding: 20px;
+                                text-align: center;
+                            ">
+                                <div style="color: #666; font-size: 14px;">
+                                    보관 가능한 개수를 확인 중...
+                                </div>
+                            </div>
+                        `;
+
+                        // 임시 정보창 생성 및 표시
+                        infoWindow = new window.naver.maps.InfoWindow({
+                            content: loadingContent,
+                            maxWidth: 300,
+                            backgroundColor: "transparent",
+                            borderColor: "transparent",
+                            disableAnchor: true
+                        });
+
                         infoWindow.open(map, marker);
                         currentInfoWindow = infoWindow;
 
@@ -741,6 +815,30 @@ const Map = () => {
                         setSelectedPlace(placeData);
                         // 사이드바가 닫혀있으면 열기
                         setIsSidebarOpen(true);
+
+                        // 실제 내용으로 업데이트
+                        try {
+                            const actualContent = await createInfoWindowContent();
+                            if (currentInfoWindow === infoWindow) { // 여전히 같은 정보창이 열려있는지 확인
+                                infoWindow.setContent(actualContent);
+                            }
+                        } catch (error) {
+                            console.error('정보창 내용 생성 실패:', error);
+                            if (currentInfoWindow === infoWindow) {
+                                infoWindow.setContent(`
+                                    <div style="
+                                        background-color: white;
+                                        border-radius: 16px;
+                                        padding: 20px;
+                                        text-align: center;
+                                        color: #dc3545;
+                                        font-size: 14px;
+                                    ">
+                                        정보를 불러올 수 없습니다.
+                                    </div>
+                                `);
+                            }
+                        }
                     });
 
                     // 닫기 버튼 클릭 이벤트 (정보창 내부의 X 버튼)
@@ -1286,9 +1384,8 @@ const Map = () => {
 
     // 예약 번호 생성 함수
     const generateReservationNumber = () => {
-        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const datePart = new Date().getTime().toString().slice(-6);
-        return `${randomPart}-${datePart}`;
+        const timestamp = Date.now().toString();
+        return `TL${timestamp.slice(-8)}`;
     };
     
     // 예약 정보를 서버로 전송하는 함수
@@ -1296,6 +1393,14 @@ const Map = () => {
         if (!isAuthenticated || !user) {
             console.error(t('loginRequired'));
             setReservationError(t('loginRequiredMessage'));
+            return false;
+        }
+        
+        // 보관 가능한 개수 검증 (실시간 용량 기반)
+        if (bagSizes.small > realTimeCapacity.small || 
+            bagSizes.medium > realTimeCapacity.medium || 
+            bagSizes.large > realTimeCapacity.large) {
+            setReservationError('선택한 짐의 개수가 매장의 보관 가능한 개수를 초과했습니다.');
             return false;
         }
         
@@ -1376,6 +1481,34 @@ const Map = () => {
                     setIsPaymentComplete(true);
                     setIsPaymentOpen(false);
                     
+                    // 예약 완료 후 제휴점 데이터 새로고침하여 보관 용량 업데이트
+                    try {
+                        const response = await axios.get('/api/partnership', { timeout: 5000 });
+                        if (response.data && response.data.success) {
+                            const partnershipData = response.data.data.filter((partnership: Partnership) => partnership.status === 'APPROVED');
+                            setPartnerships(partnershipData);
+                            
+                            // 현재 선택된 장소의 업데이트된 정보로 교체
+                            if (selectedPlace) {
+                                const updatedPartnership = partnershipData.find((p: Partnership) => 
+                                    p.businessName === selectedPlace.place_name && 
+                                    p.address === selectedPlace.address_name
+                                );
+                                if (updatedPartnership) {
+                                    const updatedPlace = {
+                                        ...selectedPlace,
+                                        smallBagsAvailable: updatedPartnership.smallBagsAvailable,
+                                        mediumBagsAvailable: updatedPartnership.mediumBagsAvailable,
+                                        largeBagsAvailable: updatedPartnership.largeBagsAvailable
+                                    };
+                                    setSelectedPlace(updatedPlace);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('제휴점 데이터 새로고침 중 오류:', error);
+                    }
+                    
                     // 여기서 예약 완료 후 다른 장소를 선택하지 못하도록 설정
                     // 결제 완료 시 검색 결과 및 지도 상태를 초기화하지만, selectedPlace는 유지
                     setSearchResults([]);
@@ -1387,6 +1520,107 @@ const Map = () => {
                 setIsProcessingPayment(false);
             }
         }
+    };
+
+    // 선택된 매장의 보관 가능한 개수 정보를 가져오는 함수
+    const getSelectedStoreCapacity = () => {
+        if (!selectedPlace || !partnerships.length) {
+            return { small: 0, medium: 0, large: 0 };
+        }
+        
+        // 선택된 장소가 제휴점인지 확인
+        const partnership = partnerships.find(p => 
+            p.businessName === selectedPlace.place_name && 
+            p.address === selectedPlace.address_name
+        );
+        
+        if (partnership) {
+            return {
+                small: partnership.smallBagsAvailable || 0,
+                medium: partnership.mediumBagsAvailable || 0,
+                large: partnership.largeBagsAvailable || 0
+            };
+        }
+        
+        return { small: 0, medium: 0, large: 0 };
+    };
+
+    // 실시간 보관 가능한 용량 조회 함수
+    const fetchRealTimeCapacity = async (businessName: string, address: string) => {
+        try {
+            const response = await axios.get('/api/partnership/available-capacity', {
+                params: {
+                    businessName: businessName,
+                    address: address
+                }
+            });
+            
+            if (response.data && response.data.success) {
+                return response.data.data.availableCapacity;
+            }
+        } catch (error) {
+            console.error('실시간 용량 조회 중 오류:', error);
+        }
+        
+        return { smallBags: 0, mediumBags: 0, largeBags: 0 };
+    };
+
+    // 실시간 용량을 기반으로 보관 가능한 개수 정보를 가져오는 함수
+    const getRealTimeStoreCapacity = async () => {
+        if (!selectedPlace) {
+            return { small: 0, medium: 0, large: 0 };
+        }
+        
+        const capacity = await fetchRealTimeCapacity(selectedPlace.place_name, selectedPlace.address_name);
+        return {
+            small: capacity.smallBags || 0,
+            medium: capacity.mediumBags || 0,
+            large: capacity.largeBags || 0
+        };
+    };
+
+    // 보관 가능한 개수를 초과했는지 확인하는 함수 (실시간 용량 기반)
+    const isCapacityExceeded = async (bagType: 'small' | 'medium' | 'large', increment: number = 0) => {
+        const capacity = await getRealTimeStoreCapacity();
+        const currentCount = bagSizes[bagType] + increment;
+        return currentCount > capacity[bagType];
+    };
+
+    // 보관 가능한 개수 정보를 표시하는 함수 (실시간 용량 기반)
+    const getCapacityText = async (bagType: 'small' | 'medium' | 'large') => {
+        const capacity = await getRealTimeStoreCapacity();
+        const available = capacity[bagType] - bagSizes[bagType];
+        return available > 0 ? `(${available}개 보관 가능)` : '(보관 불가)';
+    };
+
+    // 선택된 매장이 변경될 때 실시간 용량 업데이트
+    useEffect(() => {
+        const updateRealTimeCapacity = async () => {
+            if (selectedPlace) {
+                const capacity = await fetchRealTimeCapacity(selectedPlace.place_name, selectedPlace.address_name);
+                setRealTimeCapacity({
+                    small: capacity.smallBags || 0,
+                    medium: capacity.mediumBags || 0,
+                    large: capacity.largeBags || 0
+                });
+            } else {
+                setRealTimeCapacity({small: 0, medium: 0, large: 0});
+            }
+        };
+        
+        updateRealTimeCapacity();
+    }, [selectedPlace]);
+
+    // 보관 가능한 개수를 초과했는지 확인하는 함수 (동기적)
+    const isCapacityExceededSync = (bagType: 'small' | 'medium' | 'large', increment: number = 0) => {
+        const currentCount = bagSizes[bagType] + increment;
+        return currentCount > realTimeCapacity[bagType];
+    };
+
+    // 보관 가능한 개수 정보를 표시하는 함수 (동기적)
+    const getCapacityTextSync = (bagType: 'small' | 'medium' | 'large') => {
+        const available = realTimeCapacity[bagType] - bagSizes[bagType];
+        return available > 0 ? `(${available}개 보관 가능)` : '(보관 불가)';
     };
 
     return (
@@ -2444,6 +2678,9 @@ const Map = () => {
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
                                                 3,000{t('dayPerPrice')}
                                             </Typography>
+                                            <Typography sx={{color: 'text.secondary', fontSize: '12px', mt: 0.5}}>
+                                                {getCapacityTextSync('small')}
+                                            </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
                                             <Button
@@ -2475,24 +2712,31 @@ const Map = () => {
                                                 {bagSizes.small}
                                             </Typography>
                                             <Button
+                                                disabled={isCapacityExceededSync('small', 1)}
                                                 sx={{
                                                     minWidth: 'auto',
                                                     width: '32px',
                                                     height: '32px',
                                                     borderRadius: '50%',
-                                                    backgroundColor: '#f0f2f5',
-                                                    color: 'text.primary',
+                                                    backgroundColor: isCapacityExceededSync('small', 1) ? '#e0e0e0' : '#f0f2f5',
+                                                    color: isCapacityExceededSync('small', 1) ? '#999' : 'text.primary',
                                                     '&:hover': {
-                                                        backgroundColor: '#e4e6e9'
+                                                        backgroundColor: isCapacityExceededSync('small', 1) ? '#e0e0e0' : '#e4e6e9'
                                                     },
                                                     '&:focus': {
                                                         outline: 'none'
+                                                    },
+                                                    '&.Mui-disabled': {
+                                                        backgroundColor: '#e0e0e0',
+                                                        color: '#999'
                                                     }
                                                 }}
                                                 onClick={() => {
-                                                    const newBagSizes = {...bagSizes, small: bagSizes.small + 1};
-                                                    setBagSizes(newBagSizes);
-                                                    setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    if (!isCapacityExceededSync('small', 1)) {
+                                                        const newBagSizes = {...bagSizes, small: bagSizes.small + 1};
+                                                        setBagSizes(newBagSizes);
+                                                        setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    }
                                                 }}
                                             >
                                                 +
@@ -2518,6 +2762,9 @@ const Map = () => {
                                             </Typography>
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
                                                 5,000{t('dayPerPrice')}
+                                            </Typography>
+                                            <Typography sx={{color: 'text.secondary', fontSize: '12px', mt: 0.5}}>
+                                                {getCapacityTextSync('medium')}
                                             </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
@@ -2550,24 +2797,31 @@ const Map = () => {
                                                 {bagSizes.medium}
                                             </Typography>
                                             <Button
+                                                disabled={isCapacityExceededSync('medium', 1)}
                                                 sx={{
                                                     minWidth: 'auto',
                                                     width: '32px',
                                                     height: '32px',
                                                     borderRadius: '50%',
-                                                    backgroundColor: '#f0f2f5',
-                                                    color: 'text.primary',
+                                                    backgroundColor: isCapacityExceededSync('medium', 1) ? '#e0e0e0' : '#f0f2f5',
+                                                    color: isCapacityExceededSync('medium', 1) ? '#999' : 'text.primary',
                                                     '&:hover': {
-                                                        backgroundColor: '#e4e6e9'
+                                                        backgroundColor: isCapacityExceededSync('medium', 1) ? '#e0e0e0' : '#e4e6e9'
                                                     },
                                                     '&:focus': {
                                                         outline: 'none'
+                                                    },
+                                                    '&.Mui-disabled': {
+                                                        backgroundColor: '#e0e0e0',
+                                                        color: '#999'
                                                     }
                                                 }}
                                                 onClick={() => {
-                                                    const newBagSizes = {...bagSizes, medium: bagSizes.medium + 1};
-                                                    setBagSizes(newBagSizes);
-                                                    setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    if (!isCapacityExceededSync('medium', 1)) {
+                                                        const newBagSizes = {...bagSizes, medium: bagSizes.medium + 1};
+                                                        setBagSizes(newBagSizes);
+                                                        setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    }
                                                 }}
                                             >
                                                 +
@@ -2593,6 +2847,9 @@ const Map = () => {
                                             </Typography>
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
                                                 8,000{t('dayPerPrice')}
+                                            </Typography>
+                                            <Typography sx={{color: 'text.secondary', fontSize: '12px', mt: 0.5}}>
+                                                {getCapacityTextSync('large')}
                                             </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
@@ -2625,24 +2882,31 @@ const Map = () => {
                                                 {bagSizes.large}
                                             </Typography>
                                             <Button
+                                                disabled={isCapacityExceededSync('large', 1)}
                                                 sx={{
                                                     minWidth: 'auto',
                                                     width: '32px',
                                                     height: '32px',
                                                     borderRadius: '50%',
-                                                    backgroundColor: '#f0f2f5',
-                                                    color: 'text.primary',
+                                                    backgroundColor: isCapacityExceededSync('large', 1) ? '#e0e0e0' : '#f0f2f5',
+                                                    color: isCapacityExceededSync('large', 1) ? '#999' : 'text.primary',
                                                     '&:hover': {
-                                                        backgroundColor: '#e4e6e9'
+                                                        backgroundColor: isCapacityExceededSync('large', 1) ? '#e0e0e0' : '#e4e6e9'
                                                     },
                                                     '&:focus': {
                                                         outline: 'none'
+                                                    },
+                                                    '&.Mui-disabled': {
+                                                        backgroundColor: '#e0e0e0',
+                                                        color: '#999'
                                                     }
                                                 }}
                                                 onClick={() => {
-                                                    const newBagSizes = {...bagSizes, large: bagSizes.large + 1};
-                                                    setBagSizes(newBagSizes);
-                                                    setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    if (!isCapacityExceededSync('large', 1)) {
+                                                        const newBagSizes = {...bagSizes, large: bagSizes.large + 1};
+                                                        setBagSizes(newBagSizes);
+                                                        setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    }
                                                 }}
                                             >
                                                 +

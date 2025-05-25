@@ -2,7 +2,9 @@ package org.example.travellight.service;
 
 import org.example.travellight.dto.PartnershipDto;
 import org.example.travellight.entity.Partnership;
+import org.example.travellight.entity.Reservation;
 import org.example.travellight.repository.PartnershipRepository;
+import org.example.travellight.repository.ReservationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,9 @@ public class PartnershipService {
 
     @Autowired
     private PartnershipRepository partnershipRepository;
+    
+    @Autowired
+    private ReservationRepository reservationRepository;
 
     private final AddressTsService addressTsService;
     
@@ -169,5 +174,41 @@ public class PartnershipService {
 
     public Partnership save(Partnership partnership) {
         return partnershipRepository.save(partnership);
+    }
+
+    // 매장명과 주소로 Partnership 찾기
+    public Partnership findByBusinessNameAndAddress(String businessName, String address) {
+        List<Partnership> partnerships = partnershipRepository.findAll();
+        return partnerships.stream()
+                .filter(p -> p.getBusinessName().equals(businessName) && p.getAddress().equals(address))
+                .findFirst()
+                .orElse(null);
+    }
+    
+    // 현재 사용 중인 보관량 계산
+    public Map<String, Integer> getCurrentUsedCapacity(String businessName, String address) {
+        List<Reservation> activeReservations = reservationRepository.findByPlaceNameAndPlaceAddress(businessName, address)
+                .stream()
+                .filter(r -> "RESERVED".equals(r.getStatus()) || "IN_USE".equals(r.getStatus()))
+                .collect(Collectors.toList());
+        
+        int usedSmallBags = activeReservations.stream()
+                .mapToInt(r -> r.getSmallBags() != null ? r.getSmallBags() : 0)
+                .sum();
+        
+        int usedMediumBags = activeReservations.stream()
+                .mapToInt(r -> r.getMediumBags() != null ? r.getMediumBags() : 0)
+                .sum();
+        
+        int usedLargeBags = activeReservations.stream()
+                .mapToInt(r -> r.getLargeBags() != null ? r.getLargeBags() : 0)
+                .sum();
+        
+        Map<String, Integer> usedCapacity = new HashMap<>();
+        usedCapacity.put("smallBags", usedSmallBags);
+        usedCapacity.put("mediumBags", usedMediumBags);
+        usedCapacity.put("largeBags", usedLargeBags);
+        
+        return usedCapacity;
     }
 }

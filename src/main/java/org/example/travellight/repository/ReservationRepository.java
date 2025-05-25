@@ -20,4 +20,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     
     // 매장명으로 예약 조회
     List<Reservation> findByPlaceName(String placeName);
+    
+    // 매장명과 주소로 예약 조회
+    List<Reservation> findByPlaceNameAndPlaceAddress(String placeName, String placeAddress);
 } 
