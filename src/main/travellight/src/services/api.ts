@@ -10,31 +10,6 @@ const api = axios.create({
   },
 });
 
-// 요청 인터셉터 추가
-api.interceptors.request.use(
-  (config) => {
-    // 로컬 스토리지에서 사용자 정보 가져오기
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        // 토큰이 있으면 헤더에 추가 (Bearer 스키마 포함)
-        if (user.token) {
-          config.headers['Authorization'] = `Bearer ${user.token}`;
-        }
-      } catch (error) {
-        console.error('로컬 스토리지의 사용자 정보 파싱 오류:', error);
-        // 파싱 오류 시 localStorage에서 제거
-        // localStorage.removeItem('user');
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
 // 응답 인터셉터 추가 - API 호출 디버깅을 위해
 api.interceptors.response.use(
   (response) => {
@@ -43,14 +18,6 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('API 응답 오류:', error);
-    
-    // 401 또는 403 오류 시 토큰 만료로 간주하고 로그아웃 처리
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      localStorage.removeItem('user');
-      // 필요시 로그인 페이지로 리다이렉트
-      // window.location.href = '/login';
-    }
-    
     return Promise.reject(error);
   }
 );
