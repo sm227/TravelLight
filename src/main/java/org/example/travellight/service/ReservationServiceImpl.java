@@ -1,6 +1,7 @@
 package org.example.travellight.service;
 
 import org.example.travellight.dto.ReservationDto;
+import org.example.travellight.entity.Partnership;
 import org.example.travellight.entity.Reservation;
 import org.example.travellight.entity.User;
 import org.example.travellight.repository.ReservationRepository;
@@ -15,6 +16,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,14 +27,17 @@ public class ReservationServiceImpl implements ReservationService {
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
+    private final PartnershipService partnershipService;
     
     @Autowired
     public ReservationServiceImpl(ReservationRepository reservationRepository,
                                  UserRepository userRepository,
-                                 EmailService emailService) {
+                                 EmailService emailService,
+                                 PartnershipService partnershipService) {
         this.reservationRepository = reservationRepository;
         this.userRepository = userRepository;
         this.emailService = emailService;
+        this.partnershipService = partnershipService;
     }
     
     @Override
@@ -55,6 +60,56 @@ public class ReservationServiceImpl implements ReservationService {
                 });
         
         logger.info("사용자 조회 성공: {}", user);
+        
+        // 매장 보관 용량 확인 (차감하지 않고 확인만)
+        try {
+            Partnership partnership = partnershipService.findByBusinessNameAndAddress(
+                reservationDto.getPlaceName(), 
+                reservationDto.getPlaceAddress()
+            );
+            
+            if (partnership != null) {
+                // 현재 사용 중인 용량 계산
+                Map<String, Integer> currentUsage = partnershipService.getCurrentUsedCapacity(
+                    partnership.getBusinessName(), 
+                    partnership.getAddress()
+                );
+                
+                // 최대 보관 가능한 용량
+                int maxSmallBags = partnership.getSmallBagsAvailable() != null ? partnership.getSmallBagsAvailable() : 0;
+                int maxMediumBags = partnership.getMediumBagsAvailable() != null ? partnership.getMediumBagsAvailable() : 0;
+                int maxLargeBags = partnership.getLargeBagsAvailable() != null ? partnership.getLargeBagsAvailable() : 0;
+                
+                // 현재 사용 중인 용량
+                int usedSmallBags = currentUsage.get("smallBags");
+                int usedMediumBags = currentUsage.get("mediumBags");
+                int usedLargeBags = currentUsage.get("largeBags");
+                
+                // 요청된 용량
+                int requestedSmallBags = reservationDto.getSmallBags() != null ? reservationDto.getSmallBags() : 0;
+                int requestedMediumBags = reservationDto.getMediumBags() != null ? reservationDto.getMediumBags() : 0;
+                int requestedLargeBags = reservationDto.getLargeBags() != null ? reservationDto.getLargeBags() : 0;
+                
+                // 용량 초과 확인 (현재 사용량 + 요청량 > 최대 용량)
+                if ((usedSmallBags + requestedSmallBags) > maxSmallBags || 
+                    (usedMediumBags + requestedMediumBags) > maxMediumBags || 
+                    (usedLargeBags + requestedLargeBags) > maxLargeBags) {
+                    logger.error("보관 용량 초과: 요청(소형:{}, 중형:{}, 대형:{}) + 사용중(소형:{}, 중형:{}, 대형:{}) > 최대(소형:{}, 중형:{}, 대형:{})", 
+                        requestedSmallBags, requestedMediumBags, requestedLargeBags,
+                        usedSmallBags, usedMediumBags, usedLargeBags,
+                        maxSmallBags, maxMediumBags, maxLargeBags);
+                    throw new RuntimeException("보관 가능한 용량을 초과했습니다.");
+                }
+                
+                logger.info("보관 용량 확인 완료: 사용가능(소형:{}, 중형:{}, 대형:{})", 
+                    maxSmallBags - usedSmallBags - requestedSmallBags, 
+                    maxMediumBags - usedMediumBags - requestedMediumBags, 
+                    maxLargeBags - usedLargeBags - requestedLargeBags);
+            }
+        } catch (Exception e) {
+            logger.error("매장 보관 용량 확인 중 오류: {}", e.getMessage(), e);
+            throw new RuntimeException("보관 용량 확인 중 오류가 발생했습니다: " + e.getMessage());
+        }
         
         // Reservation 엔티티 생성
         try {

@@ -140,4 +140,89 @@ public class PartnershipController {
                     .body(ApiResponse.error("상태 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
+
+    @PutMapping("/{id}/storage")
+    public ResponseEntity<?> updateStorageCapacity(
+            @PathVariable("id") Long id,
+            @RequestBody Map<String, Integer> storageUpdate) {
+        try {
+            Partnership partnership = partnershipService.getPartnershipById(id);
+            if (storageUpdate.containsKey("smallBagsAvailable")) {
+                partnership.setSmallBagsAvailable(storageUpdate.get("smallBagsAvailable"));
+            }
+            if (storageUpdate.containsKey("mediumBagsAvailable")) {
+                partnership.setMediumBagsAvailable(storageUpdate.get("mediumBagsAvailable"));
+            }
+            if (storageUpdate.containsKey("largeBagsAvailable")) {
+                partnership.setLargeBagsAvailable(storageUpdate.get("largeBagsAvailable"));
+            }
+            partnershipService.save(partnership);
+            return ResponseEntity.ok(ApiResponse.success("보관 용량이 성공적으로 수정되었습니다.", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("보관 용량 수정 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{id}/current-usage")
+    public ResponseEntity<?> getCurrentUsage(@PathVariable("id") Long id) {
+        try {
+            Partnership partnership = partnershipService.getPartnershipById(id);
+            Map<String, Integer> currentUsage = partnershipService.getCurrentUsedCapacity(
+                partnership.getBusinessName(), 
+                partnership.getAddress()
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("maxCapacity", Map.of(
+                "smallBags", partnership.getSmallBagsAvailable() != null ? partnership.getSmallBagsAvailable() : 0,
+                "mediumBags", partnership.getMediumBagsAvailable() != null ? partnership.getMediumBagsAvailable() : 0,
+                "largeBags", partnership.getLargeBagsAvailable() != null ? partnership.getLargeBagsAvailable() : 0
+            ));
+            response.put("currentUsage", currentUsage);
+            response.put("availableCapacity", Map.of(
+                "smallBags", Math.max(0, (partnership.getSmallBagsAvailable() != null ? partnership.getSmallBagsAvailable() : 0) - currentUsage.get("smallBags")),
+                "mediumBags", Math.max(0, (partnership.getMediumBagsAvailable() != null ? partnership.getMediumBagsAvailable() : 0) - currentUsage.get("mediumBags")),
+                "largeBags", Math.max(0, (partnership.getLargeBagsAvailable() != null ? partnership.getLargeBagsAvailable() : 0) - currentUsage.get("largeBags"))
+            ));
+            
+            return ResponseEntity.ok(ApiResponse.success("현재 사용량 조회 성공", response));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("현재 사용량 조회 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/available-capacity")
+    public ResponseEntity<?> getAvailableCapacity(
+            @RequestParam("businessName") String businessName,
+            @RequestParam("address") String address) {
+        try {
+            Partnership partnership = partnershipService.findByBusinessNameAndAddress(businessName, address);
+            if (partnership == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("해당 매장을 찾을 수 없습니다."));
+            }
+            
+            Map<String, Integer> currentUsage = partnershipService.getCurrentUsedCapacity(businessName, address);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("maxCapacity", Map.of(
+                "smallBags", partnership.getSmallBagsAvailable() != null ? partnership.getSmallBagsAvailable() : 0,
+                "mediumBags", partnership.getMediumBagsAvailable() != null ? partnership.getMediumBagsAvailable() : 0,
+                "largeBags", partnership.getLargeBagsAvailable() != null ? partnership.getLargeBagsAvailable() : 0
+            ));
+            response.put("currentUsage", currentUsage);
+            response.put("availableCapacity", Map.of(
+                "smallBags", Math.max(0, (partnership.getSmallBagsAvailable() != null ? partnership.getSmallBagsAvailable() : 0) - currentUsage.get("smallBags")),
+                "mediumBags", Math.max(0, (partnership.getMediumBagsAvailable() != null ? partnership.getMediumBagsAvailable() : 0) - currentUsage.get("mediumBags")),
+                "largeBags", Math.max(0, (partnership.getLargeBagsAvailable() != null ? partnership.getLargeBagsAvailable() : 0) - currentUsage.get("largeBags"))
+            ));
+            
+            return ResponseEntity.ok(ApiResponse.success("사용 가능한 용량 조회 성공", response));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("사용 가능한 용량 조회 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
 }

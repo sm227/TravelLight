@@ -10,29 +10,6 @@ const api = axios.create({
   },
 });
 
-// 요청 인터셉터 추가
-api.interceptors.request.use(
-  (config) => {
-    // 로컬 스토리지에서 사용자 정보 가져오기
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        // 토큰이 있으면 헤더에 추가 (Bearer 스키마 없이)
-        if (user.token) {
-          config.headers['Authorization'] = user.token;
-        }
-      } catch (error) {
-        console.error('로컬 스토리지의 사용자 정보 파싱 오류:', error);
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
 // 응답 인터셉터 추가 - API 호출 디버깅을 위해
 api.interceptors.response.use(
   (response) => {
@@ -92,6 +69,9 @@ export interface Partnership {
   is24Hours: boolean;
   businessHours: Record<string, BusinessHourDto>;
   status: string;
+  smallBagsAvailable?: number;
+  mediumBagsAvailable?: number;
+  largeBagsAvailable?: number;
 }
 
 export interface BusinessHourDto {
@@ -155,6 +135,19 @@ export const partnershipService = {
     return response.data;
   },
   
+  // 보관 용량 업데이트 추가
+  updateStorageCapacity: async (
+    id: number, 
+    storage: {
+      smallBagsAvailable: number;
+      mediumBagsAvailable: number;
+      largeBagsAvailable: number;
+    }
+  ): Promise<ApiResponse<any>> => {
+    const response = await api.put<ApiResponse<any>>(`/partnership/${id}/storage`, storage);
+    return response.data;
+  },
+  
   // 배달 가격 견적 계산
   calculateDeliveryEstimate: async (
     originLatitude: number,
@@ -195,4 +188,4 @@ export const partnershipService = {
   }
 };
 
-export default api; 
+export default api;

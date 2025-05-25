@@ -26,7 +26,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  SelectChangeEvent
+  SelectChangeEvent,
+  TextField
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import StoreIcon from '@mui/icons-material/Store';
@@ -42,6 +43,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import { partnershipService } from '../services/api';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -74,6 +76,27 @@ interface Store {
   is24Hours: boolean;
   capacity: string;
   status: string;
+  smallBagsAvailable?: number;
+  mediumBagsAvailable?: number;
+  largeBagsAvailable?: number;
+}
+
+interface StorageUsage {
+  maxCapacity: {
+    smallBags: number;
+    mediumBags: number;
+    largeBags: number;
+  };
+  currentUsage: {
+    smallBags: number;
+    mediumBags: number;
+    largeBags: number;
+  };
+  availableCapacity: {
+    smallBags: number;
+    mediumBags: number;
+    largeBags: number;
+  };
 }
 
 const PartnerDashboard: React.FC = () => {
@@ -89,11 +112,19 @@ const PartnerDashboard: React.FC = () => {
   const [storeList, setStoreList] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [reservations, setReservations] = useState<any[]>([]);
+  const [storageUsage, setStorageUsage] = useState<StorageUsage | null>(null);
 
   // 예약 상태별 카운트를 추적하는 상태 변수들 추가
   const [reservedCount, setReservedCount] = useState(0);
   const [inUseCount, setInUseCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
+
+  const [editStorage, setEditStorage] = useState({
+    small: selectedStore?.smallBagsAvailable ?? 0,
+    medium: selectedStore?.mediumBagsAvailable ?? 0,
+    large: selectedStore?.largeBagsAvailable ?? 0,
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     // 인증 및 권한 확인
@@ -136,29 +167,40 @@ const PartnerDashboard: React.FC = () => {
   };
 
   // 파트너의 매장 목록을 API로부터 가져옵니다.
-  useEffect(() => {
-    const fetchStores = async () => {
-      try {
-        const response = await api.get<ApiResponse<any[]>>('/partnership');
-        const data = response.data.data;
-        const userStores = data.filter((p: any) => p.email === user?.email && p.status === 'APPROVED');
-        const mappedStores = userStores.map((p: any) => ({
-          id: p.id,
-          name: p.businessName,
-          address: p.address,
-          businessHours: p.businessHours,
-          is24Hours: p.is24Hours,
-          capacity: p.spaceSize,
-          status: p.status === 'APPROVED' ? '영업 중' : p.status === 'PENDING' ? '승인 대기 중' : '거절됨',
-        }));
-        setStoreList(mappedStores);
-        if (mappedStores.length > 0) {
-          setSelectedStore(mappedStores[0]);
+  const fetchStores = async () => {
+    try {
+      const response = await api.get<ApiResponse<any[]>>('/partnership');
+      const data = response.data.data;
+      const userStores = data.filter((p: any) => p.email === user?.email && p.status === 'APPROVED');
+      const mappedStores = userStores.map((p: any) => ({
+        id: p.id,
+        name: p.businessName,
+        address: p.address,
+        businessHours: p.businessHours,
+        is24Hours: p.is24Hours,
+        capacity: p.spaceSize,
+        status: p.status === 'APPROVED' ? '영업 중' : p.status === 'PENDING' ? '승인 대기 중' : '거절됨',
+        smallBagsAvailable: p.smallBagsAvailable,
+        mediumBagsAvailable: p.mediumBagsAvailable,
+        largeBagsAvailable: p.largeBagsAvailable,
+      }));
+      setStoreList(mappedStores);
+      
+      // 현재 선택된 매장이 있다면 업데이트된 정보로 교체
+      if (selectedStore) {
+        const updatedSelectedStore = mappedStores.find(store => store.id === selectedStore.id);
+        if (updatedSelectedStore) {
+          setSelectedStore(updatedSelectedStore);
         }
-      } catch (e) {
-        setError('매장 정보를 불러오는 중 오류가 발생했습니다.');
+      } else if (mappedStores.length > 0) {
+        setSelectedStore(mappedStores[0]);
       }
-    };
+    } catch (e) {
+      setError('매장 정보를 불러오는 중 오류가 발생했습니다.');
+    }
+  };
+
+  useEffect(() => {
     if (user && user.email) {
       fetchStores();
     }
@@ -384,6 +426,75 @@ const PartnerDashboard: React.FC = () => {
     setOpenDialog(false);
   };
 
+  useEffect(() => {
+    if (selectedStore) {
+      setEditStorage({
+        small: selectedStore.smallBagsAvailable ?? 0,
+        medium: selectedStore.mediumBagsAvailable ?? 0,
+        large: selectedStore.largeBagsAvailable ?? 0,
+      });
+    }
+  }, [selectedStore]);
+
+  const handleEditStorageChange = (type, value) => {
+    setEditStorage(prev => ({ ...prev, [type]: Number(value) }));
+  };
+
+  const handleSaveStorage = async () => {
+    if (!selectedStore?.id) {
+      alert('매장 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // partnershipService 사용
+      await partnershipService.updateStorageCapacity(selectedStore.id, {
+        smallBagsAvailable: editStorage.small,
+        mediumBagsAvailable: editStorage.medium,
+        largeBagsAvailable: editStorage.large,
+      });
+      
+      alert('보관 용량이 저장되었습니다.');
+      
+      // 매장 정보 새로고침
+      await fetchStores();
+      
+      // 현재 사용량도 새로고침
+      if (selectedStore?.id) {
+        await fetchStorageUsage(selectedStore.id);
+      }
+    } catch (error) {
+      console.error('Storage save error:', error);
+      if (error.response?.status === 403) {
+        alert('권한이 없습니다. 로그인 상태를 확인해주세요.');
+      } else {
+        alert('저장 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 현재 사용량 조회 함수 추가
+  const fetchStorageUsage = async (storeId: number) => {
+    try {
+      const response = await api.get<ApiResponse<StorageUsage>>(`/partnership/${storeId}/current-usage`);
+      if (response.data && response.data.success) {
+        setStorageUsage(response.data.data);
+      }
+    } catch (error) {
+      console.error('현재 사용량 조회 중 오류:', error);
+    }
+  };
+
+  // 선택된 매장이 변경될 때 사용량 조회
+  useEffect(() => {
+    if (selectedStore?.id) {
+      fetchStorageUsage(selectedStore.id);
+    }
+  }, [selectedStore]);
+
   if (loading) {
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -595,19 +706,65 @@ const PartnerDashboard: React.FC = () => {
                             )}
                           </Typography>
                         </Grid>
-
-                        <Grid item xs={4}>
-                          <Typography variant="body2" color="textSecondary">보관 용량</Typography>
-                        </Grid>
-                        <Grid item xs={8}>
-                          <Typography variant="body1">{selectedStore?.capacity}</Typography>
-                        </Grid>
                       </Grid>
                     </CardContent>
                   </Card>
                 </Grid>
 
                 <Grid item xs={12} md={6}>
+                  <Card>
+                    <CardContent>
+                      <Typography color="textSecondary" gutterBottom>
+                        보관 용량 현황
+                      </Typography>
+                      <Divider sx={{ my: 2 }} />
+                      <Grid container spacing={2}>
+                        <Grid item xs={4}>
+                          <Typography variant="body2" color="textSecondary">
+                            최대 보관 용량
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={8}>
+                          <Typography variant="body1">
+                            {selectedStore
+                              ? `소형: ${selectedStore.smallBagsAvailable ?? 0}개, 중형: ${selectedStore.mediumBagsAvailable ?? 0}개, 대형: ${selectedStore.largeBagsAvailable ?? 0}개`
+                              : '-'}
+                          </Typography>
+                        </Grid>
+                        
+                        {/* 현재 사용량 표시 추가 */}
+                        <Grid item xs={4}>
+                          <Typography variant="body2" color="textSecondary">
+                            현재 사용 중
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={8}>
+                          <Typography variant="body1" sx={{ color: 'warning.main' }}>
+                            {storageUsage
+                              ? `소형: ${storageUsage.currentUsage.smallBags}개, 중형: ${storageUsage.currentUsage.mediumBags}개, 대형: ${storageUsage.currentUsage.largeBags}개`
+                              : '-'}
+                          </Typography>
+                        </Grid>
+                        
+                        {/* 사용 가능한 용량 표시 추가 */}
+                        <Grid item xs={4}>
+                          <Typography variant="body2" color="textSecondary">
+                            사용 가능
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={8}>
+                          <Typography variant="body1" sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                            {storageUsage
+                              ? `소형: ${storageUsage.availableCapacity.smallBags}개, 중형: ${storageUsage.availableCapacity.mediumBags}개, 대형: ${storageUsage.availableCapacity.largeBags}개`
+                              : '-'}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -742,12 +899,40 @@ const PartnerDashboard: React.FC = () => {
               <Typography variant="h5" gutterBottom>
                 매장 설정
               </Typography>
-              <Typography variant="body1" paragraph>
-                매장 정보 수정 기능은 개발 중입니다. 곧 제공될 예정입니다.
-              </Typography>
-              <Button variant="contained" disabled>
-                설정 저장하기
-              </Button>
+              <Grid container spacing={2}>
+                <Grid item xs={4}>
+                  <TextField
+                    label="소형"
+                    type="number"
+                    value={editStorage.small}
+                    onChange={e => handleEditStorageChange('small', e.target.value)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField
+                    label="중형"
+                    type="number"
+                    value={editStorage.medium}
+                    onChange={e => handleEditStorageChange('medium', e.target.value)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField
+                    label="대형"
+                    type="number"
+                    value={editStorage.large}
+                    onChange={e => handleEditStorageChange('large', e.target.value)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Button variant="contained" onClick={handleSaveStorage} disabled={saving}>
+                    저장하기
+                  </Button>
+                </Grid>
+              </Grid>
             </Box>
           </TabPanel>
 
