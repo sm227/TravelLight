@@ -30,6 +30,7 @@ import {ko} from 'date-fns/locale';
 import { useAuth } from "../services/AuthContext";
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import PortOne from "@portone/browser-sdk/v2";
 
 declare global {
     interface Window {
@@ -106,14 +107,12 @@ const Map = () => {
     });
     const [totalPrice, setTotalPrice] = useState(0);
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-    const [cardInfo, setCardInfo] = useState({
-        number: '',
-        expiry: '',
-        cvc: '',
-        name: ''
-    });
     const [isPaymentComplete, setIsPaymentComplete] = useState(false);
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+    
+    // 포트원 결제 관련 상태
+    const [portonePaymentId, setPortonePaymentId] = useState<string | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState<'card' | 'portone'>('portone'); // 기본값을 포트원으로 설정
     const [storageDuration, setStorageDuration] = useState("day");
     const [storageDate, setStorageDate] = useState("");
     const [storageStartTime, setStorageStartTime] = useState("");
@@ -1245,24 +1244,7 @@ const Map = () => {
         }
     }, [bagSizes, storageDuration, storageDate, storageEndDate]);
 
-    // 카드 정보 유효성 검사 함수
-    const isPaymentFormValid = () => {
-        const {number, expiry, cvc, name} = cardInfo;
 
-        // 카드번호는 공백 제외 16자리
-        const isNumberValid = number.replace(/\s/g, '').length === 16;
-
-        // 만료일은 MM/YY 형식 (5자리)
-        const isExpiryValid = expiry.length === 5 && expiry.includes('/');
-
-        // CVC는 3자리
-        const isCvcValid = cvc.length === 3;
-
-        // 이름은 최소 2자 이상
-        const isNameValid = name.trim().length >= 2;
-
-        return isNumberValid && isExpiryValid && isCvcValid && isNameValid;
-    };
 
     // 운영 시간 추출 함수
     const getPlaceOperatingHours = (place: any) => {
@@ -1388,6 +1370,106 @@ const Map = () => {
         return `TL${timestamp.slice(-8)}`;
     };
     
+    // 포트원 결제 ID 생성 함수
+    const generatePortonePaymentId = () => {
+        return [...crypto.getRandomValues(new Uint32Array(2))]
+            .map((word) => word.toString(16).padStart(8, "0"))
+            .join("");
+    };
+    
+    // 포트원 결제 처리 함수
+    const processPortonePayment = async () => {
+        if (!selectedPlace || totalPrice <= 0) {
+            setReservationError('결제 정보가 올바르지 않습니다.');
+            return false;
+        }
+        
+        try {
+            setIsProcessingPayment(true);
+            
+            const paymentId = generatePortonePaymentId();
+            setPortonePaymentId(paymentId);
+            
+            // 포트원 결제 요청
+            const payment = await PortOne.requestPayment({
+                storeId: "store-ef16a71d-87cc-4e73-a6b8-448a8b07840d", // 환경변수 또는 기본값
+                channelKey: "channel-key-7ecba580-a8c1-4834-904f-fdc9150a0ce4", // 환경변수 또는 기본값
+                paymentId,
+                orderName: `${selectedPlace.place_name} 짐보관 서비스`,
+                totalAmount: totalPrice,
+                currency: "KRW" as const,
+                payMethod: "CARD",
+                customer: {
+                    fullName: user?.name || "고객",
+                    email: user?.email || "",
+                },
+                customData: {
+                    reservationData: {
+                        userId: user?.id,
+                        placeName: selectedPlace.place_name,
+                        placeAddress: selectedPlace.address_name,
+                        storageDate: storageDate,
+                        storageEndDate: storageDuration === "period" ? storageEndDate : storageDate,
+                        storageStartTime: storageStartTime,
+                        storageEndTime: storageEndTime,
+                        smallBags: bagSizes.small,
+                        mediumBags: bagSizes.medium,
+                        largeBags: bagSizes.large,
+                        totalPrice: totalPrice,
+                        storageType: storageDuration
+                    }
+                },
+            });
+            
+            if (payment.code !== undefined) {
+                // 결제 실패
+                setReservationError(`결제 실패: ${payment.message}`);
+                setIsProcessingPayment(false);
+                return false;
+            }
+            
+            // 결제 성공 시 백엔드에 결제 완료 요청
+            const completeResponse = await fetch('/api/payment/portone/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    paymentId: payment.paymentId,
+                }),
+            });
+            
+            if (completeResponse.ok) {
+                const paymentComplete = await completeResponse.json();
+                if (paymentComplete.status === 'PAID') {
+                    // 예약 정보 저장
+                    const reservationResult = await submitReservation();
+                    if (reservationResult) {
+                        setIsPaymentComplete(true);
+                        setIsPaymentOpen(false);
+                        return true;
+                    }
+                } else {
+                    setReservationError('결제 검증에 실패했습니다.');
+                    return false;
+                }
+            } else {
+                const errorText = await completeResponse.text();
+                setReservationError(`결제 완료 처리 실패: ${errorText}`);
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('포트원 결제 처리 중 오류:', error);
+            setReservationError('결제 처리 중 오류가 발생했습니다.');
+            return false;
+        } finally {
+            setIsProcessingPayment(false);
+        }
+        
+        return false;
+    };
+    
     // 예약 정보를 서버로 전송하는 함수
     const submitReservation = async () => {
         if (!isAuthenticated || !user) {
@@ -1466,59 +1548,120 @@ const Map = () => {
         }
     };
     
-    // Modified: Submit reservation data to server when payment is completed
+    // 포트원 결제 완료 처리 함수
+    // 포트원 결제 처리 함수
     const completePayment = async () => {
-        if (isPaymentFormValid()) {
-            try {
-                // 결제 진행 상태 활성화
-                setIsProcessingPayment(true);
-                
-                // 약간의 지연 시간을 두어 UX 향상
-                const result = await submitReservation();
-                
-                if (result) {
-                    // Payment and reservation success
-                    setIsPaymentComplete(true);
-                    setIsPaymentOpen(false);
-                    
-                    // 예약 완료 후 제휴점 데이터 새로고침하여 보관 용량 업데이트
-                    try {
-                        const response = await axios.get('/api/partnership', { timeout: 5000 });
-                        if (response.data && response.data.success) {
-                            const partnershipData = response.data.data.filter((partnership: Partnership) => partnership.status === 'APPROVED');
-                            setPartnerships(partnershipData);
-                            
-                            // 현재 선택된 장소의 업데이트된 정보로 교체
-                            if (selectedPlace) {
-                                const updatedPartnership = partnershipData.find((p: Partnership) => 
-                                    p.businessName === selectedPlace.place_name && 
-                                    p.address === selectedPlace.address_name
-                                );
-                                if (updatedPartnership) {
-                                    const updatedPlace = {
-                                        ...selectedPlace,
-                                        smallBagsAvailable: updatedPartnership.smallBagsAvailable,
-                                        mediumBagsAvailable: updatedPartnership.mediumBagsAvailable,
-                                        largeBagsAvailable: updatedPartnership.largeBagsAvailable
-                                    };
-                                    setSelectedPlace(updatedPlace);
+        if (!selectedPlace || totalPrice <= 0) {
+            setReservationError('결제 정보가 올바르지 않습니다.');
+            return;
+        }
+        
+        try {
+            setIsProcessingPayment(true);
+            
+            const paymentId = generatePortonePaymentId();
+            
+            // 포트원 결제 요청
+            const payment = await PortOne.requestPayment({
+                storeId: "store-ef16a71d-87cc-4e73-a6b8-448a8b07840d", // 환경변수 또는 기본값
+                channelKey: "channel-key-7ecba580-a8c1-4834-904f-fdc9150a0ce4", 
+                paymentId,
+                orderName: `${selectedPlace.place_name} 짐보관 서비스`,
+                totalAmount: totalPrice,
+                currency: "KRW" as any, // 타입 오류 임시 해결
+                payMethod: "CARD",
+                customer: {
+                    fullName: user?.name || "고객",
+                    email: user?.email || "",
+                },
+                customData: JSON.stringify({
+                    reservationData: {
+                        userId: user?.id,
+                        placeName: selectedPlace.place_name,
+                        placeAddress: selectedPlace.address_name,
+                        storageDate: storageDate,
+                        storageEndDate: storageDuration === "period" ? storageEndDate : storageDate,
+                        storageStartTime: storageStartTime,
+                        storageEndTime: storageEndTime,
+                        smallBags: bagSizes.small,
+                        mediumBags: bagSizes.medium,
+                        largeBags: bagSizes.large,
+                        totalPrice: totalPrice,
+                        storageType: storageDuration
+                    }
+                }),
+            });
+            
+            if (payment.code !== undefined) {
+                // 결제 실패
+                setReservationError(`결제 실패: ${payment.message}`);
+                setIsProcessingPayment(false);
+                return;
+            }
+            
+            // 결제 성공 시 백엔드에 결제 완료 요청
+            const completeResponse = await fetch('/api/payment/portone/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    paymentId: payment.paymentId,
+                }),
+            });
+            
+            if (completeResponse.ok) {
+                const paymentComplete = await completeResponse.json();
+                if (paymentComplete.status === 'PAID') {
+                    // 예약 정보 저장
+                    const reservationResult = await submitReservation();
+                    if (reservationResult) {
+                        setIsPaymentComplete(true);
+                        setIsPaymentOpen(false);
+                        
+                        // 예약 완료 후 제휴점 데이터 새로고침하여 보관 용량 업데이트
+                        try {
+                            const response = await axios.get('/api/partnership', { timeout: 5000 });
+                            if (response.data && response.data.success) {
+                                const partnershipData = response.data.data.filter((partnership: Partnership) => partnership.status === 'APPROVED');
+                                setPartnerships(partnershipData);
+                                
+                                // 현재 선택된 장소의 업데이트된 정보로 교체
+                                if (selectedPlace) {
+                                    const updatedPartnership = partnershipData.find((p: Partnership) => 
+                                        p.businessName === selectedPlace.place_name && 
+                                        p.address === selectedPlace.address_name
+                                    );
+                                    if (updatedPartnership) {
+                                        const updatedPlace = {
+                                            ...selectedPlace,
+                                            smallBagsAvailable: updatedPartnership.smallBagsAvailable,
+                                            mediumBagsAvailable: updatedPartnership.mediumBagsAvailable,
+                                            largeBagsAvailable: updatedPartnership.largeBagsAvailable
+                                        };
+                                        setSelectedPlace(updatedPlace);
+                                    }
                                 }
                             }
+                        } catch (error) {
+                            console.error('제휴점 데이터 새로고침 중 오류:', error);
                         }
-                    } catch (error) {
-                        console.error('제휴점 데이터 새로고침 중 오류:', error);
+                        
+                        setSearchResults([]);
                     }
-                    
-                    // 여기서 예약 완료 후 다른 장소를 선택하지 못하도록 설정
-                    // 결제 완료 시 검색 결과 및 지도 상태를 초기화하지만, selectedPlace는 유지
-                    setSearchResults([]);
+                } else {
+                    setReservationError('결제 검증에 실패했습니다.');
                 }
-            } catch (error) {
-                console.error("결제 처리 중 오류 발생:", error);
-            } finally {
-                // 결제 진행 상태 비활성화
-                setIsProcessingPayment(false);
+            } else {
+                const errorText = await completeResponse.text();
+                setReservationError(`결제 완료 처리 실패: ${errorText}`);
             }
+            
+        } catch (error) {
+            console.error('포트원 결제 처리 중 오류:', error);
+            setReservationError('결제 처리 중 오류가 발생했습니다.');
+        } finally {
+            setIsProcessingPayment(false);
         }
     };
 
@@ -2195,143 +2338,106 @@ const Map = () => {
                                         {t('paymentAmount')}{totalPrice.toLocaleString()}{t('won')}
                                     </Typography>
 
-                                    {/* 카드 정보 입력 폼 */}
-                                    <Box component="form" sx={{mb: 3}}>
-                                        <Typography sx={{fontWeight: 500, mb: 2}}>
-                                            {t('enterCardInfo')}
+                                    {/* 포트원 결제 안내 */}
+                                    <Box sx={{
+                                        backgroundColor: '#f0f5ff',
+                                        p: 3,
+                                        borderRadius: '16px',
+                                        mb: 3,
+                                        textAlign: 'center'
+                                    }}>
+                                        <Box sx={{
+                                            width: '48px',
+                                            height: '48px',
+                                            borderRadius: '50%',
+                                            backgroundColor: '#1a73e8',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            margin: '0 auto 16px auto'
+                                        }}>
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                                <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                                            </svg>
+                                        </Box>
+                                        <Typography sx={{
+                                            fontWeight: 600,
+                                            color: '#1a73e8',
+                                            mb: 1,
+                                            fontSize: '16px'
+                                        }}>
+                                            안전한 포트원 결제
                                         </Typography>
-
-                                        {/* 카드 번호 */}
-                                        <Box sx={{mb: 2}}>
-                                            <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                {t('cardNumber')}
-                                            </Typography>
-                                            <TextField
-                                                fullWidth
-                                                placeholder="0000 0000 0000 0000"
-                                                value={cardInfo.number}
-                                                onChange={(e) => {
-                                                    // 숫자와 공백만 허용
-                                                    const value = e.target.value.replace(/[^\d\s]/g, '');
-                                                    // 4자리마다 공백 추가
-                                                    const formatted = value
-                                                        .replace(/\s/g, '')
-                                                        .replace(/(\d{4})/g, '$1 ')
-                                                        .trim();
-                                                    // 19자리(16자리 숫자 + 3개 공백)로 제한
-                                                    if (formatted.length <= 19) {
-                                                        setCardInfo({...cardInfo, number: formatted});
-                                                    }
-                                                }}
-                                                sx={{
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: '12px',
-                                                        backgroundColor: 'white',
-                                                    }
-                                                }}
-                                                inputProps={{inputMode: 'numeric'}}
-                                            />
-                                        </Box>
-
-                                        {/* 만료일과 CVC를 한 줄에 */}
-                                        <Box sx={{display: 'flex', gap: 2, mb: 2}}>
-                                            <Box sx={{flex: 1}}>
-                                                <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                    {t('expiryDate')}
-                                                </Typography>
-                                                <TextField
-                                                    fullWidth
-                                                    placeholder="MM/YY"
-                                                    value={cardInfo.expiry}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/[^\d]/g, '');
-                                                        let formatted = value;
-
-                                                        // MM 값이 12를 넘지 않도록 검증
-                                                        if (value.length >= 2) {
-                                                            const month = parseInt(value.substring(0, 2));
-                                                            if (month > 12) {
-                                                                formatted = '12' + value.substring(2);
-                                                            }
-                                                            formatted = formatted.substring(0, 2) + '/' + formatted.substring(2, 4);
-                                                        }
-
-                                                        // 5자리(MM/YY)로 제한
-                                                        if (formatted.length <= 5) {
-                                                            setCardInfo({...cardInfo, expiry: formatted});
-                                                        }
-                                                    }}
-                                                    sx={{
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: '12px',
-                                                            backgroundColor: 'white',
-                                                        }
-                                                    }}
-                                                    inputProps={{inputMode: 'numeric'}}
-                                                />
-                                            </Box>
-                                            <Box sx={{flex: 1}}>
-                                                <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                    CVC
-                                                </Typography>
-                                                <TextField
-                                                    fullWidth
-                                                    placeholder="000"
-                                                    value={cardInfo.cvc}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/[^\d]/g, '');
-                                                        if (value.length <= 3) {
-                                                            setCardInfo({...cardInfo, cvc: value});
-                                                        }
-                                                    }}
-                                                    sx={{
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: '12px',
-                                                            backgroundColor: 'white',
-                                                        }
-                                                    }}
-                                                    inputProps={{inputMode: 'numeric'}}
-                                                />
-                                            </Box>
-                                        </Box>
-
-                                        {/* 카드 소유자 이름 */}
-                                        <Box sx={{mb: 3}}>
-                                            <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                {t('cardholderName')}
-                                            </Typography>
-                                            <TextField
-                                                fullWidth
-                                                placeholder={t('cardholderNamePlaceholder')}
-                                                value={cardInfo.name}
-                                                onChange={(e) => {
-                                                    // 숫자와 특수문자를 제외한 문자만 허용 (한글, 영문, 공백만 가능)
-                                                    const onlyLettersAndSpace = e.target.value.replace(/[^가-힣a-zA-Z\s]/g, '');
-                                                    setCardInfo({...cardInfo, name: onlyLettersAndSpace});
-                                                }}
-                                                sx={{
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: '12px',
-                                                        backgroundColor: 'white',
-                                                    }
-                                                }}
-                                            />
-                                        </Box>
+                                        <Typography sx={{
+                                            color: '#666',
+                                            fontSize: '14px',
+                                            lineHeight: 1.5
+                                        }}>
+                                            카드, 계좌이체, 간편결제 등<br/>
+                                            다양한 결제 수단을 지원합니다
+                                        </Typography>
                                     </Box>
 
-                                    {/* 약관 동의 */}
+                                    {/* 결제 정보 요약 */}
                                     <Box sx={{
                                         backgroundColor: 'rgba(0, 0, 0, 0.03)',
-                                        p: 2,
+                                        p: 2.5,
                                         borderRadius: '12px',
-                                        mb: 3,
-                                        fontSize: '13px',
-                                        color: 'text.secondary'
+                                        mb: 3
                                     }}>
-                                        {t('termsAgreement')}
+                                        <Typography sx={{
+                                            fontSize: '14px',
+                                            fontWeight: 500,
+                                            mb: 2,
+                                            color: '#333'
+                                        }}>
+                                            결제 정보
+                                        </Typography>
+                                        
+                                        <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
+                                            <Typography sx={{fontSize: '13px', color: 'text.secondary'}}>
+                                                보관 장소
+                                            </Typography>
+                                            <Typography sx={{fontSize: '13px', fontWeight: 500}}>
+                                                {selectedPlace.place_name}
+                                            </Typography>
+                                        </Box>
+                                        
+                                        <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
+                                            <Typography sx={{fontSize: '13px', color: 'text.secondary'}}>
+                                                보관 기간
+                                            </Typography>
+                                            <Typography sx={{fontSize: '13px', fontWeight: 500}}>
+                                                {calculateStorageTimeText()}
+                                            </Typography>
+                                        </Box>
+                                        
+                                        <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
+                                            <Typography sx={{fontSize: '13px', color: 'text.secondary'}}>
+                                                보관 짐
+                                            </Typography>
+                                            <Typography sx={{fontSize: '13px', fontWeight: 500}}>
+                                                {getBagSummary()}
+                                            </Typography>
+                                        </Box>
+                                        
+                                        <Box sx={{
+                                            borderTop: '1px solid rgba(0, 0, 0, 0.1)',
+                                            pt: 1.5,
+                                            mt: 1.5,
+                                            display: 'flex',
+                                            justifyContent: 'space-between'
+                                        }}>
+                                            <Typography sx={{fontSize: '14px', fontWeight: 600}}>
+                                                총 결제금액
+                                            </Typography>
+                                            <Typography sx={{fontSize: '16px', fontWeight: 600, color: '#1a73e8'}}>
+                                                {totalPrice.toLocaleString()}원
+                                            </Typography>
+                                        </Box>
                                     </Box>
 
-                                    {/* 결제 완료 버튼 */}
+                                    {/* 포트원 결제 버튼 */}
                                     <Button
                                         variant="contained"
                                         fullWidth
@@ -2351,7 +2457,7 @@ const Map = () => {
                                             overflow: 'hidden',
                                             transition: 'all 0.3s ease',
                                         }}
-                                        disabled={!isPaymentFormValid() || isProcessingPayment}
+                                        disabled={isProcessingPayment || totalPrice <= 0}
                                         onClick={completePayment}
                                     >
                                         {isProcessingPayment ? (
@@ -2410,11 +2516,18 @@ const Map = () => {
                                                     />
                                                 </Box>
                                                 <Typography sx={{ fontWeight: 500, fontSize: '14px' }}>
-                                                    {t('processing')}...
+                                                    결제 진행 중...
                                                 </Typography>
                                             </Box>
                                         ) : (
-                                            `${totalPrice.toLocaleString()}${t('won')} ${t('pay')}`
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                                                    <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                                                </svg>
+                                                <Typography sx={{ fontWeight: 500, fontSize: '16px' }}>
+                                                    {totalPrice.toLocaleString()}원 결제하기
+                                                </Typography>
+                                            </Box>
                                         )}
                                         
                                         {/* 물결 효과 */}
@@ -2598,12 +2711,6 @@ const Map = () => {
                                                 large: 0
                                             });
                                             setTotalPrice(0);
-                                            setCardInfo({
-                                                number: '',
-                                                expiry: '',
-                                                cvc: '',
-                                                name: ''
-                                            });
                                             // 검색 결과도 초기화
                                             setSearchResults([]);
                                             setSearchKeyword("");
