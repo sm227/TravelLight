@@ -22,4 +22,7 @@ public interface ReservationService {
     
     // 매장명으로 예약 조회
     List<ReservationDto> getReservationsByPlaceName(String placeName);
+    
+    // 최근 예약 조회 (관리자 대시보드용)
+    List<ReservationDto> getRecentReservations(int limit);
 } 

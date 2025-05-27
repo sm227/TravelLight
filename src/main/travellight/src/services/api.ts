@@ -10,29 +10,6 @@ const api = axios.create({
   },
 });
 
-// 요청 인터셉터 추가
-api.interceptors.request.use(
-  (config) => {
-    // 로컬 스토리지에서 사용자 정보 가져오기
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        // 토큰이 있으면 헤더에 추가 (Bearer 스키마 없이)
-        if (user.token) {
-          config.headers['Authorization'] = user.token;
-        }
-      } catch (error) {
-        console.error('로컬 스토리지의 사용자 정보 파싱 오류:', error);
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
 // 응답 인터셉터 추가 - API 호출 디버깅을 위해
 api.interceptors.response.use(
   (response) => {
@@ -92,12 +69,30 @@ export interface Partnership {
   is24Hours: boolean;
   businessHours: Record<string, BusinessHourDto>;
   status: string;
+  smallBagsAvailable?: number;
+  mediumBagsAvailable?: number;
+  largeBagsAvailable?: number;
 }
 
 export interface BusinessHourDto {
   enabled: boolean;
   open: string;
   close: string;
+}
+
+// 보관함 현황 타입 정의
+export interface StorageStatus {
+  name: string;
+  address: string;
+  usage: number;
+  total: number;
+  used: number;
+  소형: number;
+  중형: number;
+  대형: number;
+  maxSmall: number;
+  maxMedium: number;
+  maxLarge: number;
 }
 
 // 배달 요청 타입 정의
@@ -155,6 +150,25 @@ export const partnershipService = {
     return response.data;
   },
   
+  // 보관 용량 업데이트 추가
+  updateStorageCapacity: async (
+    id: number, 
+    storage: {
+      smallBagsAvailable: number;
+      mediumBagsAvailable: number;
+      largeBagsAvailable: number;
+    }
+  ): Promise<ApiResponse<string>> => {
+    const response = await api.put<ApiResponse<string>>(`/partnership/${id}/storage`, storage);
+    return response.data;
+  },
+  
+  // 전체 보관함 현황 조회 (관리자 대시보드용)
+  getAllStorageStatus: async (): Promise<ApiResponse<StorageStatus[]>> => {
+    const response = await api.get<ApiResponse<StorageStatus[]>>('/partnership/storage-status');
+    return response.data;
+  },
+  
   // 배달 가격 견적 계산
   calculateDeliveryEstimate: async (
     originLatitude: number,
@@ -195,4 +209,4 @@ export const partnershipService = {
   }
 };
 
-export default api; 
+export default api;

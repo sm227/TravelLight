@@ -30,6 +30,7 @@ import {ko} from 'date-fns/locale';
 import { useAuth } from "../services/AuthContext";
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import PortOne from "@portone/browser-sdk/v2";
 import { useLocation } from 'react-router-dom';
 
 declare global {
@@ -68,6 +69,9 @@ interface Partnership {
     is24Hours: boolean;
     businessHours: Record<string, BusinessHourDto>;
     status: string;
+    smallBagsAvailable?: number;
+    mediumBagsAvailable?: number;
+    largeBagsAvailable?: number;
 }
 
 // 비즈니스 시간 타입 정의
@@ -102,14 +106,12 @@ const Map = () => {
     });
     const [totalPrice, setTotalPrice] = useState(0);
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-    const [cardInfo, setCardInfo] = useState({
-        number: '',
-        expiry: '',
-        cvc: '',
-        name: ''
-    });
     const [isPaymentComplete, setIsPaymentComplete] = useState(false);
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+    // 포트원 결제 관련 상태
+    const [portonePaymentId, setPortonePaymentId] = useState<string | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState<'card' | 'portone'>('portone'); // 기본값을 포트원으로 설정
     const [storageDuration, setStorageDuration] = useState("day");
     const [storageDate, setStorageDate] = useState("");
     const [storageStartTime, setStorageStartTime] = useState("");
@@ -145,6 +147,7 @@ const Map = () => {
     // 제휴점 데이터 상태 추가
     const [partnerships, setPartnerships] = useState<Partnership[]>([]);
     const [partnershipOverlays, setPartnershipOverlays] = useState<any[]>([]);
+    const [realTimeCapacity, setRealTimeCapacity] = useState<{small: number, medium: number, large: number}>({small: 0, medium: 0, large: 0});
 
     // 공통 스크롤바 스타일 정의
     const scrollbarStyle = {
@@ -724,94 +727,164 @@ const Map = () => {
                             formatBusinessHours(partnership.businessHours) :
                             "영업시간 정보 없음";
 
-                    // 매장 정보 창 내용 - 세련된 디자인으로 업데이트
-                    const infoWindowContent = `
-                        <div style="
-                            background-color: white;
-                            border-radius: 16px;
-                            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-                            overflow: hidden;
-                            min-width: 220px;
-                            max-width: 300px;
-                            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-                        ">
-                            <div style="
-                                background-color: #2E7DF1;
-                                color: white;
-                                padding: 12px 16px;
-                                display: flex;
-                                justify-content: space-between;
-                                align-items: center;
-                            ">
-                                <span style="
-                                    font-weight: 600;
-                                    font-size: 15px;
-                                    letter-spacing: -0.3px;
-                                ">${partnership.businessName}</span>
-                            </div>
-                            <div style="padding: 14px 16px;">
-                                <div style="
-                                    display: inline-block;
-                                    background-color: #f0f5ff;
-                                    color: #2E7DF1;
-                                    font-size: 12px;
-                                    font-weight: 500;
-                                    padding: 3px 8px;
-                                    border-radius: 12px;
-                                    margin-bottom: 8px;
-                                ">${partnership.businessType}</div>
-                                <div style="
-                                    font-size: 13px;
-                                    line-height: 1.4;
-                                    color: #333;
-                                    margin-bottom: 6px;
-                                    word-break: keep-all;
-                                ">${partnership.address}</div>
-                                <div style="
-                                    font-size: 12px;
-                                    color: #666;
-                                    display: flex;
-                                    align-items: center;
-                                    margin-top: 6px;
-                                ">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
-                                        <path d="M19.44,13c-.22,0-.45-.07-.67-.12a9.44,9.44,0,0,1-1.31-.39,2,2,0,0,0-2.48,1l-.22.45a12.18,12.18,0,0,1-2.66-2,12.18,12.18,0,0,1-2-2.66L10.52,9a2,2,0,0,0,1-2.48,10.33,10.33,0,0,1-.39-1.31c-.05-.22-.09-.45-.12-.68a3,3,0,0,0-3-2.49h-3a3,3,0,0,0-3,3.41A19,19,0,0,0,18.53,21.91l.38,0a3,3,0,0,0,2-.76,3,3,0,0,0,1-2.25v-3A3,3,0,0,0,19.44,13Z"/>
-                                    </svg>
-                                    ${partnership.phone || "전화번호 정보 없음"}
-                                </div>
-                                <div style="
-                                    font-size: 12px;
-                                    color: #666;
-                                    display: flex;
-                                    align-items: center;
-                                    margin-top: 6px;
-                                ">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
-                                        <path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20ZM12,6a1,1,0,0,0-1,1v5a1,1,0,0,0,.5.87l4,2.5a1,1,0,0,0,1.37-.37,1,1,0,0,0-.37-1.37l-3.5-2.18V7A1,1,0,0,0,12,6Z"/>
-                                    </svg>
-                                    ${hours}
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    // 실시간 보관 가능한 개수를 가져오는 함수
+                    const createInfoWindowContent = async () => {
+                        let availableCapacity = { smallBags: 0, mediumBags: 0, largeBags: 0 };
 
-                    // 정보 창 생성
-                    const infoWindow = new window.naver.maps.InfoWindow({
-                        content: infoWindowContent,
-                        maxWidth: 300,
-                        backgroundColor: "transparent",
-                        borderColor: "transparent",
-                        disableAnchor: true
-                    });
+                        try {
+                            availableCapacity = await fetchRealTimeCapacity(partnership.businessName, partnership.address);
+                        } catch (error) {
+                            console.error('실시간 용량 조회 실패:', error);
+                            // 실패 시 최대 용량으로 대체
+                            availableCapacity = {
+                                smallBags: partnership.smallBagsAvailable || 0,
+                                mediumBags: partnership.mediumBagsAvailable || 0,
+                                largeBags: partnership.largeBagsAvailable || 0
+                            };
+                        }
+
+                        return `
+                            <div style="
+                                background-color: white;
+                                border-radius: 16px;
+                                box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+                                overflow: hidden;
+                                min-width: 220px;
+                                max-width: 300px;
+                                font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+                            ">
+                                <div style="
+                                    background-color: #2E7DF1;
+                                    color: white;
+                                    padding: 12px 16px;
+                                    display: flex;
+                                    justify-content: space-between;
+                                    align-items: center;
+                                ">
+                                    <span style="
+                                        font-weight: 600;
+                                        font-size: 15px;
+                                        letter-spacing: -0.3px;
+                                    ">${partnership.businessName}</span>
+                                </div>
+                                <div style="padding: 14px 16px;">
+                                    <div style="
+                                        display: inline-block;
+                                        background-color: #f0f5ff;
+                                        color: #2E7DF1;
+                                        font-size: 12px;
+                                        font-weight: 500;
+                                        padding: 3px 8px;
+                                        border-radius: 12px;
+                                        margin-bottom: 8px;
+                                    ">${partnership.businessType}</div>
+                                    <div style="
+                                        font-size: 13px;
+                                        line-height: 1.4;
+                                        color: #333;
+                                        margin-bottom: 6px;
+                                        word-break: keep-all;
+                                    ">${partnership.address}</div>
+                                    
+                                    <!-- 현재 보관 가능한 짐 개수 정보 -->
+                                    <div style="
+                                        background-color: #f8f9fa;
+                                        border-radius: 8px;
+                                        padding: 8px;
+                                        margin: 8px 0;
+                                        border-left: 3px solid #2E7DF1;
+                                    ">
+                                        <div style="
+                                            font-size: 12px;
+                                            font-weight: 600;
+                                            color: #2E7DF1;
+                                            margin-bottom: 4px;
+                                        ">현재 보관 가능한 짐</div>
+                                        <div style="
+                                            display: flex;
+                                            gap: 8px;
+                                            font-size: 11px;
+                                            color: #666;
+                                        ">
+                                            <span style="color: ${availableCapacity.smallBags > 0 ? '#28a745' : '#dc3545'};">
+                                                소형: ${availableCapacity.smallBags}개
+                                            </span>
+                                            <span style="color: ${availableCapacity.mediumBags > 0 ? '#28a745' : '#dc3545'};">
+                                                중형: ${availableCapacity.mediumBags}개
+                                            </span>
+                                            <span style="color: ${availableCapacity.largeBags > 0 ? '#28a745' : '#dc3545'};">
+                                                대형: ${availableCapacity.largeBags}개
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="
+                                        font-size: 12px;
+                                        color: #666;
+                                        display: flex;
+                                        align-items: center;
+                                        margin-top: 6px;
+                                    ">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
+                                            <path d="M19.44,13c-.22,0-.45-.07-.67-.12a9.44,9.44,0,0,1-1.31-.39,2,2,0,0,0-2.48,1l-.22.45a12.18,12.18,0,0,1-2.66-2,12.18,12.18,0,0,1-2-2.66L10.52,9a2,2,0,0,0,1-2.48,10.33,10.33,0,0,1-.39-1.31c-.05-.22-.09-.45-.12-.68a3,3,0,0,0-3-2.49h-3a3,3,0,0,0-3,3.41A19,19,0,0,0,18.53,21.91l.38,0a3,3,0,0,0,2-.76,3,3,0,0,0,1-2.25v-3A3,3,0,0,0,19.44,13Z"/>
+                                        </svg>
+                                        ${partnership.phone || "전화번호 정보 없음"}
+                                    </div>
+                                    <div style="
+                                        font-size: 12px;
+                                        color: #666;
+                                        display: flex;
+                                        align-items: center;
+                                        margin-top: 6px;
+                                    ">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
+                                            <path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20ZM12,6a1,1,0,0,0-1,1v5a1,1,0,0,0,.5.87l4,2.5a1,1,0,0,0,1.37-.37,1,1,0,0,0-.37-1.37l-3.5-2.18V7A1,1,0,0,0,12,6Z"/>
+                                        </svg>
+                                        ${hours}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    };
+
+                    // 정보 창 생성 (비동기로 내용 생성)
+                    let infoWindow: any = null;
 
                     // 마커 클릭 이벤트
-                    window.naver.maps.Event.addListener(marker, 'click', () => {
+                    window.naver.maps.Event.addListener(marker, 'click', async () => {
                         // 현재 열린 정보창이 있으면 닫기
                         if (currentInfoWindow) {
                             currentInfoWindow.close();
                         }
 
-                        // 정보창 열기
+                        // 로딩 중 표시할 임시 내용
+                        const loadingContent = `
+                            <div style="
+                                background-color: white;
+                                border-radius: 16px;
+                                box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+                                overflow: hidden;
+                                min-width: 220px;
+                                max-width: 300px;
+                                font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+                                padding: 20px;
+                                text-align: center;
+                            ">
+                                <div style="color: #666; font-size: 14px;">
+                                    보관 가능한 개수를 확인 중...
+                                </div>
+                            </div>
+                        `;
+
+                        // 임시 정보창 생성 및 표시
+                        infoWindow = new window.naver.maps.InfoWindow({
+                            content: loadingContent,
+                            maxWidth: 300,
+                            backgroundColor: "transparent",
+                            borderColor: "transparent",
+                            disableAnchor: true
+                        });
+
                         infoWindow.open(map, marker);
                         currentInfoWindow = infoWindow;
 
@@ -832,6 +905,30 @@ const Map = () => {
                         setSelectedPlace(placeData);
                         // 사이드바가 닫혀있으면 열기
                         setIsSidebarOpen(true);
+
+                        // 실제 내용으로 업데이트
+                        try {
+                            const actualContent = await createInfoWindowContent();
+                            if (currentInfoWindow === infoWindow) { // 여전히 같은 정보창이 열려있는지 확인
+                                infoWindow.setContent(actualContent);
+                            }
+                        } catch (error) {
+                            console.error('정보창 내용 생성 실패:', error);
+                            if (currentInfoWindow === infoWindow) {
+                                infoWindow.setContent(`
+                                    <div style="
+                                        background-color: white;
+                                        border-radius: 16px;
+                                        padding: 20px;
+                                        text-align: center;
+                                        color: #dc3545;
+                                        font-size: 14px;
+                                    ">
+                                        정보를 불러올 수 없습니다.
+                                    </div>
+                                `);
+                            }
+                        }
                     });
 
                     // 닫기 버튼 클릭 이벤트 (정보창 내부의 X 버튼)
@@ -1517,24 +1614,7 @@ const Map = () => {
         }
     }, [bagSizes, storageDuration, storageDate, storageEndDate]);
 
-    // 카드 정보 유효성 검사 함수
-    const isPaymentFormValid = () => {
-        const {number, expiry, cvc, name} = cardInfo;
 
-        // 카드번호는 공백 제외 16자리
-        const isNumberValid = number.replace(/\s/g, '').length === 16;
-
-        // 만료일은 MM/YY 형식 (5자리)
-        const isExpiryValid = expiry.length === 5 && expiry.includes('/');
-
-        // CVC는 3자리
-        const isCvcValid = cvc.length === 3;
-
-        // 이름은 최소 2자 이상
-        const isNameValid = name.trim().length >= 2;
-
-        return isNumberValid && isExpiryValid && isCvcValid && isNameValid;
-    };
 
     // 운영 시간 추출 함수
     const getPlaceOperatingHours = (place: any) => {
@@ -1656,9 +1736,108 @@ const Map = () => {
 
     // 예약 번호 생성 함수
     const generateReservationNumber = () => {
-        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const datePart = new Date().getTime().toString().slice(-6);
-        return `${randomPart}-${datePart}`;
+        const timestamp = Date.now().toString();
+        return `TL${timestamp.slice(-8)}`;
+    };
+
+    // 포트원 결제 ID 생성 함수
+    const generatePortonePaymentId = () => {
+        return [...crypto.getRandomValues(new Uint32Array(2))]
+            .map((word) => word.toString(16).padStart(8, "0"))
+            .join("");
+    };
+
+    // 포트원 결제 처리 함수
+    const processPortonePayment = async () => {
+        if (!selectedPlace || totalPrice <= 0) {
+            setReservationError('결제 정보가 올바르지 않습니다.');
+            return false;
+        }
+
+        try {
+            setIsProcessingPayment(true);
+
+            const paymentId = generatePortonePaymentId();
+            setPortonePaymentId(paymentId);
+
+            // 포트원 결제 요청
+            const payment = await PortOne.requestPayment({
+                storeId: "store-ef16a71d-87cc-4e73-a6b8-448a8b07840d", // 환경변수 또는 기본값
+                channelKey: "channel-key-7ecba580-a8c1-4834-904f-fdc9150a0ce4", // 환경변수 또는 기본값
+                paymentId,
+                orderName: `${selectedPlace.place_name} 짐보관 서비스`,
+                totalAmount: totalPrice,
+                currency: "KRW" as const,
+                payMethod: "CARD",
+                customer: {
+                    fullName: user?.name || "고객",
+                    email: user?.email || "",
+                },
+                customData: {
+                    reservationData: {
+                        userId: user?.id,
+                        placeName: selectedPlace.place_name,
+                        placeAddress: selectedPlace.address_name,
+                        storageDate: storageDate,
+                        storageEndDate: storageDuration === "period" ? storageEndDate : storageDate,
+                        storageStartTime: storageStartTime,
+                        storageEndTime: storageEndTime,
+                        smallBags: bagSizes.small,
+                        mediumBags: bagSizes.medium,
+                        largeBags: bagSizes.large,
+                        totalPrice: totalPrice,
+                        storageType: storageDuration
+                    }
+                },
+            });
+
+            if (payment.code !== undefined) {
+                // 결제 실패
+                setReservationError(`결제 실패: ${payment.message}`);
+                setIsProcessingPayment(false);
+                return false;
+            }
+
+            // 결제 성공 시 백엔드에 결제 완료 요청
+            const completeResponse = await fetch('/api/payment/portone/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    paymentId: payment.paymentId,
+                }),
+            });
+
+            if (completeResponse.ok) {
+                const paymentComplete = await completeResponse.json();
+                if (paymentComplete.status === 'PAID') {
+                    // 예약 정보 저장
+                    const reservationResult = await submitReservation();
+                    if (reservationResult) {
+                        setIsPaymentComplete(true);
+                        setIsPaymentOpen(false);
+                        return true;
+                    }
+                } else {
+                    setReservationError('결제 검증에 실패했습니다.');
+                    return false;
+                }
+            } else {
+                const errorText = await completeResponse.text();
+                setReservationError(`결제 완료 처리 실패: ${errorText}`);
+                return false;
+            }
+
+        } catch (error) {
+            console.error('포트원 결제 처리 중 오류:', error);
+            setReservationError('결제 처리 중 오류가 발생했습니다.');
+            return false;
+        } finally {
+            setIsProcessingPayment(false);
+        }
+
+        return false;
     };
 
     // 예약 정보를 서버로 전송하는 함수
@@ -1666,6 +1845,15 @@ const Map = () => {
         if (!isAuthenticated || !user) {
             console.error(t('loginRequired'));
             setReservationError(t('loginRequiredMessage'));
+            return false;
+        }
+
+
+        // 보관 가능한 개수 검증 (실시간 용량 기반)
+        if (bagSizes.small > realTimeCapacity.small ||
+            bagSizes.medium > realTimeCapacity.medium ||
+            bagSizes.large > realTimeCapacity.large) {
+            setReservationError('선택한 짐의 개수가 매장의 보관 가능한 개수를 초과했습니다.');
             return false;
         }
 
@@ -1726,12 +1914,15 @@ const Map = () => {
             } else {
                 setReservationError(t('reservationSaveErrorRetry'));
             }
-
+            
             return false;
         }
     };
 
     // Modified: Submit reservation data to server when payment is completed
+
+    // 포트원 결제 완료 처리 함수
+    // 포트원 결제 처리 함수
     const completePayment = async () => {
         if (isPaymentFormValid()) {
             try {
@@ -1749,14 +1940,219 @@ const Map = () => {
                     // 여기서 예약 완료 후 다른 장소를 선택하지 못하도록 설정
                     // 결제 완료 시 검색 결과 및 지도 상태를 초기화하지만, selectedPlace는 유지
                     setSearchResults([]);
-                }
-            } catch (error) {
-                console.error("결제 처리 중 오류 발생:", error);
-            } finally {
-                // 결제 진행 상태 비활성화
-                setIsProcessingPayment(false);
-            }
+        if (!selectedPlace || totalPrice <= 0) {
+            setReservationError('결제 정보가 올바르지 않습니다.');
+            return;
         }
+
+        try {
+            setIsProcessingPayment(true);
+
+            const paymentId = generatePortonePaymentId();
+
+            // 포트원 결제 요청
+            const payment = await PortOne.requestPayment({
+                storeId: "store-ef16a71d-87cc-4e73-a6b8-448a8b07840d", // 환경변수 또는 기본값
+                channelKey: "channel-key-7ecba580-a8c1-4834-904f-fdc9150a0ce4",
+                paymentId,
+                orderName: `${selectedPlace.place_name} 짐보관 서비스`,
+                totalAmount: totalPrice,
+                currency: "KRW" as any, // 타입 오류 임시 해결
+                payMethod: "CARD",
+                customer: {
+                    fullName: user?.name || "고객",
+                    email: user?.email || "",
+                },
+                customData: JSON.stringify({
+                    reservationData: {
+                        userId: user?.id,
+                        placeName: selectedPlace.place_name,
+                        placeAddress: selectedPlace.address_name,
+                        storageDate: storageDate,
+                        storageEndDate: storageDuration === "period" ? storageEndDate : storageDate,
+                        storageStartTime: storageStartTime,
+                        storageEndTime: storageEndTime,
+                        smallBags: bagSizes.small,
+                        mediumBags: bagSizes.medium,
+                        largeBags: bagSizes.large,
+                        totalPrice: totalPrice,
+                        storageType: storageDuration
+                    }
+                }),
+            });
+
+            if (payment.code !== undefined) {
+                // 결제 실패
+                setReservationError(`결제 실패: ${payment.message}`);
+                setIsProcessingPayment(false);
+                return;
+            }
+
+            // 결제 성공 시 백엔드에 결제 완료 요청
+            const completeResponse = await fetch('/api/payment/portone/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    paymentId: payment.paymentId,
+                }),
+            });
+
+            if (completeResponse.ok) {
+                const paymentComplete = await completeResponse.json();
+                if (paymentComplete.status === 'PAID') {
+                    // 예약 정보 저장
+                    const reservationResult = await submitReservation();
+                    if (reservationResult) {
+                        setIsPaymentComplete(true);
+                        setIsPaymentOpen(false);
+
+                        // 예약 완료 후 제휴점 데이터 새로고침하여 보관 용량 업데이트
+                        try {
+                            const response = await axios.get('/api/partnership', { timeout: 5000 });
+                            if (response.data && response.data.success) {
+                                const partnershipData = response.data.data.filter((partnership: Partnership) => partnership.status === 'APPROVED');
+                                setPartnerships(partnershipData);
+
+                                // 현재 선택된 장소의 업데이트된 정보로 교체
+                                if (selectedPlace) {
+                                    const updatedPartnership = partnershipData.find((p: Partnership) =>
+                                        p.businessName === selectedPlace.place_name &&
+                                        p.address === selectedPlace.address_name
+                                    );
+                                    if (updatedPartnership) {
+                                        const updatedPlace = {
+                                            ...selectedPlace,
+                                            smallBagsAvailable: updatedPartnership.smallBagsAvailable,
+                                            mediumBagsAvailable: updatedPartnership.mediumBagsAvailable,
+                                            largeBagsAvailable: updatedPartnership.largeBagsAvailable
+                                        };
+                                        setSelectedPlace(updatedPlace);
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error('제휴점 데이터 새로고침 중 오류:', error);
+                        }
+
+                        setSearchResults([]);
+                    }
+                } else {
+                    setReservationError('결제 검증에 실패했습니다.');
+                }
+            } else {
+                const errorText = await completeResponse.text();
+                setReservationError(`결제 완료 처리 실패: ${errorText}`);
+            }
+
+        } catch (error) {
+            console.error('포트원 결제 처리 중 오류:', error);
+            setReservationError('결제 처리 중 오류가 발생했습니다.');
+        } finally {
+            setIsProcessingPayment(false);
+        }
+    };
+
+    // 선택된 매장의 보관 가능한 개수 정보를 가져오는 함수
+    const getSelectedStoreCapacity = () => {
+        if (!selectedPlace || !partnerships.length) {
+            return { small: 0, medium: 0, large: 0 };
+        }
+
+        // 선택된 장소가 제휴점인지 확인
+        const partnership = partnerships.find(p =>
+            p.businessName === selectedPlace.place_name &&
+            p.address === selectedPlace.address_name
+        );
+
+        if (partnership) {
+            return {
+                small: partnership.smallBagsAvailable || 0,
+                medium: partnership.mediumBagsAvailable || 0,
+                large: partnership.largeBagsAvailable || 0
+            };
+        }
+
+        return { small: 0, medium: 0, large: 0 };
+    };
+
+    // 실시간 보관 가능한 용량 조회 함수
+    const fetchRealTimeCapacity = async (businessName: string, address: string) => {
+        try {
+            const response = await axios.get('/api/partnership/available-capacity', {
+                params: {
+                    businessName: businessName,
+                    address: address
+                }
+            });
+
+            if (response.data && response.data.success) {
+                return response.data.data.availableCapacity;
+            }
+        } catch (error) {
+            console.error('실시간 용량 조회 중 오류:', error);
+        }
+
+        return { smallBags: 0, mediumBags: 0, largeBags: 0 };
+    };
+
+    // 실시간 용량을 기반으로 보관 가능한 개수 정보를 가져오는 함수
+    const getRealTimeStoreCapacity = async () => {
+        if (!selectedPlace) {
+            return { small: 0, medium: 0, large: 0 };
+        }
+
+        const capacity = await fetchRealTimeCapacity(selectedPlace.place_name, selectedPlace.address_name);
+        return {
+            small: capacity.smallBags || 0,
+            medium: capacity.mediumBags || 0,
+            large: capacity.largeBags || 0
+        };
+    };
+
+    // 보관 가능한 개수를 초과했는지 확인하는 함수 (실시간 용량 기반)
+    const isCapacityExceeded = async (bagType: 'small' | 'medium' | 'large', increment: number = 0) => {
+        const capacity = await getRealTimeStoreCapacity();
+        const currentCount = bagSizes[bagType] + increment;
+        return currentCount > capacity[bagType];
+    };
+
+    // 보관 가능한 개수 정보를 표시하는 함수 (실시간 용량 기반)
+    const getCapacityText = async (bagType: 'small' | 'medium' | 'large') => {
+        const capacity = await getRealTimeStoreCapacity();
+        const available = capacity[bagType] - bagSizes[bagType];
+        return available > 0 ? `(${available}개 보관 가능)` : '(보관 불가)';
+    };
+
+    // 선택된 매장이 변경될 때 실시간 용량 업데이트
+    useEffect(() => {
+        const updateRealTimeCapacity = async () => {
+            if (selectedPlace) {
+                const capacity = await fetchRealTimeCapacity(selectedPlace.place_name, selectedPlace.address_name);
+                setRealTimeCapacity({
+                    small: capacity.smallBags || 0,
+                    medium: capacity.mediumBags || 0,
+                    large: capacity.largeBags || 0
+                });
+            } else {
+                setRealTimeCapacity({small: 0, medium: 0, large: 0});
+            }
+        };
+
+        updateRealTimeCapacity();
+    }, [selectedPlace]);
+
+    // 보관 가능한 개수를 초과했는지 확인하는 함수 (동기적)
+    const isCapacityExceededSync = (bagType: 'small' | 'medium' | 'large', increment: number = 0) => {
+        const currentCount = bagSizes[bagType] + increment;
+        return currentCount > realTimeCapacity[bagType];
+    };
+
+    // 보관 가능한 개수 정보를 표시하는 함수 (동기적)
+    const getCapacityTextSync = (bagType: 'small' | 'medium' | 'large') => {
+        const available = realTimeCapacity[bagType] - bagSizes[bagType];
+        return available > 0 ? `(${available}개 보관 가능)` : '(보관 불가)';
     };
 
     // 장소 검색 함수 추가 (랜드마크, 지하철역 등을 검색하기 위함)
@@ -2434,7 +2830,7 @@ const Map = () => {
                                             </Box>
                                         </Box>
                                     )}
-
+                                    
                                     <Box sx={{
                                         display: 'flex',
                                         alignItems: 'center',
@@ -2471,143 +2867,106 @@ const Map = () => {
                                         {t('paymentAmount')}{totalPrice.toLocaleString()}{t('won')}
                                     </Typography>
 
-                                    {/* 카드 정보 입력 폼 */}
-                                    <Box component="form" sx={{mb: 3}}>
-                                        <Typography sx={{fontWeight: 500, mb: 2}}>
-                                            {t('enterCardInfo')}
+                                    {/* 포트원 결제 안내 */}
+                                    <Box sx={{
+                                        backgroundColor: '#f0f5ff',
+                                        p: 3,
+                                        borderRadius: '16px',
+                                        mb: 3,
+                                        textAlign: 'center'
+                                    }}>
+                                        <Box sx={{
+                                            width: '48px',
+                                            height: '48px',
+                                            borderRadius: '50%',
+                                            backgroundColor: '#1a73e8',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            margin: '0 auto 16px auto'
+                                        }}>
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                                <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                                            </svg>
+                                        </Box>
+                                        <Typography sx={{
+                                            fontWeight: 600,
+                                            color: '#1a73e8',
+                                            mb: 1,
+                                            fontSize: '16px'
+                                        }}>
+                                            안전한 포트원 결제
                                         </Typography>
-
-                                        {/* 카드 번호 */}
-                                        <Box sx={{mb: 2}}>
-                                            <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                {t('cardNumber')}
-                                            </Typography>
-                                            <TextField
-                                                fullWidth
-                                                placeholder="0000 0000 0000 0000"
-                                                value={cardInfo.number}
-                                                onChange={(e) => {
-                                                    // 숫자와 공백만 허용
-                                                    const value = e.target.value.replace(/[^\d\s]/g, '');
-                                                    // 4자리마다 공백 추가
-                                                    const formatted = value
-                                                        .replace(/\s/g, '')
-                                                        .replace(/(\d{4})/g, '$1 ')
-                                                        .trim();
-                                                    // 19자리(16자리 숫자 + 3개 공백)로 제한
-                                                    if (formatted.length <= 19) {
-                                                        setCardInfo({...cardInfo, number: formatted});
-                                                    }
-                                                }}
-                                                sx={{
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: '12px',
-                                                        backgroundColor: 'white',
-                                                    }
-                                                }}
-                                                inputProps={{inputMode: 'numeric'}}
-                                            />
-                                        </Box>
-
-                                        {/* 만료일과 CVC를 한 줄에 */}
-                                        <Box sx={{display: 'flex', gap: 2, mb: 2}}>
-                                            <Box sx={{flex: 1}}>
-                                                <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                    {t('expiryDate')}
-                                                </Typography>
-                                                <TextField
-                                                    fullWidth
-                                                    placeholder="MM/YY"
-                                                    value={cardInfo.expiry}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/[^\d]/g, '');
-                                                        let formatted = value;
-
-                                                        // MM 값이 12를 넘지 않도록 검증
-                                                        if (value.length >= 2) {
-                                                            const month = parseInt(value.substring(0, 2));
-                                                            if (month > 12) {
-                                                                formatted = '12' + value.substring(2);
-                                                            }
-                                                            formatted = formatted.substring(0, 2) + '/' + formatted.substring(2, 4);
-                                                        }
-
-                                                        // 5자리(MM/YY)로 제한
-                                                        if (formatted.length <= 5) {
-                                                            setCardInfo({...cardInfo, expiry: formatted});
-                                                        }
-                                                    }}
-                                                    sx={{
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: '12px',
-                                                            backgroundColor: 'white',
-                                                        }
-                                                    }}
-                                                    inputProps={{inputMode: 'numeric'}}
-                                                />
-                                            </Box>
-                                            <Box sx={{flex: 1}}>
-                                                <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                    CVC
-                                                </Typography>
-                                                <TextField
-                                                    fullWidth
-                                                    placeholder="000"
-                                                    value={cardInfo.cvc}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/[^\d]/g, '');
-                                                        if (value.length <= 3) {
-                                                            setCardInfo({...cardInfo, cvc: value});
-                                                        }
-                                                    }}
-                                                    sx={{
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: '12px',
-                                                            backgroundColor: 'white',
-                                                        }
-                                                    }}
-                                                    inputProps={{inputMode: 'numeric'}}
-                                                />
-                                            </Box>
-                                        </Box>
-
-                                        {/* 카드 소유자 이름 */}
-                                        <Box sx={{mb: 3}}>
-                                            <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                {t('cardholderName')}
-                                            </Typography>
-                                            <TextField
-                                                fullWidth
-                                                placeholder={t('cardholderNamePlaceholder')}
-                                                value={cardInfo.name}
-                                                onChange={(e) => {
-                                                    // 숫자와 특수문자를 제외한 문자만 허용 (한글, 영문, 공백만 가능)
-                                                    const onlyLettersAndSpace = e.target.value.replace(/[^가-힣a-zA-Z\s]/g, '');
-                                                    setCardInfo({...cardInfo, name: onlyLettersAndSpace});
-                                                }}
-                                                sx={{
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: '12px',
-                                                        backgroundColor: 'white',
-                                                    }
-                                                }}
-                                            />
-                                        </Box>
+                                        <Typography sx={{
+                                            color: '#666',
+                                            fontSize: '14px',
+                                            lineHeight: 1.5
+                                        }}>
+                                            카드, 계좌이체, 간편결제 등<br/>
+                                            다양한 결제 수단을 지원합니다
+                                        </Typography>
                                     </Box>
 
-                                    {/* 약관 동의 */}
+                                    {/* 결제 정보 요약 */}
                                     <Box sx={{
                                         backgroundColor: 'rgba(0, 0, 0, 0.03)',
-                                        p: 2,
+                                        p: 2.5,
                                         borderRadius: '12px',
-                                        mb: 3,
-                                        fontSize: '13px',
-                                        color: 'text.secondary'
+                                        mb: 3
                                     }}>
-                                        {t('termsAgreement')}
+                                        <Typography sx={{
+                                            fontSize: '14px',
+                                            fontWeight: 500,
+                                            mb: 2,
+                                            color: '#333'
+                                        }}>
+                                            결제 정보
+                                        </Typography>
+
+                                        <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
+                                            <Typography sx={{fontSize: '13px', color: 'text.secondary'}}>
+                                                보관 장소
+                                            </Typography>
+                                            <Typography sx={{fontSize: '13px', fontWeight: 500}}>
+                                                {selectedPlace.place_name}
+                                            </Typography>
+                                        </Box>
+
+                                        <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
+                                            <Typography sx={{fontSize: '13px', color: 'text.secondary'}}>
+                                                보관 기간
+                                            </Typography>
+                                            <Typography sx={{fontSize: '13px', fontWeight: 500}}>
+                                                {calculateStorageTimeText()}
+                                            </Typography>
+                                        </Box>
+
+                                        <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
+                                            <Typography sx={{fontSize: '13px', color: 'text.secondary'}}>
+                                                보관 짐
+                                            </Typography>
+                                            <Typography sx={{fontSize: '13px', fontWeight: 500}}>
+                                                {getBagSummary()}
+                                            </Typography>
+                                        </Box>
+
+                                        <Box sx={{
+                                            borderTop: '1px solid rgba(0, 0, 0, 0.1)',
+                                            pt: 1.5,
+                                            mt: 1.5,
+                                            display: 'flex',
+                                            justifyContent: 'space-between'
+                                        }}>
+                                            <Typography sx={{fontSize: '14px', fontWeight: 600}}>
+                                                총 결제금액
+                                            </Typography>
+                                            <Typography sx={{fontSize: '16px', fontWeight: 600, color: '#1a73e8'}}>
+                                                {totalPrice.toLocaleString()}원
+                                            </Typography>
+                                        </Box>
                                     </Box>
 
-                                    {/* 결제 완료 버튼 */}
+                                    {/* 포트원 결제 버튼 */}
                                     <Button
                                         variant="contained"
                                         fullWidth
@@ -2627,7 +2986,7 @@ const Map = () => {
                                             overflow: 'hidden',
                                             transition: 'all 0.3s ease',
                                         }}
-                                        disabled={!isPaymentFormValid() || isProcessingPayment}
+                                        disabled={isProcessingPayment || totalPrice <= 0}
                                         onClick={completePayment}
                                     >
                                         {isProcessingPayment ? (
@@ -2686,11 +3045,18 @@ const Map = () => {
                                                     />
                                                 </Box>
                                                 <Typography sx={{ fontWeight: 500, fontSize: '14px' }}>
-                                                    {t('processing')}...
+                                                    결제 진행 중...
                                                 </Typography>
                                             </Box>
                                         ) : (
-                                            `${totalPrice.toLocaleString()}${t('won')} ${t('pay')}`
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                                                    <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                                                </svg>
+                                                <Typography sx={{ fontWeight: 500, fontSize: '16px' }}>
+                                                    {totalPrice.toLocaleString()}원 결제하기
+                                                </Typography>
+                                            </Box>
                                         )}
 
                                         {/* 물결 효과 */}
@@ -2874,12 +3240,6 @@ const Map = () => {
                                                 large: 0
                                             });
                                             setTotalPrice(0);
-                                            setCardInfo({
-                                                number: '',
-                                                expiry: '',
-                                                cvc: '',
-                                                name: ''
-                                            });
                                             // 검색 결과도 초기화
                                             setSearchResults([]);
                                             setSearchKeyword("");
@@ -2954,6 +3314,9 @@ const Map = () => {
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
                                                 3,000{t('dayPerPrice')}
                                             </Typography>
+                                            <Typography sx={{color: 'text.secondary', fontSize: '12px', mt: 0.5}}>
+                                                {getCapacityTextSync('small')}
+                                            </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
                                             <Button
@@ -2985,24 +3348,31 @@ const Map = () => {
                                                 {bagSizes.small}
                                             </Typography>
                                             <Button
+                                                disabled={isCapacityExceededSync('small', 1)}
                                                 sx={{
                                                     minWidth: 'auto',
                                                     width: '32px',
                                                     height: '32px',
                                                     borderRadius: '50%',
-                                                    backgroundColor: '#f0f2f5',
-                                                    color: 'text.primary',
+                                                    backgroundColor: isCapacityExceededSync('small', 1) ? '#e0e0e0' : '#f0f2f5',
+                                                    color: isCapacityExceededSync('small', 1) ? '#999' : 'text.primary',
                                                     '&:hover': {
-                                                        backgroundColor: '#e4e6e9'
+                                                        backgroundColor: isCapacityExceededSync('small', 1) ? '#e0e0e0' : '#e4e6e9'
                                                     },
                                                     '&:focus': {
                                                         outline: 'none'
+                                                    },
+                                                    '&.Mui-disabled': {
+                                                        backgroundColor: '#e0e0e0',
+                                                        color: '#999'
                                                     }
                                                 }}
                                                 onClick={() => {
-                                                    const newBagSizes = {...bagSizes, small: bagSizes.small + 1};
-                                                    setBagSizes(newBagSizes);
-                                                    setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    if (!isCapacityExceededSync('small', 1)) {
+                                                        const newBagSizes = {...bagSizes, small: bagSizes.small + 1};
+                                                        setBagSizes(newBagSizes);
+                                                        setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    }
                                                 }}
                                             >
                                                 +
@@ -3028,6 +3398,9 @@ const Map = () => {
                                             </Typography>
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
                                                 5,000{t('dayPerPrice')}
+                                            </Typography>
+                                            <Typography sx={{color: 'text.secondary', fontSize: '12px', mt: 0.5}}>
+                                                {getCapacityTextSync('medium')}
                                             </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
@@ -3060,24 +3433,31 @@ const Map = () => {
                                                 {bagSizes.medium}
                                             </Typography>
                                             <Button
+                                                disabled={isCapacityExceededSync('medium', 1)}
                                                 sx={{
                                                     minWidth: 'auto',
                                                     width: '32px',
                                                     height: '32px',
                                                     borderRadius: '50%',
-                                                    backgroundColor: '#f0f2f5',
-                                                    color: 'text.primary',
+                                                    backgroundColor: isCapacityExceededSync('medium', 1) ? '#e0e0e0' : '#f0f2f5',
+                                                    color: isCapacityExceededSync('medium', 1) ? '#999' : 'text.primary',
                                                     '&:hover': {
-                                                        backgroundColor: '#e4e6e9'
+                                                        backgroundColor: isCapacityExceededSync('medium', 1) ? '#e0e0e0' : '#e4e6e9'
                                                     },
                                                     '&:focus': {
                                                         outline: 'none'
+                                                    },
+                                                    '&.Mui-disabled': {
+                                                        backgroundColor: '#e0e0e0',
+                                                        color: '#999'
                                                     }
                                                 }}
                                                 onClick={() => {
-                                                    const newBagSizes = {...bagSizes, medium: bagSizes.medium + 1};
-                                                    setBagSizes(newBagSizes);
-                                                    setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    if (!isCapacityExceededSync('medium', 1)) {
+                                                        const newBagSizes = {...bagSizes, medium: bagSizes.medium + 1};
+                                                        setBagSizes(newBagSizes);
+                                                        setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    }
                                                 }}
                                             >
                                                 +
@@ -3103,6 +3483,9 @@ const Map = () => {
                                             </Typography>
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
                                                 8,000{t('dayPerPrice')}
+                                            </Typography>
+                                            <Typography sx={{color: 'text.secondary', fontSize: '12px', mt: 0.5}}>
+                                                {getCapacityTextSync('large')}
                                             </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
@@ -3135,24 +3518,31 @@ const Map = () => {
                                                 {bagSizes.large}
                                             </Typography>
                                             <Button
+                                                disabled={isCapacityExceededSync('large', 1)}
                                                 sx={{
                                                     minWidth: 'auto',
                                                     width: '32px',
                                                     height: '32px',
                                                     borderRadius: '50%',
-                                                    backgroundColor: '#f0f2f5',
-                                                    color: 'text.primary',
+                                                    backgroundColor: isCapacityExceededSync('large', 1) ? '#e0e0e0' : '#f0f2f5',
+                                                    color: isCapacityExceededSync('large', 1) ? '#999' : 'text.primary',
                                                     '&:hover': {
-                                                        backgroundColor: '#e4e6e9'
+                                                        backgroundColor: isCapacityExceededSync('large', 1) ? '#e0e0e0' : '#e4e6e9'
                                                     },
                                                     '&:focus': {
                                                         outline: 'none'
+                                                    },
+                                                    '&.Mui-disabled': {
+                                                        backgroundColor: '#e0e0e0',
+                                                        color: '#999'
                                                     }
                                                 }}
                                                 onClick={() => {
-                                                    const newBagSizes = {...bagSizes, large: bagSizes.large + 1};
-                                                    setBagSizes(newBagSizes);
-                                                    setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    if (!isCapacityExceededSync('large', 1)) {
+                                                        const newBagSizes = {...bagSizes, large: bagSizes.large + 1};
+                                                        setBagSizes(newBagSizes);
+                                                        setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    }
                                                 }}
                                             >
                                                 +

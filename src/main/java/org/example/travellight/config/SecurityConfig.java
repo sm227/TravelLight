@@ -26,15 +26,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Swagger UI 관련 경로 허용
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/api/users/register", "/api/users/login", "/api/partnership", 
-                                "/api/reservations/**", "/api/EventStorage", 
-                                "/api/admin/EventStorage/**", 
-                                "/api/users/{userId}", "/api/users/{userId}/password",
-                                "/api/partnership/{id}/status",
-                                "/api/deliveries", "/api/deliveries/reservation/{reservationId}").permitAll()
-                .anyRequest().authenticated()
+                .anyRequest().permitAll() // 모든 요청을 인증 없이 허용
             );
         
         return http.build();
