@@ -1940,6 +1940,15 @@ const Map = () => {
                     // 여기서 예약 완료 후 다른 장소를 선택하지 못하도록 설정
                     // 결제 완료 시 검색 결과 및 지도 상태를 초기화하지만, selectedPlace는 유지
                     setSearchResults([]);
+                }
+            } catch (error) {
+                console.error('결제 처리 중 오류:', error);
+                setReservationError('결제 처리 중 오류가 발생했습니다.');
+            } finally {
+                setIsProcessingPayment(false);
+            }
+        }
+
         if (!selectedPlace || totalPrice <= 0) {
             setReservationError('결제 정보가 올바르지 않습니다.');
             return;
