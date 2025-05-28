@@ -20,8 +20,9 @@ TravelLight는 여행자들의 짐을 안전하게 보관하고 원하는 곳으
     *   출발지와 도착지 주소를 입력하고, 배송 옵션(일반, 특급 등)을 선택할 수 있습니다.
     *   배송 중인 짐의 현재 위치와 예상 도착 시간을 실시간으로 추적할 수 있습니다. (택배사 API 연동 또는 자체 시스템 구현 필요)
 *   **예약 및 결제 시스템**:
-    *   짐 보관 및 배송 서비스에 대한 간편한 예약 및 결제 기능을 제공합니다. (결제 PG 연동 필요)
-    *   다양한 결제 수단을 지원하고, 예약 내역 및 영수증을 확인할 수 있습니다.
+    *   **포트원(PortOne) V2** 결제 시스템을 통한 안전하고 편리한 결제 기능을 제공합니다.
+    *   카드, 계좌이체, 간편결제 등 다양한 결제 수단을 지원합니다.
+    *   예약 내역 및 영수증을 확인할 수 있습니다.
 *   **알림 서비스**: 
     *   이메일 또는 SMS(구현 시)를 통해 예약 확정, 짐 입고/출고, 배송 시작/완료 등 주요 상태 변경에 대한 알림을 제공합니다.
 *   **관리자 대시보드**:
@@ -41,6 +42,7 @@ TravelLight는 여행자들의 짐을 안전하게 보관하고 원하는 곳으
 *   **다국어**: i18next, react-i18next
 *   **차트**: recharts
 *   **빌드 도구**: Vite
+*   **결제**: @portone/browser-sdk (포트원 V2 결제 시스템)
 *   **기타**: ESLint (코드 린팅)
 
 ### ⚙️ 백엔드
@@ -95,12 +97,50 @@ TravelLight는 여행자들의 짐을 안전하게 보관하고 원하는 곳으
         ```bash
         npm install 
         ```
+    *   환경 변수 설정:
+        *   `src/main/travellight/.env` 파일을 생성하고 다음 내용을 추가합니다:
+        ```bash
+        # 포트원 결제 설정
+        REACT_APP_PORTONE_STORE_ID=your_store_id_here
+        REACT_APP_PORTONE_CHANNEL_KEY=your_channel_key_here
+        
+        # 네이버 지도 API 키
+        REACT_APP_NAVER_MAP_CLIENT_ID=your_naver_map_client_id_here
+        
+        # 백엔드 API URL
+        REACT_APP_API_BASE_URL=http://localhost:8080
+        ```
+        *   포트원 계정에서 발급받은 실제 Store ID와 Channel Key로 교체해주세요.
     *   개발 서버 실행:
         ```bash
         npm run dev
         ```
     *   프론트엔드 개발 서버는 기본적으로 `http://localhost:5173` (Vite 기본 포트)에서 실행됩니다.
     *   백엔드 API 프록시 설정: `src/main/travellight/vite.config.ts` 파일에 백엔드 서버(`http://localhost:8080`)로의 API 요청을 위한 프록시 설정이 필요할 수 있습니다. (예: `http-proxy-middleware` 사용)
+
+## 💳 포트원 결제 시스템 설정
+
+TravelLight는 **포트원(PortOne) V2** 결제 시스템을 사용합니다. 결제 기능을 사용하려면 다음 단계를 따라주세요:
+
+### 1. 포트원 계정 생성 및 설정
+1. [포트원 콘솔](https://console.portone.io)에서 계정을 생성합니다.
+2. 새로운 상점을 생성하고 **Store ID**를 확인합니다.
+3. 결제 채널을 설정하고 **Channel Key**를 확인합니다.
+
+### 2. 환경 변수 설정
+프론트엔드 `.env` 파일에 포트원 정보를 설정합니다:
+```bash
+REACT_APP_PORTONE_STORE_ID=your_actual_store_id
+REACT_APP_PORTONE_CHANNEL_KEY=your_actual_channel_key
+```
+
+### 3. 테스트 결제
+- 개발 환경에서는 포트원의 테스트 모드를 사용할 수 있습니다.
+- 실제 결제가 이루어지지 않으며, 테스트 카드 번호를 사용하여 결제 플로우를 확인할 수 있습니다.
+
+### 4. 운영 환경 배포
+- 운영 환경에서는 실제 PG사와의 계약이 필요합니다.
+- 포트원 콘솔에서 운영 모드로 전환하고 실제 결제가 가능하도록 설정해야 합니다.
 
 ## 🤝 기여 방법
 
