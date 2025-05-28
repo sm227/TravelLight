@@ -147,6 +147,11 @@ const theme = createTheme({
 function App() {
   const { i18n } = useTranslation();
 
+  // 카카오 API 키 설정 (실제 키로 교체 필요)
+  useEffect(() => {
+    window.KAKAO_REST_API_KEY = '2203f3dc1eca7b9d23e3121d6ba9555f';
+  }, []);
+
   // 네이버 맵 초기 설정
   useEffect(() => {
     // 네이버 맵 로드 상태 초기화

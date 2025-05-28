@@ -39,7 +39,6 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BusinessIcon from '@mui/icons-material/Business';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
 import api, { ApiResponse } from '../services/api';
@@ -506,7 +505,6 @@ const PartnerDashboard: React.FC = () => {
           <Container sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CircularProgress />
           </Container>
-          <Footer />
         </Box>
     );
   }
@@ -557,7 +555,6 @@ const PartnerDashboard: React.FC = () => {
               </Box>
             </Paper>
           </Container>
-          <Footer />
         </Box>
     );
   }
@@ -1140,8 +1137,6 @@ const PartnerDashboard: React.FC = () => {
             <Button onClick={handleCloseDialog} color="primary">닫기</Button>
           </DialogActions>
         </Dialog>
-
-        <Footer />
       </Box>
   );
 };
