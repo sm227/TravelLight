@@ -1029,15 +1029,20 @@ const Map = () => {
                         // 사용자 마커 생성
                         displayUserMarker(locPosition);
 
-                        // 위치로 부드럽게 이동
-                        // 1단계: 먼저 기본 줌 레벨로 설정
-                        map.setZoom(15);
+                        // 메인페이지에서 검색어나 초기 위치가 전달된 경우에는 사용자 위치로 이동하지 않음
+                        const hasSearchFromMain = location.state?.searchKeyword || location.state?.initialPosition;
+                        
+                        if (!hasSearchFromMain) {
+                            // 위치로 부드럽게 이동
+                            // 1단계: 먼저 기본 줌 레벨로 설정
+                            map.setZoom(15);
 
-                        // 약간의 딜레이 후 중앙으로 이동
-                        setTimeout(() => {
-                            map.setCenter(locPosition);
-                            setIsMapMoved(false);
-                        }, 100);
+                            // 약간의 딜레이 후 중앙으로 이동
+                            setTimeout(() => {
+                                map.setCenter(locPosition);
+                                setIsMapMoved(false);
+                            }, 100);
+                        }
 
                         // 제휴점 데이터 가져오기
                         fetchPartnerships();
