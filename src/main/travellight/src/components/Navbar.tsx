@@ -18,9 +18,62 @@ import LuggageIcon from '@mui/icons-material/Luggage';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import TranslateIcon from '@mui/icons-material/Translate';
+import PersonIcon from '@mui/icons-material/Person';
+import SettingsIcon from '@mui/icons-material/Settings';
+import LogoutIcon from '@mui/icons-material/Logout';
+import LoginIcon from '@mui/icons-material/Login';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import LanguageIcon from '@mui/icons-material/Language';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
+
+// 메뉴 스타일 정의
+const menuStyles = {
+  '& .MuiPaper-root': {
+    borderRadius: '12px',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+    border: '1px solid #f3f4f6',
+    minWidth: '160px',
+    marginTop: '8px',
+  },
+  '& .MuiMenuItem-root': {
+    padding: '10px 16px',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#1a1a1a',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    '&:hover': {
+      backgroundColor: '#f9fafb',
+      color: '#2563eb',
+    },
+    '&:first-of-type': {
+      marginTop: '4px',
+    },
+    '&:last-of-type': {
+      marginBottom: '4px',
+    },
+    '& .MuiSvgIcon-root': {
+      fontSize: '18px',
+    },
+  },
+  '& .MuiDivider-root': {
+    margin: '6px 0',
+    borderColor: '#f3f4f6',
+  },
+};
+
+// 로그아웃 메뉴 아이템 스타일
+const logoutMenuItemStyles = {
+  color: '#dc2626 !important',
+  '&:hover': {
+    backgroundColor: '#fee2e2 !important',
+    color: '#dc2626 !important',
+  },
+};
 
 const Navbar: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -142,12 +195,25 @@ const Navbar: React.FC = () => {
       }}
       open={isMenuOpen && isAuthenticated}
       onClose={handleMenuClose}
+      sx={menuStyles}
     >
-      <MenuItem onClick={() => { handleMenuClose(); navigate('/mypage'); }}>{t('myPage')}</MenuItem>
-      <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>{t('profile')}</MenuItem>
-      <MenuItem onClick={() => { handleMenuClose(); navigate('/settings'); }}>{t('settings')}</MenuItem>
+      <MenuItem onClick={() => { handleMenuClose(); navigate('/mypage'); }}>
+        <PersonIcon />
+        {t('myPage')}
+      </MenuItem>
+      <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>
+        <AccountCircleIcon />
+        {t('profile')}
+      </MenuItem>
+      <MenuItem onClick={() => { handleMenuClose(); navigate('/settings'); }}>
+        <SettingsIcon />
+        {t('settings')}
+      </MenuItem>
       <Divider />
-      <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>{t('logout')}</MenuItem>
+      <MenuItem onClick={handleLogout} sx={logoutMenuItemStyles}>
+        <LogoutIcon />
+        {t('logout')}
+      </MenuItem>
     </Menu>
   );
 
@@ -246,9 +312,16 @@ const Navbar: React.FC = () => {
           MenuListProps={{
             'aria-labelledby': 'language-button',
           }}
+          sx={menuStyles}
         >
-          <MenuItem onClick={() => changeLanguage('ko')}>{t('korean')}</MenuItem>
-          <MenuItem onClick={() => changeLanguage('en')}>{t('english')}</MenuItem>
+          <MenuItem onClick={() => changeLanguage('ko')}>
+            <LanguageIcon />
+            {t('korean')}
+          </MenuItem>
+          <MenuItem onClick={() => changeLanguage('en')}>
+            <LanguageIcon />
+            {t('english')}
+          </MenuItem>
         </Menu>
         
         {/* 로그인하지 않은 사용자를 위한 계정 메뉴 */}
@@ -260,9 +333,16 @@ const Navbar: React.FC = () => {
           MenuListProps={{
             'aria-labelledby': 'user-account-button',
           }}
+          sx={menuStyles}
         >
-          <MenuItem onClick={() => { handleMenuClose(); navigate('/login'); }}>{t('login')}</MenuItem>
-          <MenuItem onClick={() => { handleMenuClose(); navigate('/register'); }}>{t('register')}</MenuItem>
+          <MenuItem onClick={() => { handleMenuClose(); navigate('/login'); }}>
+            <LoginIcon />
+            {t('login')}
+          </MenuItem>
+          <MenuItem onClick={() => { handleMenuClose(); navigate('/register'); }}>
+            <PersonAddIcon />
+            {t('register')}
+          </MenuItem>
         </Menu>
       </AppBar>
       {/* 오버레이 메뉴: 항상 DOM에 렌더링, 스타일로만 제어 */}
