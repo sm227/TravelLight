@@ -10,7 +10,6 @@ import Carry from './pages/Carry';
 import Navbar from './components/Navbar';
 import { AuthProvider } from './services/AuthContext';
 import './App.css';
-import StoragePartnership from './pages/StoragePartnership';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
@@ -29,6 +28,7 @@ import { useTranslation } from 'react-i18next';
 import Partner from './pages/Partner';
 import PartnerSignup from './pages/PartnerSignup';
 import PartnerDashboard from './pages/PartnerDashboard';
+import NotFound from './pages/NotFound';
 
 // 네이버 맵 상태를 위한 전역 타입 확장
 declare global {
@@ -273,11 +273,10 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            {/*<Route path="/StoragePartnership" element={<StoragePartnership />} />*/}
             <Route path="/partner" element={<Partner />} />
             <Route path="/partner-signup" element={<PartnerSignup />} />
             <Route path="/partner-dashboard" element={<PartnerDashboard />} />
-            <Route path="/FAQ" element={<FAQ />} />"
+            <Route path="/FAQ" element={<FAQ />} />
             <Route path="/Inquiry" element={<Inquiry />} />
             <Route path="/carry" element={<Carry />}/>
             <Route path="/mypage" element={<MyPage />} />
@@ -297,6 +296,9 @@ function App() {
               <Route path="event-storage" element={<AdminEventStorage />} />
               <Route path="partnerships" element={<AdminPartnerships />} />
             </Route>
+
+            {/* Catch-all route for 404 Not Found */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Router>
       </AuthProvider>
