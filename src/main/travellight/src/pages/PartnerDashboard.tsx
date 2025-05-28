@@ -579,9 +579,14 @@ const PartnerDashboard: React.FC = () => {
         >
           <Container maxWidth="lg">
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="h4" component="h1">
-                파트너 대시보드
-              </Typography>
+              <Box>
+                <Typography variant="h4" component="h1" sx={{ mb: 1 }}>
+                  안녕하세요, 소중한 파트너님! 👋
+                </Typography>
+                <Typography variant="h6" sx={{ opacity: 0.9, fontWeight: 'normal' }}>
+                  오늘도 여행객들의 소중한 짐을 안전하게 보관해주셔서 감사합니다
+                </Typography>
+              </Box>
               <Button
                   variant="contained"
                   color="secondary"
@@ -594,7 +599,7 @@ const PartnerDashboard: React.FC = () => {
                     }
                   }}
               >
-                매장 추가하기
+                새 매장 등록하기
               </Button>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -713,27 +718,35 @@ const PartnerDashboard: React.FC = () => {
                           ) : (
                             <Box>
                               {selectedStore?.businessHours ? (
-                                ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => {
-                                  const hours = selectedStore.businessHours[day];
-                                  if (!hours) return null;
-                                  const formattedDay = day === 'MONDAY' ? '월' :
-                                      day === 'TUESDAY' ? '화' :
-                                          day === 'WEDNESDAY' ? '수' :
-                                              day === 'THURSDAY' ? '목' :
-                                                  day === 'FRIDAY' ? '금' :
-                                                      day === 'SATURDAY' ? '토' :
-                                                          day === 'SUNDAY' ? '일' : day;
-                                  return (
-                                      <Box key={day} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
-                                        <Typography variant="body2" sx={{ minWidth: '20px', fontWeight: 'medium' }}>
-                                          {formattedDay}
-                                        </Typography>
-                                        <Typography variant="body2" color="textSecondary">
-                                          {hours}
-                                        </Typography>
-                                      </Box>
-                                  );
-                                }).filter(Boolean)
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                  {['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => {
+                                    const hours = selectedStore.businessHours[day];
+                                    if (!hours) return null;
+                                    const formattedDay = day === 'MONDAY' ? '월' :
+                                        day === 'TUESDAY' ? '화' :
+                                            day === 'WEDNESDAY' ? '수' :
+                                                day === 'THURSDAY' ? '목' :
+                                                    day === 'FRIDAY' ? '금' :
+                                                        day === 'SATURDAY' ? '토' :
+                                                            day === 'SUNDAY' ? '일' : day;
+                                    return (
+                                        <Chip
+                                          key={day}
+                                          label={`${formattedDay}: ${hours}`}
+                                          variant="outlined"
+                                          size="small"
+                                          sx={{ 
+                                            fontSize: '0.75rem',
+                                            height: 'auto',
+                                            '& .MuiChip-label': {
+                                              padding: '4px 8px',
+                                              whiteSpace: 'nowrap'
+                                            }
+                                          }}
+                                        />
+                                    );
+                                  }).filter(Boolean)}
+                                </Box>
                               ) : (
                                 <Typography variant="body2" color="textSecondary">
                                   영업 시간이 설정되지 않았습니다.
