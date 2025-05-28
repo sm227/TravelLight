@@ -1248,6 +1248,52 @@ const Map = () => {
 
     // 운영 시간 추출 함수
     const getPlaceOperatingHours = (place: any) => {
+        // 먼저 실제 파트너십 데이터에서 영업시간 확인
+        if (place && partnerships.length > 0) {
+            const partnership = partnerships.find(p => 
+                p.businessName === place.place_name && 
+                p.address === place.address_name
+            );
+            
+            if (partnership) {
+                // 24시간 영업인 경우
+                if (partnership.is24Hours) {
+                    return {
+                        start: "00:00",
+                        end: "23:59"
+                    };
+                }
+                
+                // 영업시간이 설정되어 있는 경우
+                if (partnership.businessHours && Object.keys(partnership.businessHours).length > 0) {
+                    // 현재 요일 또는 첫 번째 영업일의 시간 사용
+                    const today = new Date().getDay(); // 0: 일요일, 1: 월요일, ...
+                    const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+                    const todayName = dayNames[today];
+                    
+                    // 오늘의 영업시간이 있으면 사용
+                    if (partnership.businessHours[todayName] && partnership.businessHours[todayName].enabled) {
+                        return {
+                            start: partnership.businessHours[todayName].open,
+                            end: partnership.businessHours[todayName].close
+                        };
+                    }
+                    
+                    // 오늘 영업하지 않으면 첫 번째 영업일의 시간 사용
+                    for (const dayName of dayNames) {
+                        const dayHours = partnership.businessHours[dayName];
+                        if (dayHours && dayHours.enabled) {
+                            return {
+                                start: dayHours.open,
+                                end: dayHours.close
+                            };
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 파트너십 데이터가 없는 경우 기존 로직 사용 (카테고리 기반)
         if (place.category_group_code === "BK9") {
             return {
                 start: "09:00",
@@ -1276,9 +1322,73 @@ const Map = () => {
         };
     };
 
+    // 선택된 날짜가 휴무일인지 확인하는 함수
+    const isClosedOnDate = (dateStr: string) => {
+        if (!selectedPlace || !partnerships.length || !dateStr) {
+            return false;
+        }
+
+        const partnership = partnerships.find(p => 
+            p.businessName === selectedPlace.place_name && 
+            p.address === selectedPlace.address_name
+        );
+
+        if (!partnership || partnership.is24Hours) {
+            return false; // 24시간 영업이면 휴무일 없음
+        }
+
+        if (!partnership.businessHours || Object.keys(partnership.businessHours).length === 0) {
+            return false; // 영업시간 정보가 없으면 휴무일 아님
+        }
+
+        // 선택된 날짜의 요일 확인 - 시간대 문제 해결을 위해 로컬 날짜로 파싱
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const selectedDate = new Date(year, month - 1, day); // month는 0부터 시작하므로 -1
+        const dayOfWeek = selectedDate.getDay(); // 0: 일요일, 1: 월요일, ...
+        const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+        const dayName = dayNames[dayOfWeek];
+
+        // 디버깅을 위한 로그
+        console.log('날짜 체크:', {
+            dateStr,
+            selectedDate: selectedDate.toDateString(),
+            dayOfWeek,
+            dayName,
+            businessHours: partnership.businessHours,
+            dayHours: partnership.businessHours[dayName],
+            isEnabled: partnership.businessHours[dayName]?.enabled
+        });
+
+        const dayHours = partnership.businessHours[dayName];
+        
+        // businessHours가 문자열 형태인지 객체 형태인지 확인
+        if (typeof dayHours === 'string') {
+            // 문자열 형태면 영업시간이 설정되어 있으므로 영업일
+            return false;
+        } else if (typeof dayHours === 'object' && dayHours !== null) {
+            // 객체 형태면 enabled 속성 확인
+            return !dayHours.enabled;
+        } else {
+            // dayHours가 없으면 휴무일
+            return true;
+        }
+    };
+
     // 시간대 유효성 검사 함수
     const validateStorageTime = () => {
         if (!selectedPlace || !storageStartTime || !storageEndTime) {
+            setIsTimeValid(false);
+            return false;
+        }
+
+        // 휴무일 체크
+        if (isClosedOnDate(storageDate)) {
+            setIsTimeValid(false);
+            return false;
+        }
+
+        // 기간 보관의 경우 종료일도 체크
+        if (storageDuration === "period" && storageEndDate && isClosedOnDate(storageEndDate)) {
             setIsTimeValid(false);
             return false;
         }
@@ -1310,7 +1420,7 @@ const Map = () => {
         if (selectedPlace && storageStartTime && storageEndTime) {
             validateStorageTime();
         }
-    }, [selectedPlace, storageStartTime, storageEndTime]);
+    }, [selectedPlace, storageStartTime, storageEndTime, storageDate, storageEndDate, partnerships]);
 
     // 날짜 포맷 함수
     const formatReservationDate = (dateStr: string) => {
@@ -3097,16 +3207,16 @@ const Map = () => {
                                                             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
                                                         },
                                                         '& .MuiOutlinedInput-notchedOutline': {
-                                                            borderColor: 'transparent'
+                                                            borderColor: isClosedOnDate(storageDate) ? '#e53935' : 'transparent'
                                                         },
                                                         '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                            borderColor: '#1a73e8',
+                                                            borderColor: isClosedOnDate(storageDate) ? '#e53935' : '#1a73e8',
                                                             borderWidth: '1px'
                                                         }
                                                     },
                                                     '& .MuiInputBase-input': {
                                                         padding: '14px 16px',
-                                                        color: '#333',
+                                                        color: isClosedOnDate(storageDate) ? '#e53935' : '#333',
                                                         '&::-webkit-calendar-picker-indicator': {
                                                             filter: 'invert(0.5)',
                                                             cursor: 'pointer'
@@ -3120,6 +3230,24 @@ const Map = () => {
                                                     shrink: true,
                                                 }}
                                             />
+                                            {/* 휴무일 경고 메시지 */}
+                                            {storageDate && isClosedOnDate(storageDate) && (
+                                                <Typography sx={{
+                                                    fontSize: '12px',
+                                                    color: '#e53935',
+                                                    mt: 1,
+                                                    pl: 1,
+                                                    fontWeight: 500,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 0.5
+                                                }}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#e53935">
+                                                        <path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z" />
+                                                    </svg>
+                                                    선택한 날짜는 매장 휴무일입니다
+                                                </Typography>
+                                            )}
                                         </Box>
 
                                         {/* 기간 보관일 경우 종료 날짜도 표시 */}
@@ -3148,16 +3276,16 @@ const Map = () => {
                                                                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
                                                             },
                                                             '& .MuiOutlinedInput-notchedOutline': {
-                                                                borderColor: 'transparent'
+                                                                borderColor: isClosedOnDate(storageEndDate) ? '#e53935' : 'transparent'
                                                             },
                                                             '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                                borderColor: '#1a73e8',
+                                                                borderColor: isClosedOnDate(storageEndDate) ? '#e53935' : '#1a73e8',
                                                                 borderWidth: '1px'
                                                             }
                                                         },
                                                         '& .MuiInputBase-input': {
                                                             padding: '14px 16px',
-                                                            color: '#333',
+                                                            color: isClosedOnDate(storageEndDate) ? '#e53935' : '#333',
                                                             '&::-webkit-calendar-picker-indicator': {
                                                                 filter: 'invert(0.5)',
                                                                 cursor: 'pointer'
@@ -3171,6 +3299,24 @@ const Map = () => {
                                                         shrink: true,
                                                     }}
                                                 />
+                                                {/* 종료일 휴무일 경고 메시지 */}
+                                                {storageEndDate && isClosedOnDate(storageEndDate) && (
+                                                    <Typography sx={{
+                                                        fontSize: '12px',
+                                                        color: '#e53935',
+                                                        mt: 1,
+                                                        pl: 1,
+                                                        fontWeight: 500,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 0.5
+                                                    }}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#e53935">
+                                                            <path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z" />
+                                                        </svg>
+                                                        선택한 종료일은 매장 휴무일입니다
+                                                    </Typography>
+                                                )}
                                             </Box>
                                         )}
 
@@ -3328,7 +3474,11 @@ const Map = () => {
                                                   }).replace('%s', getPlaceOperatingHours(selectedPlace).start)
                                                     .replace('%s', getPlaceOperatingHours(selectedPlace).end)
                                                 : t('operatingHoursDefault')}
-                                            {!isTimeValid && t('operatingHoursWarning')}
+                                            {!isTimeValid && (
+                                                isClosedOnDate(storageDate) || (storageDuration === "period" && isClosedOnDate(storageEndDate))
+                                                    ? ' (선택한 날짜는 휴무일입니다)'
+                                                    : t('operatingHoursWarning')
+                                            )}
                                         </Typography>
                                     </Box>
 
@@ -3402,7 +3552,9 @@ const Map = () => {
                                             !storageEndTime ||
                                             (storageDuration === "period" && !storageEndDate) ||
                                             !selectedPlace ||
-                                            !isTimeValid
+                                            !isTimeValid ||
+                                            isClosedOnDate(storageDate) ||
+                                            (storageDuration === "period" && storageEndDate && isClosedOnDate(storageEndDate))
                                         }
                                         sx={{
                                             backgroundColor: '#1a73e8',
@@ -3417,7 +3569,7 @@ const Map = () => {
                                             transition: 'background-color 0.2s ease'
                                         }}
                                         onClick={() => {
-                                            if (totalPrice > 0 && isTimeValid && storageDate && storageStartTime && storageEndTime && (storageDuration !== "period" || storageEndDate)) {
+                                            if (totalPrice > 0 && isTimeValid && storageDate && storageStartTime && storageEndTime && (storageDuration !== "period" || storageEndDate) && !isClosedOnDate(storageDate) && !(storageDuration === "period" && storageEndDate && isClosedOnDate(storageEndDate))) {
                                                 if (!isAuthenticated) {
                                                     setReservationError(t('loginRequiredMessage'));
                                                 } else {
@@ -3428,11 +3580,13 @@ const Map = () => {
                                     >
                                         {!isAuthenticated
                                             ? t('loginRequired')
-                                            : !isTimeValid
-                                                ? t('setWithinOperatingHours')
-                                                : (!storageDate || !storageStartTime || !storageEndTime || (storageDuration === "period" && !storageEndDate))
-                                                    ? t('selectAllDateAndTime')
-                                                    : t('pay')}
+                                            : isClosedOnDate(storageDate) || (storageDuration === "period" && storageEndDate && isClosedOnDate(storageEndDate))
+                                                ? '선택한 날짜는 휴무일입니다'
+                                                : !isTimeValid
+                                                    ? t('setWithinOperatingHours')
+                                                    : (!storageDate || !storageStartTime || !storageEndTime || (storageDuration === "period" && !storageEndDate))
+                                                        ? t('selectAllDateAndTime')
+                                                        : t('pay')}
                                     </Button>
                                 </Box>
                             )}
