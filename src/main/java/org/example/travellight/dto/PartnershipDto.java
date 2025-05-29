@@ -16,6 +16,9 @@ public class PartnershipDto {
     private boolean agreeTerms;
     private boolean is24Hours;
     private Map<String, BusinessHourDto> businessHours;
+    private Integer smallBagsAvailable;
+    private Integer mediumBagsAvailable;
+    private Integer largeBagsAvailable;
 
     // Inner 클래스로 비즈니스 시간 DTO 정의
     public static class BusinessHourDto {
@@ -152,5 +155,29 @@ public class PartnershipDto {
 
     public void setBusinessHours(Map<String, BusinessHourDto> businessHours) {
         this.businessHours = businessHours;
+    }
+
+    public Integer getSmallBagsAvailable() {
+        return smallBagsAvailable;
+    }
+
+    public void setSmallBagsAvailable(Integer smallBagsAvailable) {
+        this.smallBagsAvailable = smallBagsAvailable;
+    }
+
+    public Integer getMediumBagsAvailable() {
+        return mediumBagsAvailable;
+    }
+
+    public void setMediumBagsAvailable(Integer mediumBagsAvailable) {
+        this.mediumBagsAvailable = mediumBagsAvailable;
+    }
+
+    public Integer getLargeBagsAvailable() {
+        return largeBagsAvailable;
+    }
+
+    public void setLargeBagsAvailable(Integer largeBagsAvailable) {
+        this.largeBagsAvailable = largeBagsAvailable;
     }
 }

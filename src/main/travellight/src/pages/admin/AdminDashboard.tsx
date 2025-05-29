@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -49,6 +49,9 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import { getRecentReservations } from '../../services/reservationService';
+import { ReservationDto } from '../../types/reservation';
+import { partnershipService, StorageStatus } from '../../services/api';
 
 // 색상 정의 (CSS 변수 대신 직접 색상 정의)
 const COLORS = {
@@ -105,15 +108,6 @@ const serviceTypeData = [
   { name: '특급 배송', value: 15, revenue: 2300000 },
 ];
 
-// 최근 고객 활동
-const recentActivities = [
-  { id: 'A12345', type: '보관', location: '서울역', size: '중형', time: '10분 전', status: '진행중', amount: 12000 },
-  { id: 'B23456', type: '배송', from: '인천공항 T1', to: '서울 강남구', size: '대형', time: '25분 전', status: '접수완료', amount: 35000 },
-  { id: 'A34567', type: '보관', location: '부산역', size: '소형', time: '45분 전', status: '완료', amount: 8000 },
-  { id: 'B45678', type: '배송', from: '김포공항', to: '서울 마포구', size: '중형', time: '1시간 전', status: '배송중', amount: 22000 },
-  { id: 'A56789', type: '보관', location: '인천공항 T2', size: '대형', time: '2시간 전', status: '완료', amount: 18000 },
-];
-
 // 알림 및 경고
 const alertsData = [
   { id: 1, type: '경고', message: '인천공항 T1 대형 보관함 #15 문 센서 오작동', time: '15분 전', resolved: false },
@@ -125,6 +119,75 @@ const AdminDashboard = () => {
   const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
   const [timeRange, setTimeRange] = useState('오늘');
+  const [recentReservations, setRecentReservations] = useState<ReservationDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [storageStatusList, setStorageStatusList] = useState<StorageStatus[]>([]);
+  const [storageLoading, setStorageLoading] = useState(true);
+
+  // 실제 예약 데이터 로드
+  useEffect(() => {
+    const loadRecentReservations = async () => {
+      try {
+        setLoading(true);
+        const reservations = await getRecentReservations(10);
+        setRecentReservations(reservations);
+      } catch (error) {
+        console.error('최근 예약 데이터 로드 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRecentReservations();
+  }, []);
+
+  // 보관함 현황 데이터 로드
+  useEffect(() => {
+    const loadStorageStatus = async () => {
+      try {
+        setStorageLoading(true);
+        const response = await partnershipService.getAllStorageStatus();
+        setStorageStatusList(response.data);
+      } catch (error) {
+        console.error('보관함 현황 데이터 로드 실패:', error);
+      } finally {
+        setStorageLoading(false);
+      }
+    };
+
+    loadStorageStatus();
+  }, []);
+
+  // 예약 데이터를 활동 형태로 변환
+  const formatRecentActivities = (reservations: ReservationDto[]) => {
+    return reservations.map((reservation) => {
+      const totalBags = (reservation.smallBags || 0) + (reservation.mediumBags || 0) + (reservation.largeBags || 0);
+      const bagSize = reservation.largeBags && reservation.largeBags > 0 ? '대형' :
+                     reservation.mediumBags && reservation.mediumBags > 0 ? '중형' : '소형';
+      
+      // 시간 계산 (임시로 랜덤하게 설정)
+      const timeOptions = ['10분 전', '25분 전', '45분 전', '1시간 전', '2시간 전'];
+      const randomTime = timeOptions[Math.floor(Math.random() * timeOptions.length)];
+      
+      // 상태 매핑
+      const statusMap: { [key: string]: string } = {
+        'RESERVED': '예약완료',
+        'IN_USE': '진행중',
+        'COMPLETED': '완료',
+        'CANCELLED': '취소됨'
+      };
+
+      return {
+        id: reservation.reservationNumber,
+        type: '보관',
+        location: reservation.placeName,
+        size: bagSize,
+        time: randomTime,
+        status: statusMap[reservation.status] || '예약완료',
+        amount: reservation.totalPrice
+      };
+    });
+  };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -133,9 +196,9 @@ const AdminDashboard = () => {
   // 오늘의 전체 매출 계산
   const todayTotalRevenue = revenueData.reduce((sum, item) => sum + item.보관 + item.배송, 0);
   
-  // 보관함 전체 현황 계산
-  const totalLockers = lockerUsageByLocation.reduce((sum, item) => sum + item.total, 0);
-  const usedLockers = lockerUsageByLocation.reduce((sum, item) => sum + Math.floor(item.total * item.usage / 100), 0);
+  // 보관함 전체 현황 계산 (실제 데이터 사용)
+  const totalLockers = storageStatusList.reduce((sum, item) => sum + item.total, 0);
+  const usedLockers = storageStatusList.reduce((sum, item) => sum + item.used, 0);
   
   // 실시간 현황 카드 데이터
   const summaryCards = [
@@ -303,7 +366,7 @@ const AdminDashboard = () => {
                   tick={{ fill: COLORS.textSecondary }}
                 />
                 <Tooltip
-                  formatter={(value: any) => [`₩${Number(value).toLocaleString()}`, ``]}
+                  formatter={(value: number | string) => [`₩${Number(value).toLocaleString()}`, ``]}
                   contentStyle={{
                     backgroundColor: COLORS.backgroundDark,
                     border: `1px solid ${alpha('#fff', 0.1)}`,
@@ -440,43 +503,53 @@ const AdminDashboard = () => {
             </Typography>
             <Divider sx={{ borderColor: alpha('#fff', 0.1), mb: 2 }} />
             <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
-              {lockerUsageByLocation.map((location) => (
-                <Box key={location.name} sx={{ mb: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="subtitle2" sx={{ color: COLORS.textPrimary }}>
-                      {location.name}
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1.5 }}>
-                      <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-                        소형: {location.소형}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-                        중형: {location.중형}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-                        대형: {location.대형}
-                      </Typography>
+              {storageLoading ? (
+                <Typography sx={{ color: COLORS.textSecondary, textAlign: 'center', py: 2 }}>
+                  데이터를 불러오는 중...
+                </Typography>
+              ) : storageStatusList.length === 0 ? (
+                <Typography sx={{ color: COLORS.textSecondary, textAlign: 'center', py: 2 }}>
+                  등록된 보관함이 없습니다.
+                </Typography>
+              ) : (
+                storageStatusList.map((location) => (
+                  <Box key={`${location.name}-${location.address}`} sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                       <Typography variant="subtitle2" sx={{ color: COLORS.textPrimary }}>
-                        {Math.floor(location.total * location.usage / 100)}/{location.total}
+                        {location.name}
                       </Typography>
+                      <Box sx={{ display: 'flex', gap: 1.5 }}>
+                        <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+                          소형: {location.소형}/{location.maxSmall}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+                          중형: {location.중형}/{location.maxMedium}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+                          대형: {location.대형}/{location.maxLarge}
+                        </Typography>
+                        <Typography variant="subtitle2" sx={{ color: COLORS.textPrimary }}>
+                          {location.used}/{location.total}
+                        </Typography>
+                      </Box>
                     </Box>
-                  </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={location.usage}
-                    sx={{
-                      height: 10,
-                      borderRadius: 5,
-                      bgcolor: alpha('#fff', 0.1),
-                      '& .MuiLinearProgress-bar': {
+                    <LinearProgress
+                      variant="determinate"
+                      value={location.usage}
+                      sx={{
+                        height: 10,
                         borderRadius: 5,
-                        bgcolor: location.usage > 90 ? COLORS.dangerColor : 
-                                location.usage > 70 ? COLORS.warningColor : COLORS.successColor,
-                      }
-                    }}
-                  />
-                </Box>
-              ))}
+                        bgcolor: alpha('#fff', 0.1),
+                        '& .MuiLinearProgress-bar': {
+                          borderRadius: 5,
+                          bgcolor: location.usage > 90 ? COLORS.dangerColor : 
+                                  location.usage > 70 ? COLORS.warningColor : COLORS.successColor,
+                        }
+                      }}
+                    />
+                  </Box>
+                ))
+              )}
             </Box>
           </Paper>
         </Grid>
@@ -489,58 +562,68 @@ const AdminDashboard = () => {
             </Typography>
             <Divider sx={{ borderColor: alpha('#fff', 0.1), mb: 2 }} />
             <Stack spacing={1.5} sx={{ maxHeight: 400, overflow: 'auto' }}>
-              {recentActivities.map((activity) => (
-                <Box
-                  key={activity.id}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 1,
-                    bgcolor: alpha('#fff', 0.03),
-                    border: `1px solid ${alpha('#fff', 0.05)}`,
-                  }}
-                >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {activity.type === '보관' ? (
-                        <LuggageOutlined sx={{ color: '#3788FC', fontSize: '1.2rem' }} />
-                      ) : (
-                        <LocalShippingOutlined sx={{ color: '#52B455', fontSize: '1.2rem' }} />
-                      )}
-                      <Typography variant="subtitle2" sx={{ color: COLORS.textPrimary }}>
-                        {activity.id}
+              {loading ? (
+                <Typography sx={{ color: COLORS.textSecondary, textAlign: 'center', py: 2 }}>
+                  데이터를 불러오는 중...
+                </Typography>
+              ) : formatRecentActivities(recentReservations).length === 0 ? (
+                <Typography sx={{ color: COLORS.textSecondary, textAlign: 'center', py: 2 }}>
+                  최근 활동이 없습니다.
+                </Typography>
+              ) : (
+                formatRecentActivities(recentReservations).map((activity) => (
+                  <Box
+                    key={activity.id}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: alpha('#fff', 0.03),
+                      border: `1px solid ${alpha('#fff', 0.05)}`,
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {activity.type === '보관' ? (
+                          <LuggageOutlined sx={{ color: '#3788FC', fontSize: '1.2rem' }} />
+                        ) : (
+                          <LocalShippingOutlined sx={{ color: '#52B455', fontSize: '1.2rem' }} />
+                        )}
+                        <Typography variant="subtitle2" sx={{ color: COLORS.textPrimary }}>
+                          {activity.id}
+                        </Typography>
+                      </Box>
+                      <Chip
+                        label={activity.status}
+                        size="small"
+                        sx={{
+                          bgcolor: activity.status === '완료' ? alpha('#52B455', 0.2) :
+                                  activity.status === '진행중' ? alpha('#E6C220', 0.2) :
+                                  activity.status === '배송중' ? alpha('#3788FC', 0.2) : 
+                                  activity.status === '예약완료' ? alpha('#3788FC', 0.2) : alpha('#E0684B', 0.2),
+                          color: activity.status === '완료' ? '#52B455' :
+                                activity.status === '진행중' ? '#E6C220' :
+                                activity.status === '배송중' ? '#3788FC' : 
+                                activity.status === '예약완료' ? '#3788FC' : '#E0684B',
+                          fontWeight: 500,
+                          fontSize: '0.7rem'
+                        }}
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
+                        {activity.location} ({activity.size})
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: COLORS.accentColor, fontWeight: 500 }}>
+                        ₩{activity.amount.toLocaleString()}
                       </Typography>
                     </Box>
-                    <Chip
-                      label={activity.status}
-                      size="small"
-                      sx={{
-                        bgcolor: activity.status === '완료' ? alpha('#52B455', 0.2) :
-                                activity.status === '진행중' ? alpha('#E6C220', 0.2) :
-                                activity.status === '배송중' ? alpha('#3788FC', 0.2) : alpha('#E0684B', 0.2),
-                        color: activity.status === '완료' ? '#52B455' :
-                              activity.status === '진행중' ? '#E6C220' :
-                              activity.status === '배송중' ? '#3788FC' : '#E0684B',
-                        fontWeight: 500,
-                        fontSize: '0.7rem'
-                      }}
-                    />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
-                      {activity.type === '보관'
-                        ? `${activity.location} (${activity.size})`
-                        : `${activity.from} → ${activity.to} (${activity.size})`}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: COLORS.accentColor, fontWeight: 500 }}>
-                      ₩{activity.amount.toLocaleString()}
+                    <Typography variant="caption" sx={{ color: COLORS.textSecondary, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <AccessTime sx={{ fontSize: '0.8rem' }} />
+                      {activity.time}
                     </Typography>
                   </Box>
-                  <Typography variant="caption" sx={{ color: COLORS.textSecondary, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <AccessTime sx={{ fontSize: '0.8rem' }} />
-                    {activity.time}
-                  </Typography>
-                </Box>
-              ))}
+                ))
+              )}
             </Stack>
           </Paper>
         </Grid>

@@ -30,10 +30,13 @@ import {ko} from 'date-fns/locale';
 import { useAuth } from "../services/AuthContext";
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import PortOne from "@portone/browser-sdk/v2";
+import { useLocation } from 'react-router-dom';
 
 declare global {
     interface Window {
         naver: any;
+        KAKAO_REST_API_KEY?: string;
     }
 }
 
@@ -67,6 +70,9 @@ interface Partnership {
     is24Hours: boolean;
     businessHours: Record<string, BusinessHourDto>;
     status: string;
+    smallBagsAvailable?: number;
+    mediumBagsAvailable?: number;
+    largeBagsAvailable?: number;
 }
 
 // 비즈니스 시간 타입 정의
@@ -78,22 +84,20 @@ interface BusinessHourDto {
 
 //영문 지도 변환
 const Map = () => {
+    const location = useLocation();
     const { t } = useTranslation();
-
     const { user, isAuthenticated } = useAuth();
-
-
 
     const mapRef = useRef<HTMLDivElement>(null);
     const [userPosition, setUserPosition] = useState<{lat: number, lng: number} | null>(null);
     const [isMapMoved, setIsMapMoved] = useState(false);
     const [mapInstance, setMapInstance] = useState<NaverMap | null>(null);
-    const [searchKeyword, setSearchKeyword] = useState<string>("");
+    const [searchKeyword, setSearchKeyword] = useState('');
     const [selectedPlace, setSelectedPlace] = useState<any>(null);
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [startTime, setStartTime] = useState("09:30");
-    const [endTime, setEndTime] = useState("17:00");
+    const [startTime, setStartTime] = useState('09:00');
+    const [endTime, setEndTime] = useState('18:00');
     const [partnershipMarkers, setPartnershipMarkers] = useState<any[]>([]);
     const [isReservationOpen, setIsReservationOpen] = useState(false);
     const [bagSizes, setBagSizes] = useState({
@@ -103,14 +107,12 @@ const Map = () => {
     });
     const [totalPrice, setTotalPrice] = useState(0);
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-    const [cardInfo, setCardInfo] = useState({
-        number: '',
-        expiry: '',
-        cvc: '',
-        name: ''
-    });
     const [isPaymentComplete, setIsPaymentComplete] = useState(false);
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+    // 포트원 결제 관련 상태
+    const [portonePaymentId, setPortonePaymentId] = useState<string | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState<'card' | 'portone'>('portone'); // 기본값을 포트원으로 설정
     const [storageDuration, setStorageDuration] = useState("day");
     const [storageDate, setStorageDate] = useState("");
     const [storageStartTime, setStorageStartTime] = useState("");
@@ -119,7 +121,7 @@ const Map = () => {
     const [isTimeValid, setIsTimeValid] = useState(true);
     // 종료 날짜 상태 추가
     const [storageEndDate, setStorageEndDate] = useState("");
-    
+
     // 예약 관련 상태
     const [reservationError, setReservationError] = useState("");
     const [reservationSuccess, setReservationSuccess] = useState(false);
@@ -146,6 +148,7 @@ const Map = () => {
     // 제휴점 데이터 상태 추가
     const [partnerships, setPartnerships] = useState<Partnership[]>([]);
     const [partnershipOverlays, setPartnershipOverlays] = useState<any[]>([]);
+    const [realTimeCapacity, setRealTimeCapacity] = useState<{small: number, medium: number, large: number}>({small: 0, medium: 0, large: 0});
 
     // 공통 스크롤바 스타일 정의
     const scrollbarStyle = {
@@ -183,9 +186,116 @@ const Map = () => {
         '22:30', '23:00', '23:30'
     ];
 
+    // Hero 컴포넌트에서 전달받은 상태 확인
+    const { searchQuery = '', searchResults: initialSearchResults = [], initialPosition, searchType } = (location.state as any) || {};
+
+    // 메인페이지에서 전달받은 검색어 처리
+    useEffect(() => {
+        if (location.state?.searchKeyword && location.state?.shouldSearch && mapInstance) {
+            const keyword = location.state.searchKeyword;
+            setSearchKeyword(keyword);
+            
+            console.log(`메인페이지에서 검색어 전달받음: "${keyword}"`);
+            
+            // 지연 시간을 줄여서 더 빠르게 검색 실행
+            setTimeout(() => {
+                performSearch(keyword);
+            }, 300); // 1000ms에서 300ms로 단축
+        }
+    }, [location.state, mapInstance]);
+
+    // 컴포넌트 마운트 시 검색어와 검색 결과 설정
+    useEffect(() => {
+        if (searchQuery) {
+            setSearchKeyword(searchQuery);
+
+            // 지역명 검색인 경우 바로 검색 실행
+            if (searchType === 'location') {
+                console.log('지역명 검색 모드로 실행:', searchQuery);
+                // 약간 지연을 주어 컴포넌트가 완전히 마운트된 후 검색 실행
+                setTimeout(() => {
+                    if (mapInstance) {
+                        performSearch(searchQuery);
+                    } else {
+                        // 지도 인스턴스가 아직 초기화되지 않은 경우, 더 큰 지연 후 재시도
+                        console.log('지도 인스턴스 대기 중... 1초 후 재시도');
+                        setTimeout(() => performSearch(searchQuery), 1000);
+                    }
+                }, 500);
+            }
+        }
+
+        if (initialSearchResults && initialSearchResults.length > 0) {
+            // 검색 결과를 place 형식으로 변환
+            const convertedResults = initialSearchResults.map((p: any) => ({
+                place_name: p.businessName,
+                address_name: p.address,
+                phone: p.phone,
+                category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+                x: p.longitude.toString(),
+                y: p.latitude.toString(),
+                opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+            }));
+
+            // 시간에 따른 필터링
+            const timeFilteredPlaces = filterPlacesByTime(convertedResults, startTime, endTime);
+            setSearchResults(timeFilteredPlaces);
+        }
+    }, [searchQuery, initialSearchResults, startTime, endTime, searchType, mapInstance]);
+
+    // 초기 위치 설정 - Hero 컴포넌트에서 받은 위치 정보가 있으면 사용
+    useEffect(() => {
+        if (initialPosition && mapInstance) {
+            console.log('Hero에서 전달받은 초기 위치 정보:', initialPosition);
+            const { latitude, longitude } = initialPosition;
+
+            if (!latitude || !longitude) {
+                console.error('유효하지 않은 좌표 정보:', initialPosition);
+                return;
+            }
+
+            try {
+                const moveLatLng = new window.naver.maps.LatLng(latitude, longitude);
+                console.log('이동할 좌표:', latitude, longitude);
+
+                // 부드러운 이동 처리
+                const currentZoom = mapInstance.getZoom();
+                console.log('현재 줌 레벨:', currentZoom);
+
+                // 위치 이동
+                console.log('지도 중심 이동 시도');
+                mapInstance.setCenter(moveLatLng);
+                console.log('지도 중심 이동 완료');
+
+                // 애니메이션 효과 (줌 아웃 후 줌 인)
+                setTimeout(() => {
+                    try {
+                        console.log('줌 아웃 시도');
+                        mapInstance.setZoom(currentZoom - 1);
+                        console.log('줌 아웃 완료');
+
+                        setTimeout(() => {
+                            try {
+                                console.log('줌 인 시도');
+                                mapInstance.setZoom(currentZoom);
+                                console.log('줌 인 완료');
+                            } catch (error) {
+                                console.error('줌 인 중 오류:', error);
+                            }
+                        }, 250);
+                    } catch (error) {
+                        console.error('줌 아웃 중 오류:', error);
+                    }
+                }, 50);
+            } catch (error) {
+                console.error('초기 위치 설정 중 오류:', error);
+            }
+        }
+    }, [initialPosition, mapInstance]);
+
     useEffect(() => {
         const container = document.getElementById("map") as HTMLElement;
-        
+
         // 마커 관련 스타일 추가
         const addMapStyles = () => {
             // 기존 스타일 요소가 있으면 제거
@@ -193,7 +303,7 @@ const Map = () => {
             if (existingStyle) {
                 existingStyle.remove();
             }
-            
+
             // 새 스타일 요소 생성
             const styleElement = document.createElement('style');
             styleElement.id = 'travellight-map-styles';
@@ -315,10 +425,10 @@ const Map = () => {
                     margin-right: 6px;
                 }
             `;
-            
+
             document.head.appendChild(styleElement);
         };
-        
+
         // 네이버 지도 객체가 로드됐는지 확인
         const waitForNaverMaps = () => {
             if (window.naver && window.naver.maps) {
@@ -327,29 +437,29 @@ const Map = () => {
                 setTimeout(waitForNaverMaps, 100);
             }
         };
-        
+
         // 지도 초기화 함수
         const initializeMap = () => {
             // 기존에 생성된 지도 인스턴스가 있으면 정리
             if (mapInstance) {
                 console.log("기존 지도 인스턴스 제거");
-                
+
                 // 모든 마커 및 오버레이 제거
                 partnershipOverlays.forEach(marker => {
                     marker.setMap(null);
                 });
-                
+
                 // 필요하다면 추가적인 리소스 정리
-                
+
                 // 지도 요소 초기화를 위해 innerHTML 비우기
                 if (document.getElementById("map")) {
                     document.getElementById("map")!.innerHTML = "";
                 }
             }
-            
+
             // 스타일 적용
             addMapStyles();
-            
+
             const options = {
                 center: new window.naver.maps.LatLng(33.450701, 126.570667),
                 zoom: 15,
@@ -377,7 +487,7 @@ const Map = () => {
                     position: window.naver.maps.Position.BOTTOM_RIGHT
                 }
             };
-            
+
             const map = new window.naver.maps.Map(container, options);
 
             window.naver.maps.Event.once(map, 'init_stylemap', () => {
@@ -409,7 +519,7 @@ const Map = () => {
                             const customLabelOptions = {
                                 zIndex: 2,
                                 visibleLayers: [
-                                    'BACKGROUND_DETAIL', 
+                                    'BACKGROUND_DETAIL',
                                     'POI_KOREAN'
                                 ]
                             };
@@ -437,7 +547,7 @@ const Map = () => {
                     console.error('지도 스타일 설정 오류:', e);
                 }
             });
-            
+
             setMapInstance(map);
             let currentInfoWindow: any = null;
             let selectedMarker: any = null;
@@ -487,7 +597,7 @@ const Map = () => {
                         anchor: new window.naver.maps.Point(14, 14)
                     }
                 });
-                
+
                 return marker;
             }
 
@@ -498,13 +608,13 @@ const Map = () => {
                     marker.setMap(null);
                 });
                 setPartnershipOverlays([]);
-                
+
                 // 현재 정보 창도 제거
                 if (currentInfoWindow) {
                     currentInfoWindow.close();
                     currentInfoWindow = null;
                 }
-                
+
                 // 선택된 마커 초기화
                 selectedMarker = null;
             }
@@ -518,10 +628,10 @@ const Map = () => {
                         const partnershipData = response.data.data.filter((partnership: Partnership) => partnership.status === 'APPROVED');
                         //console.log('제휴점 데이터:', partnershipData);
                         setPartnerships(partnershipData);
-                        
+
                         // 기존 마커 제거
                         clearPartnershipMarkers();
-                        
+
                         // 새 제휴점 마커 생성
                         const newOverlays: any[] = [];
                         partnershipData.forEach((partnership: Partnership) => {
@@ -548,11 +658,11 @@ const Map = () => {
             function displayPartnershipMarker(partnership: Partnership, map: any) {
                 try {
                     const markerPosition = new window.naver.maps.LatLng(partnership.latitude, partnership.longitude);
-                    
+
                     // 통일된 메인 색상 설정 (TravelLight 브랜드 컬러)
                     const primaryColor = "#2E7DF1"; // 앱 메인 컬러
                     const secondaryColor = "#FFFFFF"; // 아이콘 내부 색상
-                    
+
                     // 세련된 캐리어 아이콘 HTML 생성
                     const markerContent = `
                         <div class="luggage-marker-container" style="position: relative; width: 28px; height: 28px;">
@@ -590,7 +700,7 @@ const Map = () => {
                             "></div>
                         </div>
                     `;
-                    
+
                     // 마커 생성
                     const marker = new window.naver.maps.Marker({
                         position: markerPosition,
@@ -611,7 +721,7 @@ const Map = () => {
                                 luggage.style.transform = 'translateY(-6px)';
                             }
                         });
-                        
+
                         markerElement.addEventListener('mouseout', function() {
                             const luggage = markerElement.querySelector('.luggage-marker');
                             if (luggage) {
@@ -627,100 +737,170 @@ const Map = () => {
                     }
 
                     // 영업시간 정보 가져오기
-                    let hours = partnership.is24Hours ? 
-                        "24시간 영업" : 
-                        partnership.businessHours ? 
-                            formatBusinessHours(partnership.businessHours) : 
+                    let hours = partnership.is24Hours ?
+                        "24시간 영업" :
+                        partnership.businessHours ?
+                            formatBusinessHours(partnership.businessHours) :
                             "영업시간 정보 없음";
 
-                    // 매장 정보 창 내용 - 세련된 디자인으로 업데이트
-                    const infoWindowContent = `
-                        <div style="
-                            background-color: white;
-                            border-radius: 16px;
-                            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-                            overflow: hidden;
-                            min-width: 220px;
-                            max-width: 300px;
-                            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-                        ">
-                            <div style="
-                                background-color: #2E7DF1;
-                                color: white;
-                                padding: 12px 16px;
-                                display: flex;
-                                justify-content: space-between;
-                                align-items: center;
-                            ">
-                                <span style="
-                                    font-weight: 600;
-                                    font-size: 15px;
-                                    letter-spacing: -0.3px;
-                                ">${partnership.businessName}</span>
-                            </div>
-                            <div style="padding: 14px 16px;">
-                                <div style="
-                                    display: inline-block;
-                                    background-color: #f0f5ff;
-                                    color: #2E7DF1;
-                                    font-size: 12px;
-                                    font-weight: 500;
-                                    padding: 3px 8px;
-                                    border-radius: 12px;
-                                    margin-bottom: 8px;
-                                ">${partnership.businessType}</div>
-                                <div style="
-                                    font-size: 13px;
-                                    line-height: 1.4;
-                                    color: #333;
-                                    margin-bottom: 6px;
-                                    word-break: keep-all;
-                                ">${partnership.address}</div>
-                                <div style="
-                                    font-size: 12px;
-                                    color: #666;
-                                    display: flex;
-                                    align-items: center;
-                                    margin-top: 6px;
-                                ">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
-                                        <path d="M19.44,13c-.22,0-.45-.07-.67-.12a9.44,9.44,0,0,1-1.31-.39,2,2,0,0,0-2.48,1l-.22.45a12.18,12.18,0,0,1-2.66-2,12.18,12.18,0,0,1-2-2.66L10.52,9a2,2,0,0,0,1-2.48,10.33,10.33,0,0,1-.39-1.31c-.05-.22-.09-.45-.12-.68a3,3,0,0,0-3-2.49h-3a3,3,0,0,0-3,3.41A19,19,0,0,0,18.53,21.91l.38,0a3,3,0,0,0,2-.76,3,3,0,0,0,1-2.25v-3A3,3,0,0,0,19.44,13Z"/>
-                                    </svg>
-                                    ${partnership.phone || "전화번호 정보 없음"}
-                                </div>
-                                <div style="
-                                    font-size: 12px;
-                                    color: #666;
-                                    display: flex;
-                                    align-items: center;
-                                    margin-top: 6px;
-                                ">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
-                                        <path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20ZM12,6a1,1,0,0,0-1,1v5a1,1,0,0,0,.5.87l4,2.5a1,1,0,0,0,1.37-.37,1,1,0,0,0-.37-1.37l-3.5-2.18V7A1,1,0,0,0,12,6Z"/>
-                                    </svg>
-                                    ${hours}
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    // 실시간 보관 가능한 개수를 가져오는 함수
+                    const createInfoWindowContent = async () => {
+                        let availableCapacity = { smallBags: 0, mediumBags: 0, largeBags: 0 };
 
-                    // 정보 창 생성
-                    const infoWindow = new window.naver.maps.InfoWindow({
-                        content: infoWindowContent,
-                        maxWidth: 300,
-                        backgroundColor: "transparent",
-                        borderColor: "transparent",
-                        disableAnchor: true
-                    });
+                        try {
+                            availableCapacity = await fetchRealTimeCapacity(partnership.businessName, partnership.address);
+                        } catch (error) {
+                            console.error('실시간 용량 조회 실패:', error);
+                            // 실패 시 최대 용량으로 대체
+                            availableCapacity = {
+                                smallBags: partnership.smallBagsAvailable || 0,
+                                mediumBags: partnership.mediumBagsAvailable || 0,
+                                largeBags: partnership.largeBagsAvailable || 0
+                            };
+                        }
+
+                        return `
+                            <div style="
+                                background-color: white;
+                                border-radius: 16px;
+                                box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+                                overflow: hidden;
+                                min-width: 220px;
+                                max-width: 300px;
+                                font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+                            ">
+                                <div style="
+                                    background-color: #2E7DF1;
+                                    color: white;
+                                    padding: 12px 16px;
+                                    display: flex;
+                                    justify-content: space-between;
+                                    align-items: center;
+                                ">
+                                    <span style="
+                                        font-weight: 600;
+                                        font-size: 15px;
+                                        letter-spacing: -0.3px;
+                                    ">${partnership.businessName}</span>
+                                </div>
+                                <div style="padding: 14px 16px;">
+                                    <div style="
+                                        display: inline-block;
+                                        background-color: #f0f5ff;
+                                        color: #2E7DF1;
+                                        font-size: 12px;
+                                        font-weight: 500;
+                                        padding: 3px 8px;
+                                        border-radius: 12px;
+                                        margin-bottom: 8px;
+                                    ">${partnership.businessType}</div>
+                                    <div style="
+                                        font-size: 13px;
+                                        line-height: 1.4;
+                                        color: #333;
+                                        margin-bottom: 6px;
+                                        word-break: keep-all;
+                                    ">${partnership.address}</div>
+                                    
+                                    <!-- 현재 보관 가능한 짐 개수 정보 -->
+                                    <div style="
+                                        background-color: #f8f9fa;
+                                        border-radius: 8px;
+                                        padding: 8px;
+                                        margin: 8px 0;
+                                        border-left: 3px solid #2E7DF1;
+                                    ">
+                                        <div style="
+                                            font-size: 12px;
+                                            font-weight: 600;
+                                            color: #2E7DF1;
+                                            margin-bottom: 4px;
+                                        ">현재 보관 가능한 짐</div>
+                                        <div style="
+                                            display: flex;
+                                            gap: 8px;
+                                            font-size: 11px;
+                                            color: #666;
+                                        ">
+                                            <span style="color: ${availableCapacity.smallBags > 0 ? '#28a745' : '#dc3545'};">
+                                                소형: ${availableCapacity.smallBags}개
+                                            </span>
+                                            <span style="color: ${availableCapacity.mediumBags > 0 ? '#28a745' : '#dc3545'};">
+                                                중형: ${availableCapacity.mediumBags}개
+                                            </span>
+                                            <span style="color: ${availableCapacity.largeBags > 0 ? '#28a745' : '#dc3545'};">
+                                                대형: ${availableCapacity.largeBags}개
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="
+                                        font-size: 12px;
+                                        color: #666;
+                                        display: flex;
+                                        align-items: center;
+                                        margin-top: 6px;
+                                    ">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
+                                            <path d="M19.44,13c-.22,0-.45-.07-.67-.12a9.44,9.44,0,0,1-1.31-.39,2,2,0,0,0-2.48,1l-.22.45a12.18,12.18,0,0,1-2.66-2,12.18,12.18,0,0,1-2-2.66L10.52,9a2,2,0,0,0,1-2.48,10.33,10.33,0,0,1-.39-1.31c-.05-.22-.09-.45-.12-.68a3,3,0,0,0-3-2.49h-3a3,3,0,0,0-3,3.41A19,19,0,0,0,18.53,21.91l.38,0a3,3,0,0,0,2-.76,3,3,0,0,0,1-2.25v-3A3,3,0,0,0,19.44,13Z"/>
+                                        </svg>
+                                        ${partnership.phone || "전화번호 정보 없음"}
+                                    </div>
+                                    <div style="
+                                        font-size: 12px;
+                                        color: #666;
+                                        display: flex;
+                                        align-items: center;
+                                        margin-top: 6px;
+                                    ">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#666" style="margin-right: 6px;">
+                                            <path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20ZM12,6a1,1,0,0,0-1,1v5a1,1,0,0,0,.5.87l4,2.5a1,1,0,0,0,1.37-.37,1,1,0,0,0-.37-1.37l-3.5-2.18V7A1,1,0,0,0,12,6Z"/>
+                                        </svg>
+                                        ${hours}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    };
+
+                    // 정보 창 생성 (비동기로 내용 생성)
+                    let infoWindow: any = null;
 
                     // 마커 클릭 이벤트
-                    window.naver.maps.Event.addListener(marker, 'click', () => {
+                    window.naver.maps.Event.addListener(marker, 'click', async () => {
                         // 현재 열린 정보창이 있으면 닫기
                         if (currentInfoWindow) {
                             currentInfoWindow.close();
                         }
 
-                        // 정보창 열기
+                        // 로딩 중 표시할 임시 내용
+                        const loadingContent = `
+                            <div style="
+                                background-color: white;
+                                border-radius: 16px;
+                                box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+                                overflow: hidden;
+                                min-width: 220px;
+                                max-width: 300px;
+                                font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+                                padding: 20px;
+                                text-align: center;
+                            ">
+                                <div style="color: #666; font-size: 14px;">
+                                    보관 가능한 개수를 확인 중...
+                                </div>
+                            </div>
+                        `;
+
+                        // 임시 정보창 생성 및 표시
+                        infoWindow = new window.naver.maps.InfoWindow({
+                            content: loadingContent,
+                            maxWidth: 300,
+                            backgroundColor: "transparent",
+                            borderColor: "transparent",
+                            disableAnchor: true
+                        });
+
                         infoWindow.open(map, marker);
                         currentInfoWindow = infoWindow;
 
@@ -737,10 +917,34 @@ const Map = () => {
                             y: partnership.latitude.toString(),
                             opening_hours: partnership.is24Hours ? "24시간 영업" : formatBusinessHours(partnership.businessHours)
                         };
-                        
+
                         setSelectedPlace(placeData);
                         // 사이드바가 닫혀있으면 열기
                         setIsSidebarOpen(true);
+
+                        // 실제 내용으로 업데이트
+                        try {
+                            const actualContent = await createInfoWindowContent();
+                            if (currentInfoWindow === infoWindow) { // 여전히 같은 정보창이 열려있는지 확인
+                                infoWindow.setContent(actualContent);
+                            }
+                        } catch (error) {
+                            console.error('정보창 내용 생성 실패:', error);
+                            if (currentInfoWindow === infoWindow) {
+                                infoWindow.setContent(`
+                                    <div style="
+                                        background-color: white;
+                                        border-radius: 16px;
+                                        padding: 20px;
+                                        text-align: center;
+                                        color: #dc3545;
+                                        font-size: 14px;
+                                    ">
+                                        정보를 불러올 수 없습니다.
+                                    </div>
+                                `);
+                            }
+                        }
                     });
 
                     // 닫기 버튼 클릭 이벤트 (정보창 내부의 X 버튼)
@@ -755,7 +959,7 @@ const Map = () => {
                     //         }
                     //     }, 100); // 작은 지연 시간 추가
                     // });
-                    
+
                     return marker;
                 } catch (error) {
                     console.error("제휴점 마커 표시 중 오류:", error);
@@ -767,7 +971,7 @@ const Map = () => {
             function getCategoryCodeFromBusinessType(businessType: string): string {
                 switch (businessType) {
                     case "카페": return "CE7";
-                    case "편의점": return "CS2"; 
+                    case "편의점": return "CS2";
                     case "숙박": return "AD5";
                     case "식당": return "FD6";
                     default: return "ETC";
@@ -779,15 +983,15 @@ const Map = () => {
                 if (!businessHours || Object.keys(businessHours).length === 0) {
                     return "영업시간 정보 없음";
                 }
-                
+
                 // 요일별 영업 시간 중 첫번째 항목만 표시 (간단하게)
                 const firstDayKey = Object.keys(businessHours)[0];
                 const hourData = businessHours[firstDayKey];
-                
+
                 if (!hourData.enabled) {
                     return "휴무일";
                 }
-                
+
                 return `${hourData.open} - ${hourData.close}`;
             }
 
@@ -795,7 +999,7 @@ const Map = () => {
             window.naver.maps.Event.addListener(map, "dragend", () => {
                 // 결제 완료 상태에서는 새 마커를 불러오지 않음
                 if (isPaymentComplete) return;
-                
+
                 setIsMapMoved(true);
             });
 
@@ -803,10 +1007,10 @@ const Map = () => {
             window.naver.maps.Event.addListener(map, "click", () => {
                 // 결제 완료 상태에서는 반응하지 않음
                 if (isPaymentComplete) return;
-                
+
                 // 선택된 장소 초기화
                 setSelectedPlace(null);
-                
+
                 // 현재 정보창 닫기
                 if (currentInfoWindow) {
                     currentInfoWindow.close();
@@ -821,20 +1025,25 @@ const Map = () => {
                         const lng = position.coords.longitude;
                         const locPosition = new window.naver.maps.LatLng(lat, lng);
                         setUserPosition({lat, lng});
-                        
+
                         // 사용자 마커 생성
                         displayUserMarker(locPosition);
+
+                        // 메인페이지에서 검색어나 초기 위치가 전달된 경우에는 사용자 위치로 이동하지 않음
+                        const hasSearchFromMain = location.state?.searchKeyword || location.state?.initialPosition;
                         
-                        // 위치로 부드럽게 이동
-                        // 1단계: 먼저 기본 줌 레벨로 설정
-                        map.setZoom(15);
-                        
-                        // 약간의 딜레이 후 중앙으로 이동
-                        setTimeout(() => {
-                            map.setCenter(locPosition);
-                            setIsMapMoved(false);
-                        }, 100);
-                        
+                        if (!hasSearchFromMain) {
+                            // 위치로 부드럽게 이동
+                            // 1단계: 먼저 기본 줌 레벨로 설정
+                            map.setZoom(15);
+
+                            // 약간의 딜레이 후 중앙으로 이동
+                            setTimeout(() => {
+                                map.setCenter(locPosition);
+                                setIsMapMoved(false);
+                            }, 100);
+                        }
+
                         // 제휴점 데이터 가져오기
                         fetchPartnerships();
                     },
@@ -854,19 +1063,19 @@ const Map = () => {
                 clearPartnershipMarkers();
             };
         };
-        
+
         // 네이버 지도 API 로드 확인
         waitForNaverMaps();
-        
+
         // 언어 변경 이벤트 리스너 등록
         const handleMapLanguageChange = () => {
             console.log("언어 변경 감지, 지도 다시 로드");
             // 약간의 지연을 주어 naver 객체가 완전히 교체된 후 지도를 초기화
             setTimeout(waitForNaverMaps, 500);
         };
-        
+
         window.addEventListener('naverMapLanguageChanged', handleMapLanguageChange);
-        
+
         // 클린업 함수
         return () => {
             window.removeEventListener('naverMapLanguageChanged', handleMapLanguageChange);
@@ -889,18 +1098,24 @@ const Map = () => {
         }
     }, [userPosition, mapInstance]);
 
-    // 초기 시작 시간 설정 함수 수정
+    // 초기 시작 시간 설정 함수
     const getInitialStartTime = () => {
         const now = new Date();
         const hours = now.getHours();
         const minutes = now.getMinutes();
 
-        // 현재 시간을 30분 단위로 올림
-        const roundedMinutes = Math.ceil(minutes / 30) * 30;
-        const roundedHours = hours + Math.floor(roundedMinutes / 60);
-        const finalMinutes = roundedMinutes % 60;
+        // 현재 시간이 9시 이전이면 9:00 반환
+        if (hours < 9) return '09:00';
 
-        return `${String(roundedHours).padStart(2, '0')}:${String(finalMinutes).padStart(2, '0')}`;
+        // 현재 시간이 18시 이후면 18:00 반환
+        if (hours >= 18) return '18:00';
+
+        // 현재 시간을 30분 단위로 반올림
+        const roundedMinutes = Math.ceil(minutes / 30) * 30;
+        const adjustedHours = roundedMinutes === 60 ? hours + 1 : hours;
+        const adjustedMinutes = roundedMinutes === 60 ? 0 : roundedMinutes;
+
+        return `${adjustedHours.toString().padStart(2, '0')}:${adjustedMinutes.toString().padStart(2, '0')}`;
     };
 
     // 영업 시간 체크 함수 수정
@@ -935,76 +1150,470 @@ const Map = () => {
         return places.filter(place => isOpenDuringTime(place, startTime, endTime));
     };
 
-    // searchPlaces 함수 수정 - 네이버맵 API에 맞게 수정
-    const searchPlaces = () => {
-        if (!searchKeyword.trim()) return;
+    // 개선된 검색 함수 - 카카오 API 추가로 건물, 지하철역, 장소명 모두 검색 가능
+    const performSearch = async (keyword: string) => {
+        if (!keyword.trim()) return;
 
-        const searchOptions = {
-            query: searchKeyword
-        };
+        try {
+            // 1. 카카오 키워드 검색 API 호출
+            const kakaoResults = await searchWithKakaoAPI(keyword);
+            
+            // 2. 네이버 Geocoding API로 주소 검색 (기존 유지)
+            if (window.naver?.maps?.Service) {
+                window.naver.maps.Service.geocode({
+                    query: keyword
+                }, (status: any, response: any) => {
+                    if (status === window.naver.maps.Service.Status.OK) {
+                        const results = response.v2.addresses;
+                        if (results.length > 0) {
+                            const firstResult = results[0];
+                            
+                            // 좌표 타입 변환 확실히 하기
+                            const lat = parseFloat(firstResult.y);
+                            const lng = parseFloat(firstResult.x);
+                            
+                            // 유효한 좌표인지 확인
+                            if (!isNaN(lat) && !isNaN(lng)) {
+                                const moveLatLng = new window.naver.maps.LatLng(lat, lng);
+                                
+                                // 지도 이동 및 줌 조정
+                                if (mapInstance) {
+                                    const currentZoom = mapInstance.getZoom();
+                                    const targetZoom = Math.max(16, currentZoom); // 최소 줌 레벨을 16으로 상향 조정
+                                    
+                                    // 지도 중심 이동
+                                    mapInstance.setCenter(moveLatLng);
+                                    
+                                    // 줌 레벨 조정 (이동 완료 후)
+                                    setTimeout(() => {
+                                        mapInstance.setZoom(targetZoom); // 조건 없이 목표 줌 레벨로 설정
+                                    }, 300); // 지도 이동 완료를 위한 시간 단축
+                                    
+                                    console.log(`네이버 Geocoding 결과로 이동: ${firstResult.roadAddress || firstResult.jibunAddress} (${lat}, ${lng}) - 줌 레벨: ${targetZoom}`);
+                                }
+                            } else {
+                                console.error('네이버 Geocoding 유효하지 않은 좌표:', firstResult.x, firstResult.y);
+                            }
+                        }
+                    }
+                });
+            }
 
-        // 네이버 서치 API를 통한 검색
-        window.naver.maps.Service.geocode(searchOptions, (status: any, response: any) => {
-            if (status === window.naver.maps.Service.Status.OK) {
-                const results = response.v2.addresses;
-                if (results.length > 0) {
-                    const firstResult = results[0];
-                    const moveLatLng = new window.naver.maps.LatLng(firstResult.y, firstResult.x);
+            // 3. 제휴점 필터링
+                        const filteredPartnerships = partnerships.filter(p => {
+                const searchLower = keyword.toLowerCase();
+                return p.businessName.toLowerCase().includes(searchLower) || 
+                       p.address.toLowerCase().includes(searchLower);
+            });
+
+            const convertedPartnerships = filteredPartnerships.map(p => ({
+                            place_name: p.businessName,
+                            address_name: p.address,
+                            phone: p.phone,
+                            category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+                            x: p.longitude.toString(),
+                            y: p.latitude.toString(),
+                            opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+                        }));
+
+            // 4. 제휴점만 검색 결과로 사용 (카카오 API 결과는 지도 이동 참고용으로만 사용)
+            const allResults = convertedPartnerships; // 제휴점만 사용
+            
+            // 4.5. 검색 결과 우선순위 정렬 (정확도 순) - 제휴점 기준으로 정렬
+            const sortedResults = allResults.sort((a, b) => {
+                const keywordLower = keyword.toLowerCase();
+                const aNameLower = a.place_name.toLowerCase();
+                const bNameLower = b.place_name.toLowerCase();
+                
+                // 1순위: 정확히 일치하는 이름
+                if (aNameLower === keywordLower && bNameLower !== keywordLower) return -1;
+                if (bNameLower === keywordLower && aNameLower !== keywordLower) return 1;
+                
+                // 2순위: 이름이 검색어로 시작하는 경우
+                if (aNameLower.startsWith(keywordLower) && !bNameLower.startsWith(keywordLower)) return -1;
+                if (bNameLower.startsWith(keywordLower) && !aNameLower.startsWith(keywordLower)) return 1;
+                
+                // 3순위: 이름에 검색어가 포함된 경우
+                if (aNameLower.includes(keywordLower) && !bNameLower.includes(keywordLower)) return -1;
+                if (bNameLower.includes(keywordLower) && !aNameLower.includes(keywordLower)) return 1;
+                
+                // 4순위: 비즈니스 타입별 우선순위 (카페 > 편의점 > 숙박 > 식당)
+                const categoryPriority = {
+                    'CE7': 1, // 카페
+                    'CS2': 2, // 편의점
+                    'AD5': 3, // 숙박
+                    'FD6': 4, // 식당
+                    'ETC': 5  // 기타
+                };
+                
+                const aPriority = categoryPriority[a.category_group_code as keyof typeof categoryPriority] || 5;
+                const bPriority = categoryPriority[b.category_group_code as keyof typeof categoryPriority] || 5;
+                
+                return aPriority - bPriority;
+            });
+            
+            // 5. 시간에 따른 필터링
+            const timeFilteredPlaces = filterPlacesByTime(sortedResults, startTime, endTime);
+            setSearchResults(timeFilteredPlaces);
+
+            // 6. 검색 결과가 있으면 첫 번째 결과로 자동 이동 및 선택
+            if (timeFilteredPlaces.length > 0) {
+                const firstPlace = timeFilteredPlaces[0];
+                
+                // 지도를 첫 번째 결과 위치로 이동
+                if (mapInstance && firstPlace.x && firstPlace.y) {
+                    // 좌표 타입 변환 확실히 하기
+                    const lat = parseFloat(firstPlace.y);
+                    const lng = parseFloat(firstPlace.x);
                     
-                    // 부드러운 이동 처리
-                    if (mapInstance) {
-                        // 현재 줌 레벨 저장
-                        const currentZoom = mapInstance.getZoom();
+                    // 유효한 좌표인지 확인
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        const moveLatLng = new window.naver.maps.LatLng(lat, lng);
                         
-                        // 1단계: 먼저 위치 이동
+                    // 현재 줌 레벨 저장
+                    const currentZoom = mapInstance.getZoom();
+                        const targetZoom = Math.max(16, currentZoom); // 최소 줌 레벨을 16으로 상향 조정
+
+                        // 지도 이동 완료 후 줌 조정
+                        const moveToLocation = () => {
+                            // 1단계: 지도 중심 이동
+                    mapInstance.setCenter(moveLatLng);
+
+                            // 2단계: 줌 레벨 조정 (이동 완료 후)
+                    setTimeout(() => {
+                                mapInstance.setZoom(targetZoom); // 조건 없이 목표 줌 레벨로 설정
+                            }, 300); // 지도 이동 완료를 위한 시간 단축
+                        };
+                        
+                        // 즉시 이동 (지연 시간 제거)
+                        moveToLocation();
+                        
+                        console.log(`제휴점으로 지도 이동: ${firstPlace.place_name} (${lat}, ${lng}) - 줌 레벨: ${targetZoom}`);
+                    } else {
+                        console.error('유효하지 않은 좌표:', firstPlace.x, firstPlace.y);
+                    }
+                }
+                
+                // 첫 번째 결과를 선택된 상태로 설정
+                setSelectedPlace(firstPlace);
+                
+                console.log(`"${keyword}" 검색 완료: ${timeFilteredPlaces.length}개 제휴점 중 "${firstPlace.place_name}"로 이동`);
+            } else {
+                // 제휴점 검색 결과가 없는 경우, 카카오 API 결과로 지도만 이동
+                if (kakaoResults.length > 0) {
+                    const firstKakaoPlace = kakaoResults[0];
+                    if (mapInstance && firstKakaoPlace.x && firstKakaoPlace.y) {
+                        const lat = parseFloat(firstKakaoPlace.y);
+                        const lng = parseFloat(firstKakaoPlace.x);
+                        
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            const moveLatLng = new window.naver.maps.LatLng(lat, lng);
+                            mapInstance.setCenter(moveLatLng);
+                            mapInstance.setZoom(16);
+                            console.log(`제휴점 없음 - 카카오 검색 결과로 지도만 이동: ${firstKakaoPlace.place_name}`);
+                        }
+                    }
+                }
+                
+                setSelectedPlace(null);
+                console.log(`"${keyword}" 검색 결과: 제휴점 없음`);
+            }
+
+        } catch (error) {
+            console.error('검색 중 오류 발생:', error);
+            
+            // 카카오 API 실패 시 제휴점만 검색
+            const filteredPartnerships = partnerships.filter(p => {
+                const searchLower = keyword.toLowerCase();
+                return p.businessName.toLowerCase().includes(searchLower) || 
+                       p.address.toLowerCase().includes(searchLower);
+            });
+
+            const convertedPartnerships = filteredPartnerships.map(p => ({
+                    place_name: p.businessName,
+                    address_name: p.address,
+                    phone: p.phone,
+                    category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+                    x: p.longitude.toString(),
+                    y: p.latitude.toString(),
+                    opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+                }));
+
+            const timeFilteredPlaces = filterPlacesByTime(convertedPartnerships, startTime, endTime);
+                setSearchResults(timeFilteredPlaces);
+            
+            // 제휴점 검색 결과가 있으면 첫 번째 결과로 이동
+            if (timeFilteredPlaces.length > 0) {
+                const firstPlace = timeFilteredPlaces[0];
+                
+                if (mapInstance && firstPlace.x && firstPlace.y) {
+                    // 좌표 타입 변환 확실히 하기
+                    const lat = parseFloat(firstPlace.y);
+                    const lng = parseFloat(firstPlace.x);
+                    
+                    // 유효한 좌표인지 확인
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        const moveLatLng = new window.naver.maps.LatLng(lat, lng);
+                        
+                        // 지도 이동 및 줌 조정
+                        const currentZoom = mapInstance.getZoom();
+                        const targetZoom = Math.max(16, currentZoom); // 최소 줌 레벨을 16으로 상향 조정
+                        
+                        // 지도 중심 이동
                         mapInstance.setCenter(moveLatLng);
                         
-                        // 2단계: 이동 후 애니메이션 효과 (줌 아웃 후 줌 인)
+                        // 줌 레벨 조정 (이동 완료 후)
                         setTimeout(() => {
-                            // 줌 아웃
-                            mapInstance.setZoom(currentZoom - 1);
-                            
-                            // 잠시 후 다시 원래 줌으로
-                            setTimeout(() => {
-                                mapInstance.setZoom(currentZoom);
-                            }, 250);
-                        }, 50);
+                            mapInstance.setZoom(targetZoom); // 조건 없이 목표 줌 레벨로 설정
+                        }, 300); // 지도 이동 완료를 위한 시간 단축
+                        
+                        console.log(`제휴점 검색 결과로 이동: ${firstPlace.place_name} (${lat}, ${lng}) - 줌 레벨: ${targetZoom}`);
+                    } else {
+                        console.error('제휴점 유효하지 않은 좌표:', firstPlace.x, firstPlace.y);
                     }
-
-                    // 검색 결과를 partnerships에서 필터링
-                    const filteredPartnerships = partnerships.filter(p => {
-                        // 검색어와 비즈니스 이름 또는 주소가 부분적으로 일치하는지 확인
-                        return p.businessName.includes(searchKeyword) || 
-                               p.address.includes(searchKeyword);
-                    });
-
-                    // partnerships를 place 형식으로 변환하여 검색 결과에 추가
-                    const convertedPlaces = filteredPartnerships.map(p => ({
-                        place_name: p.businessName,
-                        address_name: p.address,
-                        phone: p.phone,
-                        category_group_code: getCategoryCodeFromBusinessType(p.businessType),
-                        x: p.longitude.toString(),
-                        y: p.latitude.toString(),
-                        opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
-                    }));
-
-                    // 시간에 따른 필터링
-                    const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
-                    setSearchResults(timeFilteredPlaces);
-                    setSelectedPlace(null);
                 }
+                
+                setSelectedPlace(firstPlace);
+                console.log(`"${keyword}" 제휴점 검색 완료: ${timeFilteredPlaces.length}개 제휴점 중 "${firstPlace.place_name}"로 이동`);
             } else {
-                alert("검색 결과가 없습니다.");
+                setSelectedPlace(null);
+                console.log(`"${keyword}" 검색 결과: 제휴점 없음`);
             }
+        }
+    };
+
+    // 카카오 API를 사용한 검색 함수
+    const searchWithKakaoAPI = async (keyword: string) => {
+        // 전역 변수에서 카카오 API 키 가져오기
+        const apiKey = window.KAKAO_REST_API_KEY;
+        
+        if (!apiKey || apiKey === 'your_kakao_rest_api_key_here') {
+            console.warn('카카오 API 키가 설정되지 않았습니다. App.tsx에서 KAKAO_REST_API_KEY를 실제 키로 교체해주세요.');
+            return [];
+        }
+
+        try {
+            // 키워드로 장소 검색 - 직접 API 호출
+            const keywordResponse = await fetch(
+                `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(keyword)}&size=15`,
+                {
+                    headers: {
+                        'Authorization': `KakaoAK ${apiKey}`
+                    }
+                }
+            );
+
+            if (!keywordResponse.ok) {
+                throw new Error('카카오 키워드 검색 API 호출 실패');
+            }
+
+            const keywordData = await keywordResponse.json();
+            const keywordResults = keywordData.documents || [];
+
+            // 카테고리별 추가 검색 (지하철역, 건물 등)
+            const categorySearches = [];
+            
+            // 지하철역 검색
+            if (keyword.includes('역') || keyword.includes('지하철') || keyword.includes('subway')) {
+                categorySearches.push(
+                    fetch(
+                        `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=SW8&query=${encodeURIComponent(keyword)}&radius=20000`,
+                        {
+                            headers: {
+                                'Authorization': `KakaoAK ${apiKey}`
+                            }
+                        }
+                    )
+                );
+            }
+
+            // 관광명소/건물 검색
+            if (keyword.includes('빌딩') || keyword.includes('타워') || keyword.includes('센터') || 
+                keyword.includes('몰') || keyword.includes('플라자')) {
+                categorySearches.push(
+                    fetch(
+                        `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=AT4&query=${encodeURIComponent(keyword)}&radius=20000`,
+                        {
+                            headers: {
+                                'Authorization': `KakaoAK ${apiKey}`
+                            }
+                        }
+                    )
+                );
+            }
+
+            // 카페 검색
+            if (keyword.includes('카페') || keyword.includes('커피') || keyword.includes('스타벅스') || keyword.includes('이디야')) {
+                categorySearches.push(
+                    fetch(
+                        `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=CE7&query=${encodeURIComponent(keyword)}&radius=20000`,
+                        {
+                            headers: {
+                                'Authorization': `KakaoAK ${apiKey}`
+                            }
+                        }
+                    )
+                );
+            }
+
+            // 편의점 검색
+            if (keyword.includes('편의점') || keyword.includes('GS25') || keyword.includes('CU') || keyword.includes('세븐일레븐')) {
+                categorySearches.push(
+                    fetch(
+                        `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=CS2&query=${encodeURIComponent(keyword)}&radius=20000`,
+                        {
+                            headers: {
+                                'Authorization': `KakaoAK ${apiKey}`
+                            }
+                        }
+                    )
+                );
+            }
+
+            // 모든 카테고리 검색 결과 수집
+            const categoryResults = await Promise.all(categorySearches);
+            const allCategoryData = [];
+
+            for (const response of categoryResults) {
+                if (response.ok) {
+                    const data = await response.json();
+                    allCategoryData.push(...(data.documents || []));
+                }
+            }
+
+            // 모든 카카오 검색 결과 합치기
+            const allKakaoResults = [...keywordResults, ...allCategoryData];
+
+            // 중복 제거 (place_name과 address_name 기준)
+            const uniqueResults = allKakaoResults.filter((place, index, self) => 
+                index === self.findIndex(p => 
+                    p.place_name === place.place_name && p.address_name === place.address_name
+                )
+            );
+
+            // 결과를 우리 형식으로 변환
+            return uniqueResults.map(place => ({
+                place_name: place.place_name,
+                address_name: place.address_name,
+                phone: place.phone || '',
+                category_group_code: place.category_group_code || getCategoryFromKeyword(keyword, place.category_name),
+                x: place.x,
+                y: place.y,
+                opening_hours: "영업시간 정보 없음",
+                place_url: place.place_url || ''
+            }));
+
+        } catch (error) {
+            console.error('카카오 API 검색 오류:', error);
+            return [];
+        }
+    };
+
+    // 키워드와 카테고리에 따른 카테고리 코드 반환
+    const getCategoryFromKeyword = (keyword: string, category: string) => {
+        const keywordLower = keyword.toLowerCase();
+        
+        // 지하철역 검색
+        if (keywordLower.includes('역') || keywordLower.includes('지하철') || keywordLower.includes('subway')) {
+            return 'SW8'; // 지하철역
+        }
+        
+        // 건물/랜드마크 검색
+        if (keywordLower.includes('빌딩') || keywordLower.includes('타워') || keywordLower.includes('센터') || 
+            keywordLower.includes('몰') || keywordLower.includes('플라자')) {
+            return 'AT4'; // 관광명소/건물
+        }
+        
+        // 카테고리 기반 분류
+        if (category) {
+            if (category.includes('카페') || category.includes('커피')) return 'CE7';
+            if (category.includes('편의점')) return 'CS2';
+            if (category.includes('숙박') || category.includes('호텔')) return 'AD5';
+            if (category.includes('음식') || category.includes('식당')) return 'FD6';
+        }
+        
+        return 'ETC';
+    };
+
+    // searchPlaces 함수 수정 - performSearch 사용
+    const searchPlaces = () => {
+        if (!searchKeyword.trim()) return;
+        performSearch(searchKeyword);
+    };
+
+    // 거리 계산 함수 추가 (위도/경도 좌표 간의 거리를 km 단위로 계산)
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+        const R = 6371; // 지구 반경 (km)
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a =
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    };
+
+    // 제휴점 내에서만 검색하는 함수 분리
+    const searchPartnerships = () => {
+        // 매장명/주소로 제휴점 검색
+        const filteredPartnerships = partnerships.filter(p => {
+            // 검색어와 비즈니스 이름 또는 주소가 부분적으로 일치하는지 확인 (대소문자 무시)
+            return p.businessName.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+                p.address.toLowerCase().includes(searchKeyword.toLowerCase());
         });
+
+        // 매장명 또는 주소로 매장을 찾은 경우
+        if (filteredPartnerships.length > 0) {
+            // 첫 번째 매칭된 매장으로 지도 이동
+            const firstMatch = filteredPartnerships[0];
+            const moveLatLng = new window.naver.maps.LatLng(firstMatch.latitude, firstMatch.longitude);
+
+            // 부드러운 이동 처리
+            if (mapInstance) {
+                // 현재 줌 레벨 저장
+                const currentZoom = mapInstance.getZoom();
+
+                // 1단계: 먼저 위치 이동
+                mapInstance.setCenter(moveLatLng);
+
+                // 2단계: 이동 후 애니메이션 효과 (줌 아웃 후 줌 인)
+                setTimeout(() => {
+                    // 줌 아웃
+                    mapInstance.setZoom(currentZoom - 1);
+
+                    // 잠시 후 다시 원래 줌으로
+                    setTimeout(() => {
+                        mapInstance.setZoom(currentZoom);
+                    }, 250);
+                }, 50);
+            }
+
+            // partnerships를 place 형식으로 변환하여 검색 결과에 추가
+            const convertedPlaces = filteredPartnerships.map(p => ({
+                place_name: p.businessName,
+                address_name: p.address,
+                phone: p.phone,
+                category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+                x: p.longitude.toString(),
+                y: p.latitude.toString(),
+                opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+            }));
+
+            // 시간에 따른 필터링
+            const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
+            setSearchResults(timeFilteredPlaces);
+            setSelectedPlace(null);
+        } else {
+            alert("검색 결과가 없습니다. 다른 검색어를 시도해보세요.");
+        }
     };
 
     // 비즈니스 타입에 따른 카테고리 코드 반환 함수
     const getCategoryCodeFromBusinessType = (businessType: string): string => {
         switch (businessType) {
             case "카페": return "CE7";
-            case "편의점": return "CS2"; 
+            case "편의점": return "CS2";
             case "숙박": return "AD5";
             case "식당": return "FD6";
             default: return "ETC";
@@ -1016,15 +1625,15 @@ const Map = () => {
         if (!businessHours || Object.keys(businessHours).length === 0) {
             return "영업시간 정보 없음";
         }
-        
+
         // 요일별 영업 시간 중 첫번째 항목만 표시 (간단하게)
         const firstDayKey = Object.keys(businessHours)[0];
         const hourData = businessHours[firstDayKey];
-        
+
         if (!hourData.enabled) {
             return "휴무일";
         }
-        
+
         return `${hourData.open} - ${hourData.close}`;
     };
 
@@ -1147,27 +1756,56 @@ const Map = () => {
         }
     }, [bagSizes, storageDuration, storageDate, storageEndDate]);
 
-    // 카드 정보 유효성 검사 함수
-    const isPaymentFormValid = () => {
-        const {number, expiry, cvc, name} = cardInfo;
 
-        // 카드번호는 공백 제외 16자리
-        const isNumberValid = number.replace(/\s/g, '').length === 16;
-
-        // 만료일은 MM/YY 형식 (5자리)
-        const isExpiryValid = expiry.length === 5 && expiry.includes('/');
-
-        // CVC는 3자리
-        const isCvcValid = cvc.length === 3;
-
-        // 이름은 최소 2자 이상
-        const isNameValid = name.trim().length >= 2;
-
-        return isNumberValid && isExpiryValid && isCvcValid && isNameValid;
-    };
 
     // 운영 시간 추출 함수
     const getPlaceOperatingHours = (place: any) => {
+        // 먼저 실제 파트너십 데이터에서 영업시간 확인
+        if (place && partnerships.length > 0) {
+            const partnership = partnerships.find(p => 
+                p.businessName === place.place_name && 
+                p.address === place.address_name
+            );
+            
+            if (partnership) {
+                // 24시간 영업인 경우
+                if (partnership.is24Hours) {
+                    return {
+                        start: "00:00",
+                        end: "23:59"
+                    };
+                }
+                
+                // 영업시간이 설정되어 있는 경우
+                if (partnership.businessHours && Object.keys(partnership.businessHours).length > 0) {
+                    // 현재 요일 또는 첫 번째 영업일의 시간 사용
+                    const today = new Date().getDay(); // 0: 일요일, 1: 월요일, ...
+                    const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+                    const todayName = dayNames[today];
+                    
+                    // 오늘의 영업시간이 있으면 사용
+                    if (partnership.businessHours[todayName] && partnership.businessHours[todayName].enabled) {
+                        return {
+                            start: partnership.businessHours[todayName].open,
+                            end: partnership.businessHours[todayName].close
+                        };
+                    }
+                    
+                    // 오늘 영업하지 않으면 첫 번째 영업일의 시간 사용
+                    for (const dayName of dayNames) {
+                        const dayHours = partnership.businessHours[dayName];
+                        if (dayHours && dayHours.enabled) {
+                            return {
+                                start: dayHours.open,
+                                end: dayHours.close
+                            };
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 파트너십 데이터가 없는 경우 기존 로직 사용 (카테고리 기반)
         if (place.category_group_code === "BK9") {
             return {
                 start: "09:00",
@@ -1196,9 +1834,73 @@ const Map = () => {
         };
     };
 
+    // 선택된 날짜가 휴무인지 확인하는 함수
+    const isClosedOnDate = (dateStr: string) => {
+        if (!selectedPlace || !partnerships.length || !dateStr) {
+            return false;
+        }
+
+        const partnership = partnerships.find(p => 
+            p.businessName === selectedPlace.place_name && 
+            p.address === selectedPlace.address_name
+        );
+
+        if (!partnership || partnership.is24Hours) {
+            return false; // 24시간 영업이면 휴무일 없음
+        }
+
+        if (!partnership.businessHours || Object.keys(partnership.businessHours).length === 0) {
+            return false; // 영업시간 정보가 없으면 휴무일 아님
+        }
+
+        // 선택된 날짜의 요일 확인 - 시간대 문제 해결을 위해 로컬 날짜로 파싱
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const selectedDate = new Date(year, month - 1, day); // month는 0부터 시작하므로 -1
+        const dayOfWeek = selectedDate.getDay(); // 0: 일요일, 1: 월요일, ...
+        const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+        const dayName = dayNames[dayOfWeek];
+
+        // 디버깅을 위한 로그
+        console.log('날짜 체크:', {
+            dateStr,
+            selectedDate: selectedDate.toDateString(),
+            dayOfWeek,
+            dayName,
+            businessHours: partnership.businessHours,
+            dayHours: partnership.businessHours[dayName],
+            isEnabled: partnership.businessHours[dayName]?.enabled
+        });
+
+        const dayHours = partnership.businessHours[dayName];
+        
+        // businessHours가 문자열 형태인지 객체 형태인지 확인
+        if (typeof dayHours === 'string') {
+            // 문자열 형태면 영업시간이 설정되어 있으므로 영업일
+            return false;
+        } else if (typeof dayHours === 'object' && dayHours !== null) {
+            // 객체 형태면 enabled 속성 확인
+            return !dayHours.enabled;
+        } else {
+            // dayHours가 없으면 휴무일
+            return true;
+        }
+    };
+
     // 시간대 유효성 검사 함수
     const validateStorageTime = () => {
         if (!selectedPlace || !storageStartTime || !storageEndTime) {
+            setIsTimeValid(false);
+            return false;
+        }
+
+        // 휴무일 체크
+        if (isClosedOnDate(storageDate)) {
+            setIsTimeValid(false);
+            return false;
+        }
+
+        // 기간 보관의 경우 종료일도 체크
+        if (storageDuration === "period" && storageEndDate && isClosedOnDate(storageEndDate)) {
             setIsTimeValid(false);
             return false;
         }
@@ -1230,7 +1932,7 @@ const Map = () => {
         if (selectedPlace && storageStartTime && storageEndTime) {
             validateStorageTime();
         }
-    }, [selectedPlace, storageStartTime, storageEndTime]);
+    }, [selectedPlace, storageStartTime, storageEndTime, storageDate, storageEndDate, partnerships]);
 
     // 날짜 포맷 함수
     const formatReservationDate = (dateStr: string) => {
@@ -1286,11 +1988,62 @@ const Map = () => {
 
     // 예약 번호 생성 함수
     const generateReservationNumber = () => {
-        const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const datePart = new Date().getTime().toString().slice(-6);
-        return `${randomPart}-${datePart}`;
+        const timestamp = Date.now().toString();
+        return `TL${timestamp.slice(-8)}`;
     };
-    
+
+    // 포트원 결제 ID 생성 함수
+    const generatePortonePaymentId = () => {
+        return [...crypto.getRandomValues(new Uint32Array(2))]
+            .map((word) => word.toString(16).padStart(8, "0"))
+            .join("");
+    };
+
+    // 결제 폼 유효성 검사 함수
+    const isPaymentFormValid = () => {
+        if (!selectedPlace) {
+            setReservationError('장소를 선택해주세요.');
+            return false;
+        }
+
+        if (!storageDate) {
+            setReservationError('보관 날짜를 선택해주세요.');
+            return false;
+        }
+
+        if (!storageStartTime) {
+            setReservationError('보관 시작 시간을 선택해주세요.');
+            return false;
+        }
+
+        if (!storageEndTime) {
+            setReservationError('보관 종료 시간을 선택해주세요.');
+            return false;
+        }
+
+        if (storageDuration === "period" && !storageEndDate) {
+            setReservationError('보관 종료 날짜를 선택해주세요.');
+            return false;
+        }
+
+        if (bagSizes.small === 0 && bagSizes.medium === 0 && bagSizes.large === 0) {
+            setReservationError('최소 1개 이상의 가방을 선택해주세요.');
+            return false;
+        }
+
+        if (totalPrice <= 0) {
+            setReservationError('결제 금액이 올바르지 않습니다.');
+            return false;
+        }
+
+        if (!user) {
+            setReservationError('로그인이 필요합니다.');
+            return false;
+        }
+
+        return true;
+    };
+
     // 예약 정보를 서버로 전송하는 함수
     const submitReservation = async () => {
         if (!isAuthenticated || !user) {
@@ -1298,94 +2051,512 @@ const Map = () => {
             setReservationError(t('loginRequiredMessage'));
             return false;
         }
-        
+
+        // 보관 가능한 개수 검증 (실시간 용량 기반)
+        if (bagSizes.small > realTimeCapacity.small ||
+            bagSizes.medium > realTimeCapacity.medium ||
+            bagSizes.large > realTimeCapacity.large) {
+            setReservationError('선택한 짐의 개수가 매장의 보관 가능한 개수를 초과했습니다.');
+            return false;
+        }
+
         try {
             const reservationNumber = generateReservationNumber();
-            
+
             // 사용자 정보 확인
             console.log("현재 로그인된 사용자 정보:", user);
-            
+
+            // 필수 데이터 검증
+            if (!selectedPlace) {
+                setReservationError('선택된 장소가 없습니다.');
+                return false;
+            }
+
+            if (!storageDate || !storageStartTime || !storageEndTime) {
+                setReservationError('보관 날짜와 시간을 모두 선택해주세요.');
+                return false;
+            }
+
             // 날짜 형식 변환 (yyyy-MM-dd)
             const formatDateForServer = (dateString: string) => {
-                const date = new Date(dateString);
-                return date.toISOString().split('T')[0]; // yyyy-MM-dd 형식으로 변환
+                try {
+                    const date = new Date(dateString);
+                    if (isNaN(date.getTime())) {
+                        throw new Error('Invalid date');
+                    }
+                    return date.toISOString().split('T')[0]; // yyyy-MM-dd 형식으로 변환
+                } catch (error) {
+                    console.error('날짜 형식 변환 오류:', dateString, error);
+                    return dateString; // 원본 반환
+                }
             };
-            
+
             // 시간 형식 변환 (HH:mm:ss)
             const formatTimeForServer = (timeString: string) => {
                 // 이미 HH:mm 형식이면 :00 초를 추가
-                return timeString + ":00";
+                if (timeString && !timeString.includes(':00')) {
+                    return timeString + ":00";
+                }
+                return timeString;
             };
-            
+
             // 예약 데이터 구성
             const reservationData = {
                 userId: typeof user.id === 'string' ? parseInt(user.id, 10) : user.id,
-                userEmail: user.email,
-                userName: user.name,
-                placeName: selectedPlace.place_name,
-                placeAddress: selectedPlace.address_name,
+                userEmail: user.email || '',
+                userName: user.name || '',
+                placeName: selectedPlace.place_name || '',
+                placeAddress: selectedPlace.address_name || '',
                 reservationNumber: reservationNumber,
                 storageDate: formatDateForServer(storageDate),
-                storageEndDate: storageDuration === "period" ? formatDateForServer(storageEndDate) : formatDateForServer(storageDate),
+                storageEndDate: storageDuration === "period" && storageEndDate ? 
+                    formatDateForServer(storageEndDate) : formatDateForServer(storageDate),
                 storageStartTime: formatTimeForServer(storageStartTime),
                 storageEndTime: formatTimeForServer(storageEndTime),
-                smallBags: bagSizes.small,
-                mediumBags: bagSizes.medium,
-                largeBags: bagSizes.large,
-                totalPrice: totalPrice,
-                storageType: storageDuration,
+                smallBags: bagSizes.small || 0,
+                mediumBags: bagSizes.medium || 0,
+                largeBags: bagSizes.large || 0,
+                totalPrice: totalPrice || 0,
+                storageType: storageDuration || 'daily',
                 status: "RESERVED"
             };
-            
+
+            // 데이터 검증 로그
+            console.log("=== 예약 데이터 검증 ===");
+            console.log("userId:", reservationData.userId, typeof reservationData.userId);
+            console.log("userEmail:", reservationData.userEmail);
+            console.log("userName:", reservationData.userName);
+            console.log("placeName:", reservationData.placeName);
+            console.log("placeAddress:", reservationData.placeAddress);
+            console.log("storageDate:", reservationData.storageDate);
+            console.log("storageEndDate:", reservationData.storageEndDate);
+            console.log("storageStartTime:", reservationData.storageStartTime);
+            console.log("storageEndTime:", reservationData.storageEndTime);
+            console.log("totalPrice:", reservationData.totalPrice);
+            console.log("=========================");
+
             console.log("예약 데이터 전송:", reservationData);
-            
+
             // 백엔드 서버 주소로 직접 호출
-            const response = await axios.post('http://localhost:8080/api/reservations', reservationData);
-            
+            const response = await axios.post('http://localhost:8080/api/reservations', reservationData, {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                timeout: 10000 // 10초 타임아웃
+            });
+
             console.log("예약 저장 성공:", response.data);
             setSubmittedReservation(response.data);
             setReservationSuccess(true);
             return true;
-            
+
         } catch (error) {
             console.error("Error while saving reservation:", error);
-            
+
             if (axios.isAxiosError(error) && error.response) {
-                console.error("Server response error:", error.response.data);
-                setReservationError(t('reservationSaveError') + ': ' + JSON.stringify(error.response.data));
+                console.error("=== 서버 응답 오류 상세 정보 ===");
+                console.error("Status:", error.response.status);
+                console.error("Status Text:", error.response.statusText);
+                console.error("Response Data:", error.response.data);
+                console.error("Response Headers:", error.response.headers);
+                console.error("================================");
+                
+                // 서버에서 반환한 구체적인 오류 메시지 표시
+                const errorMessage = error.response.data?.message || 
+                                   error.response.data?.error || 
+                                   JSON.stringify(error.response.data);
+                setReservationError(`예약 저장 실패 (${error.response.status}): ${errorMessage}`);
+            } else if (axios.isAxiosError(error) && error.request) {
+                console.error("네트워크 오류:", error.request);
+                setReservationError('서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.');
             } else {
+                console.error("기타 오류:", error.message);
                 setReservationError(t('reservationSaveErrorRetry'));
             }
             
             return false;
         }
     };
-    
-    // Modified: Submit reservation data to server when payment is completed
-    const completePayment = async () => {
-        if (isPaymentFormValid()) {
-            try {
-                // 결제 진행 상태 활성화
-                setIsProcessingPayment(true);
-                
-                // 약간의 지연 시간을 두어 UX 향상
-                const result = await submitReservation();
-                
-                if (result) {
-                    // Payment and reservation success
-                    setIsPaymentComplete(true);
-                    setIsPaymentOpen(false);
-                    
-                    // 여기서 예약 완료 후 다른 장소를 선택하지 못하도록 설정
-                    // 결제 완료 시 검색 결과 및 지도 상태를 초기화하지만, selectedPlace는 유지
-                    setSearchResults([]);
+
+    // 선택된 매장의 보관 가능한 개수 정보를 가져오는 함수
+    const getSelectedStoreCapacity = () => {
+        if (!selectedPlace || !partnerships.length) {
+            return { small: 0, medium: 0, large: 0 };
+        }
+
+        // 선택된 장소가 제휴점인지 확인
+        const partnership = partnerships.find(p =>
+            p.businessName === selectedPlace.place_name &&
+            p.address === selectedPlace.address_name
+        );
+
+        if (partnership) {
+            return {
+                small: partnership.smallBagsAvailable || 0,
+                medium: partnership.mediumBagsAvailable || 0,
+                large: partnership.largeBagsAvailable || 0
+            };
+        }
+
+        return { small: 0, medium: 0, large: 0 };
+    };
+
+    // 실시간 보관 가능한 용량 조회 함수
+    const fetchRealTimeCapacity = async (businessName: string, address: string) => {
+        try {
+            const response = await axios.get('/api/partnership/available-capacity', {
+                params: {
+                    businessName: businessName,
+                    address: address
                 }
-            } catch (error) {
-                console.error("결제 처리 중 오류 발생:", error);
-            } finally {
-                // 결제 진행 상태 비활성화
-                setIsProcessingPayment(false);
+            });
+
+            if (response.data && response.data.success) {
+                return response.data.data.availableCapacity;
             }
+        } catch (error) {
+            console.error('실시간 용량 조회 중 오류:', error);
+        }
+
+        return { smallBags: 0, mediumBags: 0, largeBags: 0 };
+    };
+
+    // 실시간 용량을 기반으로 보관 가능한 개수 정보를 가져오는 함수
+    const getRealTimeStoreCapacity = async () => {
+        if (!selectedPlace) {
+            return { small: 0, medium: 0, large: 0 };
+        }
+
+        const capacity = await fetchRealTimeCapacity(selectedPlace.place_name, selectedPlace.address_name);
+        return {
+            small: capacity.smallBags || 0,
+            medium: capacity.mediumBags || 0,
+            large: capacity.largeBags || 0
+        };
+    };
+
+    // 보관 가능한 개수를 초과했는지 확인하는 함수 (실시간 용량 기반)
+    const isCapacityExceeded = async (bagType: 'small' | 'medium' | 'large', increment: number = 0) => {
+        const capacity = await getRealTimeStoreCapacity();
+        const currentCount = bagSizes[bagType] + increment;
+        return currentCount > capacity[bagType];
+    };
+
+    // 보관 가능한 개수 정보를 표시하는 함수 (실시간 용량 기반)
+    const getCapacityText = async (bagType: 'small' | 'medium' | 'large') => {
+        const capacity = await getRealTimeStoreCapacity();
+        const available = capacity[bagType] - bagSizes[bagType];
+        return available > 0 ? `(${available}개 보관 가능)` : '(보관 불가)';
+    };
+
+    // 선택된 매장이 변경될 때 실시간 용량 업데이트
+    useEffect(() => {
+        const updateRealTimeCapacity = async () => {
+            if (selectedPlace) {
+                const capacity = await fetchRealTimeCapacity(selectedPlace.place_name, selectedPlace.address_name);
+                setRealTimeCapacity({
+                    small: capacity.smallBags || 0,
+                    medium: capacity.mediumBags || 0,
+                    large: capacity.largeBags || 0
+                });
+            } else {
+                setRealTimeCapacity({small: 0, medium: 0, large: 0});
+            }
+        };
+
+        updateRealTimeCapacity();
+    }, [selectedPlace]);
+
+    // 보관 가능한 개수를 초과했는지 확인하는 함수 (동기적)
+    const isCapacityExceededSync = (bagType: 'small' | 'medium' | 'large', increment: number = 0) => {
+        const currentCount = bagSizes[bagType] + increment;
+        return currentCount > realTimeCapacity[bagType];
+    };
+
+    // 보관 가능한 개수 정보를 표시하는 함수 (동기적)
+    const getCapacityTextSync = (bagType: 'small' | 'medium' | 'large') => {
+        const available = realTimeCapacity[bagType] - bagSizes[bagType];
+        return available > 0 ? `(${available}개 보관 가능)` : '(보관 불가)';
+    };
+
+    // 장소 검색 함수 추가 (랜드마크, 지하철역 등을 검색하기 위함)
+    const searchPlacesByKeyword = (keyword: string) => {
+        console.log('장소 검색 시도:', keyword);
+
+        if (!window.naver || !window.naver.maps || !window.naver.maps.Service) {
+            console.error('네이버 지도 서비스가 초기화되지 않았습니다.');
+            alert('지도 서비스가 준비되지 않았습니다. 페이지를 새로고침해주세요.');
+            return;
+        }
+
+        const placesSearchOptions = {
+            query: keyword,
+            displayCount: 1 // 첫 번째 결과만 필요
+        };
+
+        // 네이버 지도 장소 검색 API 사용
+        try {
+            // Places는 생성자가 아니라 네임스페이스이므로 직접 search 메서드 호출
+            window.naver.maps.Service.Places.search(placesSearchOptions, (status: any, response: any) => {
+                console.log('장소 검색 API 응답:', status);
+                console.log('장소 검색 응답 데이터:', response);
+
+                if (status === window.naver.maps.Service.Status.OK) {
+                    if (response && response.v1 && response.v1.items && response.v1.items.length > 0) {
+                        const firstPlace = response.v1.items[0];
+                        console.log('검색된 장소:', firstPlace);
+
+                        if (firstPlace.mapx && firstPlace.mapy) {
+                            // 네이버 지도 API의 좌표체계 변환 필요
+                            // UTM-K 좌표를 WGS84 좌표로 변환
+                            const utmk = new window.naver.maps.Point(firstPlace.mapx, firstPlace.mapy);
+                            const latLng = window.naver.maps.TransCoord.utmkToLatLng(utmk);
+
+                            console.log('변환된 좌표:', latLng.lat(), latLng.lng());
+                            moveToLocation(latLng.lat(), latLng.lng());
+                            searchNearbyPartnerships(latLng.lat(), latLng.lng(), firstPlace.address || '');
+                        } else {
+                            console.error('장소 좌표 정보 없음:', firstPlace);
+                            alert('검색 결과에 위치 정보가 없습니다. 다른 검색어를 시도해보세요.');
+                        }
+                    } else {
+                        console.error('장소 검색 결과 없음');
+                        alert('검색 결과가 없습니다. 다른 검색어를 시도해보세요.');
+                    }
+                } else {
+                    console.error('장소 검색 실패:', status);
+                    alert('검색 결과가 없습니다. 다른 검색어를 시도해보세요.');
+                }
+            });
+        } catch (error) {
+            console.error('장소 검색 중 오류 발생:', error);
+            alert('검색 중 오류가 발생했습니다. 다른 검색어를 시도해보세요.');
+        }
+    };
+
+    // 지도 이동 함수 분리
+    const moveToLocation = (lat: number, lng: number) => {
+        if (!mapInstance) {
+            console.error('지도 인스턴스가 없습니다.');
+            return;
+        }
+
+        try {
+            const moveLatLng = new window.naver.maps.LatLng(lat, lng);
+            console.log('이동할 좌표:', lat, lng);
+
+            // 부드러운 이동 처리
+            const currentZoom = mapInstance.getZoom();
+            console.log('현재 줌 레벨:', currentZoom);
+
+            // 1단계: 먼저 위치 이동
+            console.log('지도 중심 이동 시도');
+            mapInstance.setCenter(moveLatLng);
+            console.log('지도 중심 이동 완료');
+
+            // 2단계: 이동 후 애니메이션 효과 (줌 아웃 후 줌 인)
+            setTimeout(() => {
+                try {
+                    // 줌 아웃
+                    console.log('줌 아웃 시도');
+                    mapInstance.setZoom(currentZoom - 1);
+                    console.log('줌 아웃 완료');
+
+                    // 잠시 후 다시 원래 줌으로
+                    setTimeout(() => {
+                        try {
+                            console.log('줌 인 시도');
+                            mapInstance.setZoom(currentZoom);
+                            console.log('줌 인 완료');
+                        } catch (error) {
+                            console.error('줌 인 중 오류:', error);
+                        }
+                    }, 250);
+                } catch (error) {
+                    console.error('줌 아웃 중 오류:', error);
+                }
+            }, 50);
+        } catch (error) {
+            console.error('지도 이동 중 오류:', error);
+        }
+    };
+
+    // 근처 제휴점 검색 함수 분리
+    const searchNearbyPartnerships = (lat: number, lng: number, address: string) => {
+        // 검색 결과를 partnerships에서 필터링 (주소 기반으로만)
+        const nearbyPartnerships = partnerships.filter(p => {
+            // 주소의 일부가 검색 결과와 일치하는지 확인
+            const addressMatch = address ?
+                p.address.includes(address) || address.includes(p.address) : false;
+
+            // 검색 지역 근처 5km 이내의 매장 포함
+            const distanceMatch = calculateDistance(lat, lng, p.latitude, p.longitude) < 5;
+
+            return addressMatch || distanceMatch;
+        });
+
+        console.log('근처 제휴점 검색 결과:', nearbyPartnerships.length);
+
+        // partnerships를 place 형식으로 변환하여 검색 결과에 추가
+        const convertedPlaces = nearbyPartnerships.map(p => ({
+            place_name: p.businessName,
+            address_name: p.address,
+            phone: p.phone,
+            category_group_code: getCategoryCodeFromBusinessType(p.businessType),
+            x: p.longitude.toString(),
+            y: p.latitude.toString(),
+            opening_hours: p.is24Hours ? "24시간 영업" : formatBusinessHours(p.businessHours)
+        }));
+
+        // 시간에 따른 필터링
+        const timeFilteredPlaces = filterPlacesByTime(convertedPlaces, startTime, endTime);
+        setSearchResults(timeFilteredPlaces);
+        setSelectedPlace(null);
+
+        // 검색 결과가 없어도 지도는 이동
+        if (timeFilteredPlaces.length === 0) {
+            console.log('검색된 지역 근처에 제휴 매장이 없습니다.');
+        }
+    };
+
+    // 포트원 결제 완료 처리 함수
+    const completePayment = async () => {
+        // 결제 정보 유효성 검사
+        if (!isPaymentFormValid()) {
+            return;
+        }
+
+        if (!selectedPlace || totalPrice <= 0) {
+            setReservationError('결제 정보가 올바르지 않습니다.');
+            return;
+        }
+
+        try {
+            setIsProcessingPayment(true);
+
+            const paymentId = generatePortonePaymentId();
+
+            console.log('=== 포트원 결제 시작 ===');
+            console.log('결제 ID:', paymentId);
+            console.log('결제 금액:', totalPrice);
+            console.log('========================');
+
+            // 포트원 결제 요청
+            const payment = await PortOne.requestPayment({
+                storeId: "store-ef16a71d-87cc-4e73-a6b8-448a8b07840d", // 환경변수 또는 기본값
+                channelKey: "channel-key-7ecba580-a8c1-4834-904f-fdc9150a0ce4",
+                paymentId,
+                orderName: `${selectedPlace.place_name} 짐보관 서비스`,
+                totalAmount: totalPrice,
+                currency: "KRW" as any, // 타입 오류 임시 해결
+                payMethod: "CARD",
+                customer: {
+                    fullName: user?.name || "고객",
+                    email: user?.email || "",
+                },
+                customData: {
+                    reservationData: {
+                        userId: user?.id,
+                        placeName: selectedPlace.place_name,
+                        placeAddress: selectedPlace.address_name,
+                        storageDate: storageDate,
+                        storageEndDate: storageDuration === "period" ? storageEndDate : storageDate,
+                        storageStartTime: storageStartTime,
+                        storageEndTime: storageEndTime,
+                        smallBags: bagSizes.small,
+                        mediumBags: bagSizes.medium,
+                        largeBags: bagSizes.large,
+                        totalPrice: totalPrice,
+                        storageType: storageDuration
+                    }
+                } as any, // 타입 오류 임시 해결
+            });
+
+            console.log('=== 포트원 결제 응답 ===');
+            console.log('결제 결과:', payment);
+            console.log('========================');
+
+            if (payment.code !== undefined) {
+                // 결제 실패
+                console.error('결제 실패:', payment.code, payment.message);
+                setReservationError(`결제 실패: ${payment.message}`);
+                setIsProcessingPayment(false);
+                return;
+            }
+
+            console.log('=== 결제 성공, 검증 시작 ===');
+
+            // 결제 성공 시 백엔드에 결제 완료 요청
+            const completeResponse = await fetch('/api/payment/portone/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    paymentId: payment.paymentId,
+                }),
+            });
+
+            if (completeResponse.ok) {
+                const paymentComplete = await completeResponse.json();
+                console.log('결제 검증 결과:', paymentComplete);
+                
+                if (paymentComplete.status === 'PAID') {
+                    console.log('=== 결제 검증 성공, 예약 저장 시작 ===');
+                    
+                    // 결제 검증 성공 후에만 예약 정보 저장
+                    const reservationResult = await submitReservation();
+                    if (reservationResult) {
+                        console.log('=== 예약 저장 성공, 결제 완료 ===');
+                        
+                        setIsPaymentComplete(true);
+                        setIsPaymentOpen(false);
+
+                        // 예약 완료 후 제휴점 데이터 새로고침하여 보관 용량 업데이트
+                        try {
+                            const response = await axios.get('/api/partnership', { timeout: 5000 });
+                            if (response.data && response.data.success) {
+                                const partnershipData = response.data.data.filter((partnership: Partnership) => partnership.status === 'APPROVED');
+                                setPartnerships(partnershipData);
+
+                                // 현재 선택된 장소의 업데이트된 정보로 교체
+                                if (selectedPlace) {
+                                    const updatedPartnership = partnershipData.find((p: Partnership) =>
+                                        p.businessName === selectedPlace.place_name &&
+                                        p.address === selectedPlace.address_name
+                                    );
+                                    if (updatedPartnership) {
+                                        const updatedPlace = {
+                                            ...selectedPlace,
+                                            smallBagsAvailable: updatedPartnership.smallBagsAvailable,
+                                            mediumBagsAvailable: updatedPartnership.mediumBagsAvailable,
+                                            largeBagsAvailable: updatedPartnership.largeBagsAvailable
+                                        };
+                                        setSelectedPlace(updatedPlace);
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error('제휴점 데이터 새로고침 중 오류:', error);
+                        }
+
+                        setSearchResults([]);
+                    } else {
+                        setReservationError('예약 저장에 실패했습니다.');
+                    }
+                } else {
+                    setReservationError('결제 검증에 실패했습니다.');
+                }
+            } else {
+                const errorText = await completeResponse.text();
+                setReservationError(`결제 완료 처리 실패: ${errorText}`);
+            }
+
+        } catch (error) {
+            console.error('포트원 결제 처리 중 오류:', error);
+            setReservationError('결제 처리 중 오류가 발생했습니다.');
+        } finally {
+            setIsProcessingPayment(false);
         }
     };
 
@@ -1708,7 +2879,7 @@ const Map = () => {
                                             fontSize: '14px',
                                             fontWeight: 500
                                         }}
-                                        className={`business-type-${selectedPlace.business_type}`}
+                                             className={`business-type-${selectedPlace.business_type}`}
                                         >
                                             {selectedPlace.business_type}
                                         </Box>
@@ -1836,7 +3007,7 @@ const Map = () => {
                                                             animation: 'spinClockwise 1.2s linear infinite'
                                                         }}
                                                     />
-                                                    
+
                                                     {/* 두 번째 원 */}
                                                     <Box
                                                         sx={{
@@ -1851,7 +3022,7 @@ const Map = () => {
                                                             animation: 'spinCounterClockwise 1.8s linear infinite'
                                                         }}
                                                     />
-                                                    
+
                                                     {/* 세 번째 원 */}
                                                     <Box
                                                         sx={{
@@ -1866,7 +3037,7 @@ const Map = () => {
                                                             animation: 'spinClockwise 1.5s linear infinite'
                                                         }}
                                                     />
-                                                    
+
                                                     {/* 애니메이션 키프레임 스타일 */}
                                                     <Box
                                                         sx={{
@@ -1881,7 +3052,7 @@ const Map = () => {
                                                         }}
                                                     />
                                                 </Box>
-                                                
+
                                                 {/* 텍스트 메시지 */}
                                                 <Typography
                                                     sx={{
@@ -1961,143 +3132,106 @@ const Map = () => {
                                         {t('paymentAmount')}{totalPrice.toLocaleString()}{t('won')}
                                     </Typography>
 
-                                    {/* 카드 정보 입력 폼 */}
-                                    <Box component="form" sx={{mb: 3}}>
-                                        <Typography sx={{fontWeight: 500, mb: 2}}>
-                                            {t('enterCardInfo')}
+                                    {/* 포트원 결제 안내 */}
+                                    <Box sx={{
+                                        backgroundColor: '#f0f5ff',
+                                        p: 3,
+                                        borderRadius: '16px',
+                                        mb: 3,
+                                        textAlign: 'center'
+                                    }}>
+                                        <Box sx={{
+                                            width: '48px',
+                                            height: '48px',
+                                            borderRadius: '50%',
+                                            backgroundColor: '#1a73e8',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            margin: '0 auto 16px auto'
+                                        }}>
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                                <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                                            </svg>
+                                        </Box>
+                                        <Typography sx={{
+                                            fontWeight: 600,
+                                            color: '#1a73e8',
+                                            mb: 1,
+                                            fontSize: '16px'
+                                        }}>
+                                            안전한 포트원 결제
                                         </Typography>
-
-                                        {/* 카드 번호 */}
-                                        <Box sx={{mb: 2}}>
-                                            <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                {t('cardNumber')}
-                                            </Typography>
-                                            <TextField
-                                                fullWidth
-                                                placeholder="0000 0000 0000 0000"
-                                                value={cardInfo.number}
-                                                onChange={(e) => {
-                                                    // 숫자와 공백만 허용
-                                                    const value = e.target.value.replace(/[^\d\s]/g, '');
-                                                    // 4자리마다 공백 추가
-                                                    const formatted = value
-                                                        .replace(/\s/g, '')
-                                                        .replace(/(\d{4})/g, '$1 ')
-                                                        .trim();
-                                                    // 19자리(16자리 숫자 + 3개 공백)로 제한
-                                                    if (formatted.length <= 19) {
-                                                        setCardInfo({...cardInfo, number: formatted});
-                                                    }
-                                                }}
-                                                sx={{
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: '12px',
-                                                        backgroundColor: 'white',
-                                                    }
-                                                }}
-                                                inputProps={{inputMode: 'numeric'}}
-                                            />
-                                        </Box>
-
-                                        {/* 만료일과 CVC를 한 줄에 */}
-                                        <Box sx={{display: 'flex', gap: 2, mb: 2}}>
-                                            <Box sx={{flex: 1}}>
-                                                <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                    {t('expiryDate')}
-                                                </Typography>
-                                                <TextField
-                                                    fullWidth
-                                                    placeholder="MM/YY"
-                                                    value={cardInfo.expiry}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/[^\d]/g, '');
-                                                        let formatted = value;
-
-                                                        // MM 값이 12를 넘지 않도록 검증
-                                                        if (value.length >= 2) {
-                                                            const month = parseInt(value.substring(0, 2));
-                                                            if (month > 12) {
-                                                                formatted = '12' + value.substring(2);
-                                                            }
-                                                            formatted = formatted.substring(0, 2) + '/' + formatted.substring(2, 4);
-                                                        }
-
-                                                        // 5자리(MM/YY)로 제한
-                                                        if (formatted.length <= 5) {
-                                                            setCardInfo({...cardInfo, expiry: formatted});
-                                                        }
-                                                    }}
-                                                    sx={{
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: '12px',
-                                                            backgroundColor: 'white',
-                                                        }
-                                                    }}
-                                                    inputProps={{inputMode: 'numeric'}}
-                                                />
-                                            </Box>
-                                            <Box sx={{flex: 1}}>
-                                                <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                    CVC
-                                                </Typography>
-                                                <TextField
-                                                    fullWidth
-                                                    placeholder="000"
-                                                    value={cardInfo.cvc}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value.replace(/[^\d]/g, '');
-                                                        if (value.length <= 3) {
-                                                            setCardInfo({...cardInfo, cvc: value});
-                                                        }
-                                                    }}
-                                                    sx={{
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: '12px',
-                                                            backgroundColor: 'white',
-                                                        }
-                                                    }}
-                                                    inputProps={{inputMode: 'numeric'}}
-                                                />
-                                            </Box>
-                                        </Box>
-
-                                        {/* 카드 소유자 이름 */}
-                                        <Box sx={{mb: 3}}>
-                                            <Typography sx={{fontSize: '14px', mb: 1, color: 'text.secondary'}}>
-                                                {t('cardholderName')}
-                                            </Typography>
-                                            <TextField
-                                                fullWidth
-                                                placeholder={t('cardholderNamePlaceholder')}
-                                                value={cardInfo.name}
-                                                onChange={(e) => {
-                                                    // 숫자와 특수문자를 제외한 문자만 허용 (한글, 영문, 공백만 가능)
-                                                    const onlyLettersAndSpace = e.target.value.replace(/[^가-힣a-zA-Z\s]/g, '');
-                                                    setCardInfo({...cardInfo, name: onlyLettersAndSpace});
-                                                }}
-                                                sx={{
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: '12px',
-                                                        backgroundColor: 'white',
-                                                    }
-                                                }}
-                                            />
-                                        </Box>
+                                        <Typography sx={{
+                                            color: '#666',
+                                            fontSize: '14px',
+                                            lineHeight: 1.5
+                                        }}>
+                                            카드, 계좌이체, 간편결제 등<br/>
+                                            다양한 결제 수단을 지원합니다
+                                        </Typography>
                                     </Box>
 
-                                    {/* 약관 동의 */}
+                                    {/* 결제 정보 요약 */}
                                     <Box sx={{
                                         backgroundColor: 'rgba(0, 0, 0, 0.03)',
-                                        p: 2,
+                                        p: 2.5,
                                         borderRadius: '12px',
-                                        mb: 3,
-                                        fontSize: '13px',
-                                        color: 'text.secondary'
+                                        mb: 3
                                     }}>
-                                        {t('termsAgreement')}
+                                        <Typography sx={{
+                                            fontSize: '14px',
+                                            fontWeight: 500,
+                                            mb: 2,
+                                            color: '#333'
+                                        }}>
+                                            결제 정보
+                                        </Typography>
+
+                                        <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
+                                            <Typography sx={{fontSize: '13px', color: 'text.secondary'}}>
+                                                보관 장소
+                                            </Typography>
+                                            <Typography sx={{fontSize: '13px', fontWeight: 500}}>
+                                                {selectedPlace.place_name}
+                                            </Typography>
+                                        </Box>
+
+                                        <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
+                                            <Typography sx={{fontSize: '13px', color: 'text.secondary'}}>
+                                                보관 기간
+                                            </Typography>
+                                            <Typography sx={{fontSize: '13px', fontWeight: 500}}>
+                                                {calculateStorageTimeText()}
+                                            </Typography>
+                                        </Box>
+
+                                        <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
+                                            <Typography sx={{fontSize: '13px', color: 'text.secondary'}}>
+                                                보관 짐
+                                            </Typography>
+                                            <Typography sx={{fontSize: '13px', fontWeight: 500}}>
+                                                {getBagSummary()}
+                                            </Typography>
+                                        </Box>
+
+                                        <Box sx={{
+                                            borderTop: '1px solid rgba(0, 0, 0, 0.1)',
+                                            pt: 1.5,
+                                            mt: 1.5,
+                                            display: 'flex',
+                                            justifyContent: 'space-between'
+                                        }}>
+                                            <Typography sx={{fontSize: '14px', fontWeight: 600}}>
+                                                총 결제금액
+                                            </Typography>
+                                            <Typography sx={{fontSize: '16px', fontWeight: 600, color: '#1a73e8'}}>
+                                                {totalPrice.toLocaleString()}원
+                                            </Typography>
+                                        </Box>
                                     </Box>
 
-                                    {/* 결제 완료 버튼 */}
+                                    {/* 포트원 결제 버튼 */}
                                     <Button
                                         variant="contained"
                                         fullWidth
@@ -2117,24 +3251,24 @@ const Map = () => {
                                             overflow: 'hidden',
                                             transition: 'all 0.3s ease',
                                         }}
-                                        disabled={!isPaymentFormValid() || isProcessingPayment}
+                                        disabled={isProcessingPayment || totalPrice <= 0}
                                         onClick={completePayment}
                                     >
                                         {isProcessingPayment ? (
-                                            <Box sx={{ 
-                                                display: 'flex', 
-                                                alignItems: 'center', 
+                                            <Box sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
                                                 justifyContent: 'center',
                                                 gap: 1.5,
                                                 position: 'relative'
                                             }}>
-                                                <Box 
+                                                <Box
                                                     sx={{
                                                         display: 'flex',
                                                         gap: 0.5
                                                     }}
                                                 >
-                                                    <Box 
+                                                    <Box
                                                         sx={{
                                                             width: '8px',
                                                             height: '8px',
@@ -2154,7 +3288,7 @@ const Map = () => {
                                                             }
                                                         }}
                                                     />
-                                                    <Box 
+                                                    <Box
                                                         sx={{
                                                             width: '8px',
                                                             height: '8px',
@@ -2164,7 +3298,7 @@ const Map = () => {
                                                             animationDelay: '0.3s'
                                                         }}
                                                     />
-                                                    <Box 
+                                                    <Box
                                                         sx={{
                                                             width: '8px',
                                                             height: '8px',
@@ -2176,13 +3310,20 @@ const Map = () => {
                                                     />
                                                 </Box>
                                                 <Typography sx={{ fontWeight: 500, fontSize: '14px' }}>
-                                                    {t('processing')}...
+                                                    결제 진행 중...
                                                 </Typography>
                                             </Box>
                                         ) : (
-                                            `${totalPrice.toLocaleString()}${t('won')} ${t('pay')}`
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                                                    <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                                                </svg>
+                                                <Typography sx={{ fontWeight: 500, fontSize: '16px' }}>
+                                                    {totalPrice.toLocaleString()}원 결제하기
+                                                </Typography>
+                                            </Box>
                                         )}
-                                        
+
                                         {/* 물결 효과 */}
                                         {isProcessingPayment && (
                                             <Box
@@ -2364,12 +3505,6 @@ const Map = () => {
                                                 large: 0
                                             });
                                             setTotalPrice(0);
-                                            setCardInfo({
-                                                number: '',
-                                                expiry: '',
-                                                cvc: '',
-                                                name: ''
-                                            });
                                             // 검색 결과도 초기화
                                             setSearchResults([]);
                                             setSearchKeyword("");
@@ -2444,6 +3579,9 @@ const Map = () => {
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
                                                 3,000{t('dayPerPrice')}
                                             </Typography>
+                                            <Typography sx={{color: 'text.secondary', fontSize: '12px', mt: 0.5}}>
+                                                {getCapacityTextSync('small')}
+                                            </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
                                             <Button
@@ -2475,24 +3613,31 @@ const Map = () => {
                                                 {bagSizes.small}
                                             </Typography>
                                             <Button
+                                                disabled={isCapacityExceededSync('small', 1)}
                                                 sx={{
                                                     minWidth: 'auto',
                                                     width: '32px',
                                                     height: '32px',
                                                     borderRadius: '50%',
-                                                    backgroundColor: '#f0f2f5',
-                                                    color: 'text.primary',
+                                                    backgroundColor: isCapacityExceededSync('small', 1) ? '#e0e0e0' : '#f0f2f5',
+                                                    color: isCapacityExceededSync('small', 1) ? '#999' : 'text.primary',
                                                     '&:hover': {
-                                                        backgroundColor: '#e4e6e9'
+                                                        backgroundColor: isCapacityExceededSync('small', 1) ? '#e0e0e0' : '#e4e6e9'
                                                     },
                                                     '&:focus': {
                                                         outline: 'none'
+                                                    },
+                                                    '&.Mui-disabled': {
+                                                        backgroundColor: '#e0e0e0',
+                                                        color: '#999'
                                                     }
                                                 }}
                                                 onClick={() => {
-                                                    const newBagSizes = {...bagSizes, small: bagSizes.small + 1};
-                                                    setBagSizes(newBagSizes);
-                                                    setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    if (!isCapacityExceededSync('small', 1)) {
+                                                        const newBagSizes = {...bagSizes, small: bagSizes.small + 1};
+                                                        setBagSizes(newBagSizes);
+                                                        setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    }
                                                 }}
                                             >
                                                 +
@@ -2518,6 +3663,9 @@ const Map = () => {
                                             </Typography>
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
                                                 5,000{t('dayPerPrice')}
+                                            </Typography>
+                                            <Typography sx={{color: 'text.secondary', fontSize: '12px', mt: 0.5}}>
+                                                {getCapacityTextSync('medium')}
                                             </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
@@ -2550,24 +3698,31 @@ const Map = () => {
                                                 {bagSizes.medium}
                                             </Typography>
                                             <Button
+                                                disabled={isCapacityExceededSync('medium', 1)}
                                                 sx={{
                                                     minWidth: 'auto',
                                                     width: '32px',
                                                     height: '32px',
                                                     borderRadius: '50%',
-                                                    backgroundColor: '#f0f2f5',
-                                                    color: 'text.primary',
+                                                    backgroundColor: isCapacityExceededSync('medium', 1) ? '#e0e0e0' : '#f0f2f5',
+                                                    color: isCapacityExceededSync('medium', 1) ? '#999' : 'text.primary',
                                                     '&:hover': {
-                                                        backgroundColor: '#e4e6e9'
+                                                        backgroundColor: isCapacityExceededSync('medium', 1) ? '#e0e0e0' : '#e4e6e9'
                                                     },
                                                     '&:focus': {
                                                         outline: 'none'
+                                                    },
+                                                    '&.Mui-disabled': {
+                                                        backgroundColor: '#e0e0e0',
+                                                        color: '#999'
                                                     }
                                                 }}
                                                 onClick={() => {
-                                                    const newBagSizes = {...bagSizes, medium: bagSizes.medium + 1};
-                                                    setBagSizes(newBagSizes);
-                                                    setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    if (!isCapacityExceededSync('medium', 1)) {
+                                                        const newBagSizes = {...bagSizes, medium: bagSizes.medium + 1};
+                                                        setBagSizes(newBagSizes);
+                                                        setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    }
                                                 }}
                                             >
                                                 +
@@ -2593,6 +3748,9 @@ const Map = () => {
                                             </Typography>
                                             <Typography sx={{color: 'primary.main', fontWeight: 500, mt: 0.5}}>
                                                 8,000{t('dayPerPrice')}
+                                            </Typography>
+                                            <Typography sx={{color: 'text.secondary', fontSize: '12px', mt: 0.5}}>
+                                                {getCapacityTextSync('large')}
                                             </Typography>
                                         </Box>
                                         <Box sx={{display: 'flex', alignItems: 'center'}}>
@@ -2625,24 +3783,31 @@ const Map = () => {
                                                 {bagSizes.large}
                                             </Typography>
                                             <Button
+                                                disabled={isCapacityExceededSync('large', 1)}
                                                 sx={{
                                                     minWidth: 'auto',
                                                     width: '32px',
                                                     height: '32px',
                                                     borderRadius: '50%',
-                                                    backgroundColor: '#f0f2f5',
-                                                    color: 'text.primary',
+                                                    backgroundColor: isCapacityExceededSync('large', 1) ? '#e0e0e0' : '#f0f2f5',
+                                                    color: isCapacityExceededSync('large', 1) ? '#999' : 'text.primary',
                                                     '&:hover': {
-                                                        backgroundColor: '#e4e6e9'
+                                                        backgroundColor: isCapacityExceededSync('large', 1) ? '#e0e0e0' : '#e4e6e9'
                                                     },
                                                     '&:focus': {
                                                         outline: 'none'
+                                                    },
+                                                    '&.Mui-disabled': {
+                                                        backgroundColor: '#e0e0e0',
+                                                        color: '#999'
                                                     }
                                                 }}
                                                 onClick={() => {
-                                                    const newBagSizes = {...bagSizes, large: bagSizes.large + 1};
-                                                    setBagSizes(newBagSizes);
-                                                    setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    if (!isCapacityExceededSync('large', 1)) {
+                                                        const newBagSizes = {...bagSizes, large: bagSizes.large + 1};
+                                                        setBagSizes(newBagSizes);
+                                                        setTotalPrice(calculateTotalPrice(newBagSizes));
+                                                    }
                                                 }}
                                             >
                                                 +
@@ -2726,16 +3891,16 @@ const Map = () => {
                                                             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
                                                         },
                                                         '& .MuiOutlinedInput-notchedOutline': {
-                                                            borderColor: 'transparent'
+                                                            borderColor: isClosedOnDate(storageDate) ? '#e53935' : 'transparent'
                                                         },
                                                         '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                            borderColor: '#1a73e8',
+                                                            borderColor: isClosedOnDate(storageDate) ? '#e53935' : '#1a73e8',
                                                             borderWidth: '1px'
                                                         }
                                                     },
                                                     '& .MuiInputBase-input': {
                                                         padding: '14px 16px',
-                                                        color: '#333',
+                                                        color: isClosedOnDate(storageDate) ? '#e53935' : '#333',
                                                         '&::-webkit-calendar-picker-indicator': {
                                                             filter: 'invert(0.5)',
                                                             cursor: 'pointer'
@@ -2749,6 +3914,24 @@ const Map = () => {
                                                     shrink: true,
                                                 }}
                                             />
+                                            {/* 휴무일 경고 메시지 */}
+                                            {storageDate && isClosedOnDate(storageDate) && (
+                                                <Typography sx={{
+                                                    fontSize: '12px',
+                                                    color: '#e53935',
+                                                    mt: 1,
+                                                    pl: 1,
+                                                    fontWeight: 500,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 0.5
+                                                }}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#e53935">
+                                                        <path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z" />
+                                                    </svg>
+                                                    선택한 날짜는 매장 휴무일입니다
+                                                </Typography>
+                                            )}
                                         </Box>
 
                                         {/* 기간 보관일 경우 종료 날짜도 표시 */}
@@ -2777,16 +3960,16 @@ const Map = () => {
                                                                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
                                                             },
                                                             '& .MuiOutlinedInput-notchedOutline': {
-                                                                borderColor: 'transparent'
+                                                                borderColor: isClosedOnDate(storageEndDate) ? '#e53935' : 'transparent'
                                                             },
                                                             '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                                borderColor: '#1a73e8',
+                                                                borderColor: isClosedOnDate(storageEndDate) ? '#e53935' : '#1a73e8',
                                                                 borderWidth: '1px'
                                                             }
                                                         },
                                                         '& .MuiInputBase-input': {
                                                             padding: '14px 16px',
-                                                            color: '#333',
+                                                            color: isClosedOnDate(storageEndDate) ? '#e53935' : '#333',
                                                             '&::-webkit-calendar-picker-indicator': {
                                                                 filter: 'invert(0.5)',
                                                                 cursor: 'pointer'
@@ -2800,6 +3983,24 @@ const Map = () => {
                                                         shrink: true,
                                                     }}
                                                 />
+                                                {/* 종료일 휴무일 경고 메시지 */}
+                                                {storageEndDate && isClosedOnDate(storageEndDate) && (
+                                                    <Typography sx={{
+                                                        fontSize: '12px',
+                                                        color: '#e53935',
+                                                        mt: 1,
+                                                        pl: 1,
+                                                        fontWeight: 500,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 0.5
+                                                    }}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#e53935">
+                                                            <path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z" />
+                                                        </svg>
+                                                        선택한 종료일은 매장 휴무일입니다
+                                                    </Typography>
+                                                )}
                                             </Box>
                                         )}
 
@@ -2951,13 +4152,17 @@ const Map = () => {
                                             fontWeight: isTimeValid ? 'normal' : 500
                                         }}>
                                             {selectedPlace
-                                                ? t('operatingHoursFormat', { 
-                                                    0: getPlaceOperatingHours(selectedPlace).start, 
-                                                    1: getPlaceOperatingHours(selectedPlace).end 
-                                                  }).replace('%s', getPlaceOperatingHours(selectedPlace).start)
+                                                ? t('operatingHoursFormat', {
+                                                    0: getPlaceOperatingHours(selectedPlace).start,
+                                                    1: getPlaceOperatingHours(selectedPlace).end
+                                                }).replace('%s', getPlaceOperatingHours(selectedPlace).start)
                                                     .replace('%s', getPlaceOperatingHours(selectedPlace).end)
                                                 : t('operatingHoursDefault')}
-                                            {!isTimeValid && t('operatingHoursWarning')}
+                                            {!isTimeValid && (
+                                                isClosedOnDate(storageDate) || (storageDuration === "period" && isClosedOnDate(storageEndDate))
+                                                    ? ' (선택한 날짜는 휴무일입니다)'
+                                                    : t('operatingHoursWarning')
+                                            )}
                                         </Typography>
                                     </Box>
 
@@ -3031,7 +4236,9 @@ const Map = () => {
                                             !storageEndTime ||
                                             (storageDuration === "period" && !storageEndDate) ||
                                             !selectedPlace ||
-                                            !isTimeValid
+                                            !isTimeValid ||
+                                            isClosedOnDate(storageDate) ||
+                                            (storageDuration === "period" && storageEndDate && isClosedOnDate(storageEndDate))
                                         }
                                         sx={{
                                             backgroundColor: '#1a73e8',
@@ -3046,7 +4253,7 @@ const Map = () => {
                                             transition: 'background-color 0.2s ease'
                                         }}
                                         onClick={() => {
-                                            if (totalPrice > 0 && isTimeValid && storageDate && storageStartTime && storageEndTime && (storageDuration !== "period" || storageEndDate)) {
+                                            if (totalPrice > 0 && isTimeValid && storageDate && storageStartTime && storageEndTime && (storageDuration !== "period" || storageEndDate) && !isClosedOnDate(storageDate) && !(storageDuration === "period" && storageEndDate && isClosedOnDate(storageEndDate))) {
                                                 if (!isAuthenticated) {
                                                     setReservationError(t('loginRequiredMessage'));
                                                 } else {
@@ -3057,11 +4264,13 @@ const Map = () => {
                                     >
                                         {!isAuthenticated
                                             ? t('loginRequired')
-                                            : !isTimeValid
-                                                ? t('setWithinOperatingHours')
-                                                : (!storageDate || !storageStartTime || !storageEndTime || (storageDuration === "period" && !storageEndDate))
-                                                    ? t('selectAllDateAndTime')
-                                                    : t('pay')}
+                                            : isClosedOnDate(storageDate) || (storageDuration === "period" && storageEndDate && isClosedOnDate(storageEndDate))
+                                                ? '선택한 날짜는 휴무일입니다'
+                                                : !isTimeValid
+                                                    ? t('setWithinOperatingHours')
+                                                    : (!storageDate || !storageStartTime || !storageEndTime || (storageDuration === "period" && !storageEndDate))
+                                                        ? t('selectAllDateAndTime')
+                                                        : t('pay')}
                                     </Button>
                                 </Box>
                             )}
@@ -3093,7 +4302,7 @@ const Map = () => {
                                         if (isPaymentComplete) {
                                             return;
                                         }
-                                        
+
                                         setSelectedPlace(place);
                                         const moveLatLng = new window.naver.maps.LatLng(place.y, place.x);
                                         mapInstance?.setCenter(moveLatLng);
@@ -3185,15 +4394,15 @@ const Map = () => {
             </Button>
 
             {/* 에러 메시지 스낵바 */}
-            <Snackbar 
-                open={!!reservationError} 
-                autoHideDuration={6000} 
+            <Snackbar
+                open={!!reservationError}
+                autoHideDuration={6000}
                 onClose={() => setReservationError("")}
                 anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             >
-                <Alert 
-                    onClose={() => setReservationError("")} 
-                    severity="error" 
+                <Alert
+                    onClose={() => setReservationError("")}
+                    severity="error"
                     sx={{ width: '100%' }}
                 >
                     {reservationError}
@@ -3227,9 +4436,9 @@ const Map = () => {
                                     {place.place_name}
                                 </Typography>
                                 {place.business_type && (
-                                    <Typography 
+                                    <Typography
                                         sx={{
-                                            borderRadius: '10px', 
+                                            borderRadius: '10px',
                                             padding: '2px 6px',
                                             display: 'inline-block',
                                             fontSize: '12px',
@@ -3248,12 +4457,12 @@ const Map = () => {
                                     {place.phone || t('noPhoneNumber')}
                                 </Typography>
                                 <Typography variant="body2" sx={{color: place.opening_hours?.includes('24시간') ? 'success.main' : 'text.secondary', mt: 0.5}}>
-                                    {place.opening_hours || 
-                                        (place.category_group_code === "BK9" ? 
-                                            t('bankHours') : 
-                                            place.category_group_code === "CS2" ? 
-                                                t('storeHours') : 
-                                                t('noOpeningHours')
+                                    {place.opening_hours ||
+                                        (place.category_group_code === "BK9" ?
+                                                t('bankHours') :
+                                                place.category_group_code === "CS2" ?
+                                                    t('storeHours') :
+                                                    t('noOpeningHours')
                                         )
                                     }
                                 </Typography>

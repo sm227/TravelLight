@@ -464,7 +464,10 @@ const PartnerSignup: React.FC = () => {
         additionalInfo: `소형 캐리어: ${formData.storageCapacity.small}개, 중형 캐리어: ${formData.storageCapacity.medium}개, 대형 캐리어: ${formData.storageCapacity.large}개`,
         agreeTerms: formData.agreeTerms,
         is24Hours: formData.is24Hours,
-        businessHours: formatBusinessHours()
+        businessHours: formatBusinessHours(),
+        smallBagsAvailable: formData.storageCapacity.small,
+        mediumBagsAvailable: formData.storageCapacity.medium,
+        largeBagsAvailable: formData.storageCapacity.large
       };
 
       console.log('서버로 전송할 데이터:', requestData);

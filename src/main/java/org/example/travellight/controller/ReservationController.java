@@ -64,4 +64,12 @@ public class ReservationController {
         List<ReservationDto> reservations = reservationService.getReservationsByPlaceName(placeName);
         return ResponseEntity.ok(reservations);
     }
+    
+    // 관리자 대시보드를 위한 최근 예약 조회
+    @GetMapping("/recent")
+    public ResponseEntity<List<ReservationDto>> getRecentReservations(
+            @RequestParam(defaultValue = "10") int limit) {
+        List<ReservationDto> reservations = reservationService.getRecentReservations(limit);
+        return ResponseEntity.ok(reservations);
+    }
 } 
