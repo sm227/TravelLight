@@ -2138,7 +2138,7 @@ const Map = () => {
             console.log("예약 데이터 전송:", reservationData);
 
             // 백엔드 서버 주소로 직접 호출
-            const response = await axios.post('http://localhost:8080/api/reservations', reservationData, {
+            const response = await axios.post('http://52.79.53.239:8080/api/reservations', reservationData, {
                 headers: {
                     'Content-Type': 'application/json',
                 },
