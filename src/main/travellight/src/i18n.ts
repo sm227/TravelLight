@@ -361,7 +361,7 @@ const resources = {
       selectAllDateAndTime: '날짜와 시간을 모두 선택해주세요',
       storeLocation: '매장 위치',
       won: '원',
-      storageEndDate: 'End date',
+      storageEndDate: '종료 날짜',
       operatingHoursDefault: '* Operating hours: 09:00 ~ 18:00',
       operatingHoursWarning: ' (운영 시간 내로 설정해주세요)',
       setWithinOperatingHours: '운영 시간 내로 설정해주세요',
