@@ -238,6 +238,20 @@ public class PartnershipController {
         }
     }
 
+    // 한글 요일을 영어 요일로 변환하는 유틸리티 메서드 추가
+    private String convertDayToEnglish(String koreanDay) {
+        switch (koreanDay) {
+            case "월": return "MONDAY";
+            case "화": return "TUESDAY";
+            case "수": return "WEDNESDAY";
+            case "목": return "THURSDAY";
+            case "금": return "FRIDAY";
+            case "토": return "SATURDAY";
+            case "일": return "SUNDAY";
+            default: return koreanDay; // 이미 영어인 경우 그대로 반환
+        }
+    }
+
     @Operation(summary = "제휴점 영업시간 업데이트", description = "제휴점의 영업시간을 업데이트합니다.")
     @PutMapping("/{id}/business-hours")
     public ResponseEntity<?> updateBusinessHours(
@@ -270,21 +284,32 @@ public class PartnershipController {
             if (businessHours != null) {
                 Map<String, String> formattedBusinessHours = new HashMap<>();
                 
-                for (Map.Entry<String, Map<String, Object>> entry : businessHours.entrySet()) {
-                    String day = entry.getKey();
-                    Map<String, Object> dayHours = entry.getValue();
-                    
-                    // 해당 요일이 활성화되었는지 확인
-                    Boolean enabled = (Boolean) dayHours.get("enabled");
-                    String open = (String) dayHours.get("open");
-                    String close = (String) dayHours.get("close");
-                    
-                    // 로깅 추가
-                    System.out.println("Day: " + day + ", Enabled: " + enabled + ", Open: " + open + ", Close: " + close);
-                    
-                    // 활성화된 요일만 시간 포맷
-                    if (Boolean.TRUE.equals(enabled)) {
-                        formattedBusinessHours.put(day, open + "-" + close);
+                // 24시간 영업인 경우 모든 요일을 '24시간'으로 설정
+                if (Boolean.TRUE.equals(is24Hours)) {
+                    formattedBusinessHours.put("MONDAY", "24시간");
+                    formattedBusinessHours.put("TUESDAY", "24시간");
+                    formattedBusinessHours.put("WEDNESDAY", "24시간");
+                    formattedBusinessHours.put("THURSDAY", "24시간");
+                    formattedBusinessHours.put("FRIDAY", "24시간");
+                    formattedBusinessHours.put("SATURDAY", "24시간");
+                    formattedBusinessHours.put("SUNDAY", "24시간");
+                } else {
+                    for (Map.Entry<String, Map<String, Object>> entry : businessHours.entrySet()) {
+                        String day = convertDayToEnglish(entry.getKey());
+                        Map<String, Object> dayHours = entry.getValue();
+                        
+                        // 해당 요일이 활성화되었는지 확인
+                        Boolean enabled = (Boolean) dayHours.get("enabled");
+                        String open = (String) dayHours.get("open");
+                        String close = (String) dayHours.get("close");
+                        
+                        // 로깅 추가
+                        System.out.println("Day: " + day + ", Enabled: " + enabled + ", Open: " + open + ", Close: " + close);
+                        
+                        // 활성화된 요일만 시간 포맷
+                        if (Boolean.TRUE.equals(enabled)) {
+                            formattedBusinessHours.put(day, open + "-" + close);
+                        }
                     }
                 }
 
