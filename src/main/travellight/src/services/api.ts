@@ -206,7 +206,58 @@ export const partnershipService = {
       console.error('배달 요청 중 오류 발생:', error);
       throw error;
     }
-  }
+  },
+  
+  // 보관 용량 업데이트 추가
+  updateBusinessHours: async (
+    id: number, 
+    businessHours: Record<string, BusinessHourDto>,
+    is24Hours: boolean
+  ): Promise<ApiResponse<string>> => {
+    // 시간 형식 변환 함수 추가
+    const formatTime = (time: string): string => {
+      // "오후 6시" 형식의 시간을 "18:00" 형식으로 변환
+      const timeRegex = /([오전오후])\s*(\d+)시/;
+      const match = time.match(timeRegex);
+      
+      if (!match) return time; // 형식에 맞지 않으면 원래 값 반환
+      
+      const [, period, hourStr] = match;
+      let hour = parseInt(hourStr);
+      
+      // 오후인 경우 12를 더하고, 12시는 예외 처리
+      if (period === '오후' && hour !== 12) {
+        hour += 12;
+      }
+      // 오전 12시는 0으로 변환
+      if (period === '오전' && hour === 12) {
+        hour = 0;
+      }
+      
+      return `${hour.toString().padStart(2, '0')}:00`;
+    };
+
+    // 데이터 형식 변환
+    const formattedBusinessHours = Object.entries(businessHours).reduce((acc, [day, hours]) => {
+      acc[day] = {
+        enabled: hours.enabled,
+        open: formatTime(hours.open),
+        close: formatTime(hours.close)
+      };
+      return acc;
+    }, {} as Record<string, { enabled: boolean; open: string; close: string }>);
+
+    try {
+      const response = await api.put<ApiResponse<string>>(`/partnership/${id}/business-hours`, {
+        businessHours: formattedBusinessHours,
+        is24Hours
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Business hours update error:', error);
+      throw error;
+    }
+  },
 };
 
 export default api;
