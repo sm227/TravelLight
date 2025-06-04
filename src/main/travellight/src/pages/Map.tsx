@@ -236,6 +236,32 @@ const Map = () => {
     "23:30",
   ];
 
+  // 현재 시간 이후의 시간 옵션만 필터링하는 함수
+  const getAvailableStartTimeOptions = (selectedDate: string) => {
+    if (!selectedDate) return timeOptions;
+    
+    const today = new Date();
+    const selectedDateObj = new Date(selectedDate);
+    
+    // 선택한 날짜가 오늘이 아니면 모든 시간 옵션 반환
+    if (selectedDateObj.toDateString() !== today.toDateString()) {
+      return timeOptions;
+    }
+    
+    // 오늘 날짜인 경우, 현재 시간 이후의 시간만 반환
+    const currentHours = today.getHours();
+    const currentMinutes = today.getMinutes();
+    
+    // 현재 시간을 30분 단위로 반올림하여 다음 가능한 시간 계산
+    const roundedMinutes = Math.ceil(currentMinutes / 30) * 30;
+    const adjustedHours = roundedMinutes === 60 ? currentHours + 1 : currentHours;
+    const adjustedMinutes = roundedMinutes === 60 ? 0 : roundedMinutes;
+    
+    const currentTimeString = `${adjustedHours.toString().padStart(2, "0")}:${adjustedMinutes.toString().padStart(2, "0")}`;
+    
+    return timeOptions.filter(time => time >= currentTimeString);
+  };
+
   // Hero 컴포넌트에서 전달받은 상태 확인
   const {
     searchQuery = "",
@@ -2275,10 +2301,13 @@ const Map = () => {
       if (storageDuration === "day") {
         return `${year}${t("year")} ${month}${t("month")} ${day}${t("day")}`;
       } else {
+        const [endYear, endMonth, endDay] = storageEndDate ? storageEndDate.split("-") : ["", "", ""];
+        
         if (!storageEndDate)
-          return `${year}${t("year")} ${month}${t("month")} ${day}${t("day")}`;
+          return `${year}${t("year")} ${month}${t("month")} ${day}${t(
+            "day"
+          )}`;
 
-        const [endYear, endMonth, endDay] = storageEndDate.split("-");
         return `${year}${t("year")} ${month}${t("month")} ${day}${t(
           "day"
         )} ~ ${endYear}${t("year")} ${endMonth}${t("month")} ${endDay}${t(
@@ -4811,7 +4840,7 @@ const Map = () => {
                               },
                             }}
                           >
-                            {timeOptions.map((time) => (
+                            {getAvailableStartTimeOptions(storageDate).map((time) => (
                               <Button
                                 key={`start-${time}`}
                                 variant={
@@ -4858,10 +4887,10 @@ const Map = () => {
                                     time >= storageEndTime
                                   ) {
                                     // 시작 시간보다 최소 30분 후를 종료 시간으로 설정
-                                    const timeIndex = timeOptions.indexOf(time);
-                                    if (timeIndex < timeOptions.length - 1) {
+                                    const timeIndex = getAvailableStartTimeOptions(storageDate).indexOf(time);
+                                    if (timeIndex < getAvailableStartTimeOptions(storageDate).length - 1) {
                                       setStorageEndTime(
-                                        timeOptions[timeIndex + 1]
+                                        getAvailableStartTimeOptions(storageDate)[timeIndex + 1]
                                       );
                                     }
                                   }
@@ -4965,18 +4994,7 @@ const Map = () => {
                       }}
                     >
                       {selectedPlace
-                        ? t("operatingHoursFormat", {
-                            0: getPlaceOperatingHours(selectedPlace).start,
-                            1: getPlaceOperatingHours(selectedPlace).end,
-                          })
-                            .replace(
-                              "%s",
-                              getPlaceOperatingHours(selectedPlace).start
-                            )
-                            .replace(
-                              "%s",
-                              getPlaceOperatingHours(selectedPlace).end
-                            )
+                        ? `운영시간: ${getPlaceOperatingHours(selectedPlace).start} - ${getPlaceOperatingHours(selectedPlace).end}`
                         : t("operatingHoursDefault")}
                       {!isTimeValid &&
                         (isClosedOnDate(storageDate) ||
