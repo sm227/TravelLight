@@ -196,6 +196,13 @@ const PartnerDashboard: React.FC = () => {
   });
   const [saving, setSaving] = useState(false);
 
+  // 영업시간 저장 관련 상태 추가
+  const [businessHoursSaveDialog, setBusinessHoursSaveDialog] = useState({
+    open: false,
+    success: true,
+    message: ''
+  });
+
   useEffect(() => {
     // 인증 및 권한 확인
     if (!isAuthenticated) {
@@ -650,21 +657,37 @@ const PartnerDashboard: React.FC = () => {
         is24HoursEdit
       );
       
-      alert('영업시간이 성공적으로 저장되었습니다.');
+      // 성공 다이얼로그 표시
+      setBusinessHoursSaveDialog({
+        open: true,
+        success: true,
+        message: '영업시간이 성공적으로 저장되었습니다.'
+      });
       
       // Refresh store list to get updated information
       await fetchStores();
     } catch (error) {
       console.error('Business hours save error:', error);
       console.error('Error response:', error.response?.data);
-      if (error.response?.status === 403) {
-        alert('권한이 없습니다. 로그인 상태를 확인해주세요.');
-      } else {
-        alert('저장 중 오류가 발생했습니다.');
-      }
+      
+      // 실패 다이얼로그 표시
+      const errorMessage = error.response?.status === 403 
+        ? '권한이 없습니다. 로그인 상태를 확인해주세요.' 
+        : '저장 중 오류가 발생했습니다.';
+      
+      setBusinessHoursSaveDialog({
+        open: true,
+        success: false,
+        message: errorMessage
+      });
     } finally {
       setSavingBusinessHours(false);
     }
+  };
+
+  // 다이얼로그 닫기 핸들러
+  const handleCloseBusinessHoursSaveDialog = () => {
+    setBusinessHoursSaveDialog(prev => ({ ...prev, open: false }));
   };
 
   if (loading) {
@@ -1397,6 +1420,29 @@ const PartnerDashboard: React.FC = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseDialog} color="primary">닫기</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+            open={businessHoursSaveDialog.open}
+            onClose={handleCloseBusinessHoursSaveDialog}
+            aria-labelledby="business-hours-save-dialog-title"
+        >
+          <DialogTitle id="business-hours-save-dialog-title">
+            {businessHoursSaveDialog.success ? '저장 성공' : '저장 실패'}
+          </DialogTitle>
+          <DialogContent>
+            <Typography 
+              variant="body1" 
+              color={businessHoursSaveDialog.success ? 'success.main' : 'error.main'}
+            >
+              {businessHoursSaveDialog.message}
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBusinessHoursSaveDialog} color="primary">
+              확인
+            </Button>
           </DialogActions>
         </Dialog>
       </Box>
