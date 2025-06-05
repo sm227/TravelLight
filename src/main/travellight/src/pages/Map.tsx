@@ -2511,9 +2511,9 @@ const Map = () => {
 
       console.log("예약 데이터 전송:", reservationData);
 
-      // 백엔드 서버 주소로 직접 호출
+      // 상대 경로로 변경하여 배포 환경에서도 동작하도록 수정
       const response = await axios.post(
-        "http://52.79.53.239:8080/api/reservations",
+        "/api/reservations",
         reservationData,
         {
           headers: {
@@ -2528,32 +2528,55 @@ const Map = () => {
       setReservationSuccess(true);
       return true;
     } catch (error) {
+      console.error("=== 예약 저장 중 오류 발생 ===");
       console.error("Error while saving reservation:", error);
 
-      if (axios.isAxiosError(error) && error.response) {
-        console.error("=== 서버 응답 오류 상세 정보 ===");
-        console.error("Status:", error.response.status);
-        console.error("Status Text:", error.response.statusText);
-        console.error("Response Data:", error.response.data);
-        console.error("Response Headers:", error.response.headers);
-        console.error("================================");
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          console.error("=== 서버 응답 오류 상세 정보 ===");
+          console.error("Status:", error.response.status);
+          console.error("Status Text:", error.response.statusText);
+          console.error("Response Data:", error.response.data);
+          console.error("Response Headers:", error.response.headers);
+          console.error("Request URL:", error.config?.url);
+          console.error("Request Method:", error.config?.method);
+          console.error("Request Data:", error.config?.data);
+          console.error("================================");
 
-        // 서버에서 반환한 구체적인 오류 메시지 표시
-        const errorMessage =
-          error.response.data?.message ||
-          error.response.data?.error ||
-          JSON.stringify(error.response.data);
-        setReservationError(
-          `예약 저장 실패 (${error.response.status}): ${errorMessage}`
-        );
-      } else if (axios.isAxiosError(error) && error.request) {
-        console.error("네트워크 오류:", error.request);
-        setReservationError(
-          "서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요."
-        );
+          // 서버에서 반환한 구체적인 오류 메시지 표시
+          const errorMessage =
+            error.response.data?.message ||
+            error.response.data?.error ||
+            JSON.stringify(error.response.data);
+          setReservationError(
+            `예약 저장 실패 (${error.response.status}): ${errorMessage}`
+          );
+        } else if (error.request) {
+          console.error("=== 네트워크 오류 상세 정보 ===");
+          console.error("Request:", error.request);
+          console.error("Code:", error.code);
+          console.error("Message:", error.message);
+          console.error("Config:", error.config);
+          console.error("===============================");
+          setReservationError(
+            "서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요."
+          );
+        } else {
+          console.error("=== 기타 Axios 오류 ===");
+          console.error("Message:", error.message);
+          console.error("Config:", error.config);
+          console.error("====================");
+          setReservationError(`예약 저장 중 오류: ${error.message}`);
+        }
       } else {
-        console.error("기타 오류:", error.message);
-        setReservationError(t("reservationSaveErrorRetry"));
+        console.error("=== 일반 오류 ===");
+        console.error("Error:", error);
+        console.error("Type:", typeof error);
+        console.error("Message:", error instanceof Error ? error.message : String(error));
+        console.error("================");
+        setReservationError(
+          error instanceof Error ? error.message : "예약 저장 중 알 수 없는 오류가 발생했습니다."
+        );
       }
 
       return false;
@@ -2933,7 +2956,9 @@ const Map = () => {
           console.log("=== 결제 검증 성공, 예약 저장 시작 ===");
 
           // 결제 검증 성공 후에만 예약 정보 저장
+          console.log("=== 예약 정보 저장 시작 ===");
           const reservationResult = await submitReservation();
+          console.log("예약 저장 결과:", reservationResult);
           if (reservationResult) {
             console.log("=== 예약 저장 성공, 결제 완료 ===");
 
