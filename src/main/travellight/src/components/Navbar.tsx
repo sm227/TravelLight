@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -13,7 +13,6 @@ import {
   MenuItem,
   Divider,
 } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
 import LuggageIcon from '@mui/icons-material/Luggage';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
@@ -27,6 +26,7 @@ import LanguageIcon from '@mui/icons-material/Language';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
+import CompleteHamburgerOverlayMenu from './CompleteHamburgerOverlayMenu';
 
 // 메뉴 스타일 정의
 const menuStyles = {
@@ -79,7 +79,6 @@ const Navbar: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [partnerMenuAnchorEl, setPartnerMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
-  const [overlayOpen, setOverlayOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user, isAuthenticated, isPartner, isWaiting, logout } = useAuth();
@@ -164,19 +163,35 @@ const Navbar: React.FC = () => {
     }
   };
 
-  const menuItems = [
-    { text: t('home'), href: '/#home' },
-    { text: t('services'), href: '/#services' },
-    { text: t('howItWorks'), onClick: navigateToFAQ },
-    { text: t('pricing'), href: '/#pricing' },
-    { text: t('partner'), onClick: navigateToPartner },
+  // 햄버거 메뉴 아이템 구성
+  const hamburgerMenuItems = [
+    { text: t('home'), href: '/#home', type: 'main' as const },
+    { text: t('services'), href: '/#services', type: 'main' as const },
+    { text: t('howItWorks'), onClick: navigateToFAQ, type: 'main' as const },
+    { text: t('pricing'), href: '/#pricing', type: 'main' as const },
+    { text: t('partner'), onClick: navigateToPartner, type: 'main' as const },
   ];
 
   const partnerSubMenuItems = [
-    { text: t('storageService'), onClick: navigateToStoragePartnership },
-    { text: t('eventStorage'), onClick: navigateToEventStorage },
-    { text: '1:1 문의', onClick: navigateToInquiry },
+    { text: t('storageService'), onClick: navigateToStoragePartnership, type: 'sub' as const },
+    { text: t('eventStorage'), onClick: navigateToEventStorage, type: 'sub' as const },
+    { text: '1:1 문의', onClick: navigateToInquiry, type: 'sub' as const },
   ];
+
+  // 모든 메뉴 아이템 통합 (SpacerDiv를 위해 특별 아이템 추가)
+  const allMenuItems = [
+    ...hamburgerMenuItems,
+    { text: '', type: 'spacer' as const, key: 'spacer' }, // 공간 구분자
+    ...partnerSubMenuItems
+  ];
+
+  const handleMenuItemClick = (item: any, index: number) => {
+    if (item.onClick) {
+      item.onClick();
+    } else if (item.href) {
+      window.location.href = item.href;
+    }
+  };
 
   const isMenuOpen = Boolean(anchorEl);
   const menuId = 'primary-search-account-menu';
@@ -219,9 +234,6 @@ const Navbar: React.FC = () => {
 
   const isLangMenuOpen = Boolean(langMenuAnchorEl);
 
-  const handleOverlayOpen = () => setOverlayOpen(true);
-  const handleOverlayClose = () => setOverlayOpen(false);
-
   return (
     <>
       <AppBar position="fixed" color="default" elevation={0} sx={{ backgroundColor: 'white' }}>
@@ -256,9 +268,15 @@ const Navbar: React.FC = () => {
                 onClick={handleLangMenuOpen}
                 color="primary"
                 size="small"
-                sx={{ mx: 1 }}
+                sx={{ 
+                  mx: 1,
+                  fontSize: '1.5rem',  // 이모지 크기 조정
+                  '&:hover': {
+                    backgroundColor: 'rgba(37, 99, 235, 0.04)'  // 호버 효과
+                  }
+                }}
               >
-                <TranslateIcon />
+                🌐
               </IconButton>
               
               {/* 사용자 아이콘 버튼 또는 사용자 이름 */}
@@ -289,16 +307,35 @@ const Navbar: React.FC = () => {
                 </IconButton>
               )}
               
-              {/* 햄버거 버튼 */}
-              <IconButton
-                color="inherit"
-                aria-label="open overlay menu"
-                edge="end"
-                onClick={handleOverlayOpen}
-                sx={{ display: 'flex', ml: 1 }}
-              >
-                <MenuIcon />
-              </IconButton>
+              {/* 🍔 완성된 햄버거 메뉴 */}
+              <CompleteHamburgerOverlayMenu
+                menuItems={allMenuItems}
+                title=""
+                slideDirection="right"
+                buttonPosition="relative"
+                showCloseButton={true}
+                onMenuItemClick={handleMenuItemClick}
+                customStyles={{
+                  overlay: {
+                    zIndex: 3000,
+                    backgroundColor: 'rgba(0, 0, 0, 0.10)'
+                  },
+                  panel: {
+                    padding: '60px 40px 40px 40px',
+                  },
+                  menuItem: {
+                    itemColor: '#2c3e50',
+                    itemHoverColor: '#3498db',
+                    subItemSize: '18px',
+                    itemSize: '26px',
+                    margin: '24px 0',
+                    subItemMargin: '18px 0 18px 20px',
+                    underlineColor: '#3498db',
+                    underlineHeight: '2px'
+                  }
+                }}
+                ariaLabel="메뉴"
+              />
             </Box>
           </Toolbar>
         </Container>
@@ -345,179 +382,7 @@ const Navbar: React.FC = () => {
           </MenuItem>
         </Menu>
       </AppBar>
-      {/* 오버레이 메뉴: 항상 DOM에 렌더링, 스타일로만 제어 */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          zIndex: 3000,
-          display: 'flex',
-          flexDirection: 'row',
-          pointerEvents: overlayOpen ? 'auto' : 'none',
-        }}
-      >
-        {/* 블러+반투명 배경 (메뉴 패널 제외 전체) */}
-        <div
-          onClick={overlayOpen ? handleOverlayClose : undefined}
-          style={{
-            flex: 1,
-            height: '100vh',
-            background: 'rgba(0,0,0,0.10)',
-            backdropFilter: overlayOpen ? 'blur(8px)' : 'none',
-            cursor: overlayOpen ? 'pointer' : 'default',
-            transition: 'backdrop-filter 0.4s, background 0.4s',
-            opacity: overlayOpen ? 1 : 0,
-            pointerEvents: overlayOpen ? 'auto' : 'none',
-          }}
-        />
-        {/* 오른쪽 메뉴 패널 */}
-        <div
-          style={{
-            width: 400,
-            maxWidth: '90vw',
-            height: '100vh',
-            background: 'rgba(255,255,255,1)',
-            boxShadow: '-2px 0 16px rgba(0,0,0,0.08)',
-            position: 'relative',
-            zIndex: 2,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            justifyContent: 'flex-start',
-            padding: '48px 40px',
-            transform: overlayOpen ? 'translateX(0)' : 'translateX(100%)',
-            transition: 'transform 0.4s cubic-bezier(.77,0,.18,1), opacity 0.3s',
-            opacity: overlayOpen ? 1 : 0,
-            pointerEvents: overlayOpen ? 'auto' : 'none',
-            flexShrink: 0,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-          }}
-        >
-          {/* 나가기 버튼 */}
-          <IconButton
-            onClick={handleOverlayClose}
-            sx={{
-              position: 'sticky',
-              top: 24,
-              right: 24,
-              width: 48,
-              height: 48,
-              zIndex: 10,
-              background: '#fff',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              '&:hover': { background: '#f5f5f5' },
-            }}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="11" fill="#f5f5f5" />
-              <line x1="8" y1="8" x2="16" y2="16" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
-              <line x1="16" y1="8" x2="8" y2="16" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </IconButton>
-          {/* 애니메이션 효과 유지 */}
-          <div style={{ marginTop: 40, width: '100%', maxWidth: 400, textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
-            {menuItems.map((item, idx) => (
-              <div
-                key={item.text}
-                style={{
-                  display: 'inline-block',
-                  fontSize: 28,
-                  fontWeight: 600,
-                  margin: '28px 0',
-                  opacity: overlayOpen ? 1 : 0,
-                  transform: overlayOpen ? 'translateY(0)' : 'translateY(30px)',
-                  transition: `opacity 0.4s ${idx * 0.05}s, transform 0.4s ${idx * 0.05}s`,
-                  cursor: 'pointer',
-                  position: 'relative',
-                  width: 'fit-content',
-                }}
-                onClick={() => {
-                  setOverlayOpen(false);
-                  if (item.onClick) {
-                    item.onClick();
-                  } else if (item.href) {
-                    window.location.href = item.href;
-                  }
-                }}
-                onMouseEnter={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(1)';
-                }}
-                onMouseLeave={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(0)';
-                }}
-              >
-                {item.text}
-                <div 
-                  className="menu-underline"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    bottom: 0,
-                    width: '100%',
-                    height: 2,
-                    background: '#222',
-                    transform: 'scaleX(0)',
-                    transformOrigin: 'left',
-                    transition: 'transform 0.3s'
-                  }}
-                />
-              </div>
-            ))}
-            <div style={{ height: 32 }} />
-            {partnerSubMenuItems.map((item, idx) => (
-              <div
-                key={item.text}
-                style={{
-                  display: 'inline-block',
-                  fontSize: 20,
-                  fontWeight: 400,
-                  margin: '16px 0',
-                  opacity: overlayOpen ? 1 : 0,
-                  transform: overlayOpen ? 'translateY(0)' : 'translateY(30px)',
-                  transition: `opacity 0.4s ${(menuItems.length + idx) * 0.05}s, transform 0.4s ${(menuItems.length + idx) * 0.05}s`,
-                  cursor: 'pointer',
-                  position: 'relative',
-                  width: 'fit-content'
-                }}
-                onClick={() => {
-                  setOverlayOpen(false);
-                  item.onClick();
-                }}
-                onMouseEnter={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(1)';
-                }}
-                onMouseLeave={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(0)';
-                }}
-              >
-                {item.text}
-                <div 
-                  className="menu-underline"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    bottom: 0,
-                    width: '100%',
-                    height: 2,
-                    background: '#222',
-                    transform: 'scaleX(0)',
-                    transformOrigin: 'left',
-                    transition: 'transform 0.3s'
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+
       <Box sx={{ height: '64px' }} /> {/* AppBar 높이만큼의 여백 추가 */}
     </>
   );

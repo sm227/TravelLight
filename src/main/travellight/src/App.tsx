@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import Carry from './pages/Carry';
 import Navbar from './components/Navbar';
+import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider } from './services/AuthContext';
 import './App.css';
 import AdminLogin from './pages/admin/AdminLogin';
@@ -271,6 +272,7 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
+          <ScrollToTop />
           <Routes>
             {/* 일반 사용자 라우트 */}
             <Route path="/" element={<Home />} />
