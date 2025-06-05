@@ -28,7 +28,10 @@ import {
   InputLabel,
   SelectChangeEvent,
   TextField,
-  LinearProgress
+  LinearProgress,
+  FormControlLabel,
+  Checkbox,
+  Box as MuiBox
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import StoreIcon from '@mui/icons-material/Store';
@@ -102,6 +105,12 @@ interface StorageUsage {
   };
 }
 
+interface BusinessHourDto {
+  enabled: boolean;
+  open: string;
+  close: string;
+}
+
 const PartnerDashboard: React.FC = () => {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -122,12 +131,77 @@ const PartnerDashboard: React.FC = () => {
   const [inUseCount, setInUseCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
 
+  // Add BusinessHourDto interface
+  interface BusinessHourDto {
+    enabled: boolean;
+    open: string;
+    close: string;
+  }
+
+  // Default business hours template (match the one in PartnerSignup)
+  const defaultBusinessHours: Record<string, BusinessHourDto> = {
+    MONDAY: { enabled: true, open: '09:00', close: '18:00' },
+    TUESDAY: { enabled: true, open: '09:00', close: '18:00' },
+    WEDNESDAY: { enabled: true, open: '09:00', close: '18:00' },
+    THURSDAY: { enabled: true, open: '09:00', close: '18:00' },
+    FRIDAY: { enabled: true, open: '09:00', close: '18:00' },
+    SATURDAY: { enabled: true, open: '10:00', close: '17:00' },
+    SUNDAY: { enabled: false, open: '10:00', close: '17:00' },
+  };
+
+  // Ensure type safety for business hours
+  const safeBusinessHourDto = (input: any, defaultDay: string = 'MONDAY'): BusinessHourDto => {
+    // If input is already a valid BusinessHourDto, return it
+    if (
+      input !== null && 
+      typeof input === 'object' && 
+      typeof input.enabled === 'boolean' && 
+      typeof input.open === 'string' && 
+      typeof input.close === 'string'
+    ) {
+      return input as BusinessHourDto;
+    }
+
+    // If input is not a valid object, return default for the specified day
+    return {
+      enabled: defaultBusinessHours[defaultDay].enabled,
+      open: defaultBusinessHours[defaultDay].open,
+      close: defaultBusinessHours[defaultDay].close
+    };
+  };
+
+  const [editBusinessHours, setEditBusinessHours] = useState<Record<string, BusinessHourDto>>(() => {
+    // Ensure the returned value is of type Record<string, BusinessHourDto>
+    const storeHours = selectedStore?.businessHours;
+    
+    // If storeHours is undefined or not in the correct format, return default
+    if (!storeHours) {
+      return defaultBusinessHours;
+    }
+
+    // Convert and validate business hours
+    return Object.keys(defaultBusinessHours).reduce((acc, day) => {
+      acc[day] = safeBusinessHourDto(storeHours[day], day);
+      return acc;
+    }, {} as Record<string, BusinessHourDto>);
+  });
+
+  const [is24HoursEdit, setIs24HoursEdit] = useState(selectedStore?.is24Hours || false);
+  const [savingBusinessHours, setSavingBusinessHours] = useState(false);
+
   const [editStorage, setEditStorage] = useState({
     small: selectedStore?.smallBagsAvailable ?? 0,
     medium: selectedStore?.mediumBagsAvailable ?? 0,
     large: selectedStore?.largeBagsAvailable ?? 0,
   });
   const [saving, setSaving] = useState(false);
+
+  // 영업시간 저장 관련 상태 추가
+  const [businessHoursSaveDialog, setBusinessHoursSaveDialog] = useState({
+    open: false,
+    success: true,
+    message: ''
+  });
 
   useEffect(() => {
     // 인증 및 권한 확인
@@ -497,6 +571,124 @@ const PartnerDashboard: React.FC = () => {
       fetchStorageUsage(selectedStore.id);
     }
   }, [selectedStore]);
+
+  // Update business hours state when store changes
+  useEffect(() => {
+    if (selectedStore) {
+      const newBusinessHours = selectedStore.businessHours || defaultBusinessHours;
+      
+      // Ensure the new business hours match the expected structure
+      const validatedBusinessHours = Object.keys(defaultBusinessHours).reduce((acc, day) => {
+        acc[day] = safeBusinessHourDto(newBusinessHours[day], day);
+        return acc;
+      }, {} as Record<string, BusinessHourDto>);
+
+      setEditBusinessHours(validatedBusinessHours);
+      setIs24HoursEdit(selectedStore.is24Hours || false);
+    }
+  }, [selectedStore]);
+
+  // Helper function to get day name
+  const getDayName = (day: string) => {
+    const dayNames: Record<string, string> = {
+      MONDAY: '월요일',
+      TUESDAY: '화요일',
+      WEDNESDAY: '수요일',
+      THURSDAY: '목요일',
+      FRIDAY: '금요일',
+      SATURDAY: '토요일',
+      SUNDAY: '일요일'
+    };
+    return dayNames[day] || day;
+  };
+
+  // Handle 24-hour toggle
+  const handleIs24HoursToggle = (checked: boolean) => {
+    setIs24HoursEdit(checked);
+
+    if (checked) {
+      // Set all days to 24 hours
+      const updatedBusinessHours: Record<string, BusinessHourDto> = {};
+      Object.keys(editBusinessHours).forEach(day => {
+        updatedBusinessHours[day] = {
+          ...editBusinessHours[day],
+          enabled: true,
+          open: '00:00',
+          close: '24:00'
+        };
+      });
+      setEditBusinessHours(updatedBusinessHours);
+    } else {
+      // Restore to default hours
+      setEditBusinessHours(defaultBusinessHours);
+    }
+  };
+
+  // Handle business hours change
+  const handleBusinessHourChange = (day: string, field: 'enabled' | 'open' | 'close', value: any) => {
+    const updatedBusinessHours = {
+      ...editBusinessHours,
+      [day]: {
+        ...editBusinessHours[day],
+        [field]: value
+      }
+    };
+    setEditBusinessHours(updatedBusinessHours);
+  };
+
+  // Save business hours
+  const handleSaveBusinessHours = async () => {
+    if (!selectedStore?.id) {
+      alert('매장 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    setSavingBusinessHours(true);
+    try {
+      // 디버깅을 위해 데이터 콘솔 출력
+      console.log('Store ID:', selectedStore.id);
+      console.log('Business Hours:', editBusinessHours);
+      console.log('Is 24 Hours:', is24HoursEdit);
+
+      // Use the new API method to update business hours
+      await partnershipService.updateBusinessHours(
+        selectedStore.id, 
+        editBusinessHours, 
+        is24HoursEdit
+      );
+      
+      // 성공 다이얼로그 표시
+      setBusinessHoursSaveDialog({
+        open: true,
+        success: true,
+        message: '영업시간이 성공적으로 저장되었습니다.'
+      });
+      
+      // Refresh store list to get updated information
+      await fetchStores();
+    } catch (error) {
+      console.error('Business hours save error:', error);
+      console.error('Error response:', error.response?.data);
+      
+      // 실패 다이얼로그 표시
+      const errorMessage = error.response?.status === 403 
+        ? '권한이 없습니다. 로그인 상태를 확인해주세요.' 
+        : '저장 중 오류가 발생했습니다.';
+      
+      setBusinessHoursSaveDialog({
+        open: true,
+        success: false,
+        message: errorMessage
+      });
+    } finally {
+      setSavingBusinessHours(false);
+    }
+  };
+
+  // 다이얼로그 닫기 핸들러
+  const handleCloseBusinessHoursSaveDialog = () => {
+    setBusinessHoursSaveDialog(prev => ({ ...prev, open: false }));
+  };
 
   if (loading) {
     return (
@@ -1050,7 +1242,10 @@ const PartnerDashboard: React.FC = () => {
               <Typography variant="h5" gutterBottom>
                 매장 설정
               </Typography>
-              <Grid container spacing={2}>
+              
+              {/* 보관 용량 설정 */}
+              <Typography variant="h6" sx={{ mb: 2 }}>보관 용량 설정</Typography>
+              <Grid container spacing={2} sx={{ mb: 4 }}>
                 <Grid item xs={4}>
                   <TextField
                     label="소형"
@@ -1079,11 +1274,101 @@ const PartnerDashboard: React.FC = () => {
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  <Button variant="contained" onClick={handleSaveStorage} disabled={saving}>
-                    저장하기
+                  <Button 
+                    variant="contained" 
+                    onClick={handleSaveStorage} 
+                    disabled={saving}
+                  >
+                    보관 용량 저장
                   </Button>
                 </Grid>
               </Grid>
+
+              {/* 영업시간 설정 */}
+              <Typography variant="h6" sx={{ mb: 2 }}>영업시간 설정</Typography>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={is24HoursEdit}
+                        onChange={(e) => handleIs24HoursToggle(e.target.checked)}
+                      />
+                    }
+                    label="24시간 영업"
+                  />
+                </Grid>
+              </Grid>
+
+              {!is24HoursEdit && (
+                <Grid container spacing={2}>
+                  {Object.keys(editBusinessHours).map((day) => (
+                    <Grid item xs={12} key={day}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 2, 
+                        mb: 2,
+                        p: 2,
+                        border: 1,
+                        borderColor: 'divider',
+                        borderRadius: 1
+                      }}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={editBusinessHours[day].enabled}
+                              onChange={(e) => handleBusinessHourChange(day, 'enabled', e.target.checked)}
+                            />
+                          }
+                          label={getDayName(day)}
+                          sx={{ minWidth: 100 }}
+                        />
+                        
+                        {editBusinessHours[day].enabled && (
+                          <>
+                            <TextField
+                              label="오픈 시간"
+                              type="time"
+                              value={editBusinessHours[day].open}
+                              onChange={(e) => handleBusinessHourChange(day, 'open', e.target.value)}
+                              InputLabelProps={{
+                                shrink: true,
+                              }}
+                              inputProps={{
+                                step: 300, // 5 min
+                              }}
+                              sx={{ flex: 1 }}
+                            />
+                            <TextField
+                              label="마감 시간"
+                              type="time"
+                              value={editBusinessHours[day].close}
+                              onChange={(e) => handleBusinessHourChange(day, 'close', e.target.value)}
+                              InputLabelProps={{
+                                shrink: true,
+                              }}
+                              inputProps={{
+                                step: 300, // 5 min
+                              }}
+                              sx={{ flex: 1 }}
+                            />
+                          </>
+                        )}
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+
+              <Button 
+                variant="contained" 
+                onClick={handleSaveBusinessHours} 
+                disabled={savingBusinessHours}
+                sx={{ mt: 2 }}
+              >
+                영업시간 저장
+              </Button>
             </Box>
           </TabPanel>
 
@@ -1135,6 +1420,29 @@ const PartnerDashboard: React.FC = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseDialog} color="primary">닫기</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+            open={businessHoursSaveDialog.open}
+            onClose={handleCloseBusinessHoursSaveDialog}
+            aria-labelledby="business-hours-save-dialog-title"
+        >
+          <DialogTitle id="business-hours-save-dialog-title">
+            {businessHoursSaveDialog.success ? '저장 성공' : '저장 실패'}
+          </DialogTitle>
+          <DialogContent>
+            <Typography 
+              variant="body1" 
+              color={businessHoursSaveDialog.success ? 'success.main' : 'error.main'}
+            >
+              {businessHoursSaveDialog.message}
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseBusinessHoursSaveDialog} color="primary">
+              확인
+            </Button>
           </DialogActions>
         </Dialog>
       </Box>

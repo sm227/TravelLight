@@ -237,4 +237,95 @@ public class PartnershipController {
                     .body(ApiResponse.error("보관함 현황 조회 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
+
+    // 한글 요일을 영어 요일로 변환하는 유틸리티 메서드 추가
+    private String convertDayToEnglish(String koreanDay) {
+        switch (koreanDay) {
+            case "월": return "MONDAY";
+            case "화": return "TUESDAY";
+            case "수": return "WEDNESDAY";
+            case "목": return "THURSDAY";
+            case "금": return "FRIDAY";
+            case "토": return "SATURDAY";
+            case "일": return "SUNDAY";
+            default: return koreanDay; // 이미 영어인 경우 그대로 반환
+        }
+    }
+
+    @Operation(summary = "제휴점 영업시간 업데이트", description = "제휴점의 영업시간을 업데이트합니다.")
+    @PutMapping("/{id}/business-hours")
+    public ResponseEntity<?> updateBusinessHours(
+        @PathVariable("id") Long id,
+        @RequestBody Map<String, Object> businessHoursUpdate
+    ) {
+        try {
+            // 로깅 추가
+            System.out.println("Received business hours update for partnership ID: " + id);
+            System.out.println("Full request body: " + businessHoursUpdate);
+
+            // 비즈니스 시간 맵 추출
+            Map<String, Map<String, Object>> businessHours = 
+                (Map<String, Map<String, Object>>) businessHoursUpdate.get("businessHours");
+            
+            // 24시간 영업 여부 추출
+            Boolean is24Hours = (Boolean) businessHoursUpdate.get("is24Hours");
+
+            // 로깅 추가
+            System.out.println("Is 24 Hours: " + is24Hours);
+            System.out.println("Business Hours: " + businessHours);
+
+            // 파트너십 조회
+            Partnership partnership = partnershipService.getPartnershipById(id);
+            
+            // 24시간 영업 상태 업데이트
+            partnership.setIs24Hours(is24Hours != null && is24Hours);
+
+            // 비즈니스 시간 업데이트
+            if (businessHours != null) {
+                Map<String, String> formattedBusinessHours = new HashMap<>();
+                
+                // 24시간 영업인 경우 모든 요일을 '24시간'으로 설정
+                if (Boolean.TRUE.equals(is24Hours)) {
+                    formattedBusinessHours.put("MONDAY", "24시간");
+                    formattedBusinessHours.put("TUESDAY", "24시간");
+                    formattedBusinessHours.put("WEDNESDAY", "24시간");
+                    formattedBusinessHours.put("THURSDAY", "24시간");
+                    formattedBusinessHours.put("FRIDAY", "24시간");
+                    formattedBusinessHours.put("SATURDAY", "24시간");
+                    formattedBusinessHours.put("SUNDAY", "24시간");
+                } else {
+                    for (Map.Entry<String, Map<String, Object>> entry : businessHours.entrySet()) {
+                        String day = convertDayToEnglish(entry.getKey());
+                        Map<String, Object> dayHours = entry.getValue();
+                        
+                        // 해당 요일이 활성화되었는지 확인
+                        Boolean enabled = (Boolean) dayHours.get("enabled");
+                        String open = (String) dayHours.get("open");
+                        String close = (String) dayHours.get("close");
+                        
+                        // 로깅 추가
+                        System.out.println("Day: " + day + ", Enabled: " + enabled + ", Open: " + open + ", Close: " + close);
+                        
+                        // 활성화된 요일만 시간 포맷
+                        if (Boolean.TRUE.equals(enabled)) {
+                            formattedBusinessHours.put(day, open + "-" + close);
+                        }
+                    }
+                }
+
+                partnership.setBusinessHours(formattedBusinessHours);
+            }
+
+            // 저장
+            partnershipService.save(partnership);
+
+            return ResponseEntity.ok(ApiResponse.success("영업시간이 성공적으로 업데이트되었습니다.", null));
+        } catch (Exception e) {
+            // 상세 에러 로깅
+            System.err.println("영업시간 업데이트 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("영업시간 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
 }
