@@ -1,7 +1,8 @@
 import { ReservationDto } from '../types/reservation';
 
 // const API_BASE_URL = 'http://localhost:8080/api';
-const API_BASE_URL = 'http://52.79.53.239:8080/api';
+// const API_BASE_URL = 'http://52.79.53.239:8080/api';
+const API_BASE_URL = '/api';
 
 
 export const getMyReservations = async (userId: number): Promise<ReservationDto[]> => {
