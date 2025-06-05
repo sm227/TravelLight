@@ -35,6 +35,20 @@ public class PartnershipService {
         this.addressTsService = addressTsService;
     }
 
+    // 한글 요일을 영어 요일로 변환하는 유틸리티 메서드 추가
+    private String convertDayToEnglish(String koreanDay) {
+        switch (koreanDay) {
+            case "월": return "MONDAY";
+            case "화": return "TUESDAY";
+            case "수": return "WEDNESDAY";
+            case "목": return "THURSDAY";
+            case "금": return "FRIDAY";
+            case "토": return "SATURDAY";
+            case "일": return "SUNDAY";
+            default: return koreanDay; // 이미 영어인 경우 그대로 반환
+        }
+    }
+
     @Transactional
     public Partnership createPartnership(PartnershipDto dto) {
         Partnership partnership = new Partnership();
@@ -85,15 +99,24 @@ public class PartnershipService {
         // 영업시간 정보 변환 및 설정
         Map<String, String> businessHoursMap = new HashMap<>();
         if (dto.getBusinessHours() != null) {
-            for (Map.Entry<String, PartnershipDto.BusinessHourDto> entry : dto.getBusinessHours().entrySet()) {
-                String day = entry.getKey();
-                PartnershipDto.BusinessHourDto hourDto = entry.getValue();
+            // 24시간 영업인 경우 모든 요일을 '24시간'으로 설정
+            if (dto.isIs24Hours()) {
+                businessHoursMap.put("MONDAY", "24시간");
+                businessHoursMap.put("TUESDAY", "24시간");
+                businessHoursMap.put("WEDNESDAY", "24시간");
+                businessHoursMap.put("THURSDAY", "24시간");
+                businessHoursMap.put("FRIDAY", "24시간");
+                businessHoursMap.put("SATURDAY", "24시간");
+                businessHoursMap.put("SUNDAY", "24시간");
+            } else {
+                for (Map.Entry<String, PartnershipDto.BusinessHourDto> entry : dto.getBusinessHours().entrySet()) {
+                    String day = convertDayToEnglish(entry.getKey());
+                    PartnershipDto.BusinessHourDto hourDto = entry.getValue();
 
-                // 24시간 영업이거나 해당 요일이 활성화된 경우만 저장
-                if (dto.isIs24Hours()) {
-                    businessHoursMap.put(day, "24시간");
-                } else if (hourDto.isEnabled()) {
-                    businessHoursMap.put(day, hourDto.getOpen() + "-" + hourDto.getClose());
+                    // 해당 요일이 활성화된 경우만 저장
+                    if (hourDto.isEnabled()) {
+                        businessHoursMap.put(day, hourDto.getOpen() + "-" + hourDto.getClose());
+                    }
                 }
             }
         }
