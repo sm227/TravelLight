@@ -16,17 +16,15 @@ const Home: React.FC = () => {
         margin: 0, 
         padding: 0,
         overflow: 'hidden',
-        background: '#FAFBFC',
+        background: '#FFFFFF',
       }}
     >
       <Navbar />
-      <Container maxWidth={false} disableGutters sx={{ width: '100%', overflow: 'hidden' }}>
-        <Box component="main" sx={{ flexGrow: 1 }}>
-          <Hero />
-          <Services />
-          {/* 추가 섹션은 여기에 추가하세요 */}
-        </Box>
-      </Container>
+      <Box component="main" sx={{ flexGrow: 1 }}>
+        <Hero />
+        <Services />
+        {/* 추가 섹션은 여기에 추가하세요 */}
+      </Box>
       <Footer />
     </Box>
   );
