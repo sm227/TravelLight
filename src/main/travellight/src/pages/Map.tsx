@@ -18,12 +18,27 @@ import {
   Snackbar,
   Alert,
   Stack,
+  Chip,
 } from "@mui/material";
 import { Typography } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import StarIcon from "@mui/icons-material/Star";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
+import PhoneIcon from "@mui/icons-material/Phone";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import LuggageIcon from "@mui/icons-material/Luggage";
+import SecurityIcon from "@mui/icons-material/Security";
+import ShieldIcon from "@mui/icons-material/Shield";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ShareIcon from "@mui/icons-material/Share";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import StorefrontIcon from "@mui/icons-material/Storefront";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
 import { ko } from "date-fns/locale";
@@ -98,7 +113,7 @@ const Map = () => {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedPlace, setSelectedPlace] = useState<any>(null);
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // 사이드바는 항상 열려있음
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("18:00");
   const [partnershipMarkers, setPartnershipMarkers] = useState<any[]>([]);
@@ -112,6 +127,11 @@ const Map = () => {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isPaymentComplete, setIsPaymentComplete] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  // 검색 결과 영역 표시 여부 결정
+  const shouldShowResultArea = () => {
+    return selectedPlace !== null || searchResults.length > 0 || isReservationOpen || isPaymentOpen || isPaymentComplete;
+  };
 
   // 포트원 결제 관련 상태
   const [portonePaymentId, setPortonePaymentId] = useState<string | null>(null);
@@ -559,7 +579,7 @@ const Map = () => {
       addMapStyles();
 
       const options = {
-        center: new window.naver.maps.LatLng(33.450701, 126.570667),
+        center: new window.naver.maps.LatLng(37.7454814, 127.0233146),
         zoom: 15,
         zoomControl: false,
         disableKineticPan: false,
@@ -1465,7 +1485,7 @@ const Map = () => {
       );
       setSearchResults(timeFilteredPlaces);
 
-      // 6. 검색 결과가 있으면 첫 번째 결과로 자동 이동 및 선택
+      // 6. 검색 결과가 있으면 첫 번째 결과로 자동 이동하지만 선택하지는 않음
       if (timeFilteredPlaces.length > 0) {
         const firstPlace = timeFilteredPlaces[0];
 
@@ -1505,11 +1525,11 @@ const Map = () => {
           }
         }
 
-        // 첫 번째 결과를 선택된 상태로 설정
-        setSelectedPlace(firstPlace);
+        // 첫 번째 결과를 자동으로 선택하지 않고 목록 표시
+        setSelectedPlace(null);
 
         console.log(
-          `"${keyword}" 검색 완료: ${timeFilteredPlaces.length}개 제휴점 중 "${firstPlace.place_name}"로 이동`
+          `"${keyword}" 검색 완료: ${timeFilteredPlaces.length}개 제휴점 목록 표시`
         );
       } else {
         // 제휴점 검색 결과가 없는 경우, 카카오 API 결과로 지도만 이동
@@ -1601,9 +1621,9 @@ const Map = () => {
           }
         }
 
-        setSelectedPlace(firstPlace);
+        setSelectedPlace(null);
         console.log(
-          `"${keyword}" 제휴점 검색 완료: ${timeFilteredPlaces.length}개 제휴점 중 "${firstPlace.place_name}"로 이동`
+          `"${keyword}" 제휴점 검색 완료: ${timeFilteredPlaces.length}개 제휴점 목록 표시`
         );
       } else {
         setSelectedPlace(null);
@@ -3050,7 +3070,7 @@ const Map = () => {
         </div>
       )}
 
-      {/* 사이드바 - 완전히 분리된 구조로 변경 */}
+      {/* 사이드바 - 검색 영역은 항상 표시, 결과 영역만 조건부 표시 */}
       <Box
         sx={{
           position: "fixed",
@@ -3059,17 +3079,15 @@ const Map = () => {
           zIndex: 100,
           display: "flex",
           flexDirection: "column",
-          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          overflow: "hidden",
+          borderRadius: "24px",
+          transition: "height 0.2s ease-out", // 높이 변화에 대한 부드러운 애니메이션
 
           // 데스크톱
           "@media (min-width: 768px)": {
-            top: "90px", // 110px에서 90px로 변경하여 더 위쪽으로 배치
+            top: "90px",
             left: "16px",
-            maxHeight: "calc(90vh - 60px)", // 높이 증가 (85vh → 90vh)
-            height: "calc(90vh - 60px)", // 높이 증가 (85vh → 90vh)
-            width: isSidebarOpen ? "400px" : "0px",
-            borderRadius: "24px",
+            width: "400px",
+            maxHeight: (selectedPlace || isReservationOpen) ? "calc(100vh - 100px)" : "calc(90vh - 60px)", // 매장 선택 시 검색 영역이 없으므로 더더더 길게
           },
 
           // 모바일
@@ -3078,20 +3096,21 @@ const Map = () => {
             right: 0,
             bottom: 0,
             width: "100%",
-            maxHeight: isSidebarOpen ? "75vh" : "0px", // 최대 높이를 vh로 설정 (60vh → 75vh)
-            height: isSidebarOpen ? "75vh" : "0px", // 높이 설정 (60vh → 75vh)
+            maxHeight: (selectedPlace || isReservationOpen) ? "98vh" : "75vh", // 매장 선택 시 검색 영역이 없으므로 더더더 길게
             borderTopLeftRadius: "24px",
             borderTopRightRadius: "24px",
           },
         }}
       >
-        {/* 검색 영역 - 예약/결제 창이 열려있을 때는 표시하지 않음 */}
-        {!isReservationOpen && !isPaymentOpen && !isPaymentComplete && (
+        {/* 검색 영역 - 매장 선택 시 숨김 */}
+        {!selectedPlace && (
           <Box
             sx={{
               p: 3,
-              borderBottom: "1px solid rgba(0, 0, 0, 0.06)",
+              borderBottom: shouldShowResultArea() ? "1px solid rgba(0, 0, 0, 0.06)" : "none",
               backgroundColor: "rgba(255, 255, 255, 0.98)",
+              borderRadius: shouldShowResultArea() ? "24px 24px 0 0" : "24px",
+              transition: "all 0.2s ease-out", // 부드러운 전환
             }}
           >
             <Box sx={{ display: "flex", gap: 1 }}>
@@ -3307,127 +3326,362 @@ const Map = () => {
           </Box>
         )}
 
-        {/* 결과 영역 - 명시적으로 높이와 스크롤 설정 */}
+        {/* 결과 영역 - 항상 렌더링하되 자연스러운 펼치기/접기 */}
         <Box
           sx={{
-            flex: 1,
-            overflow: "auto",
-            p: isReservationOpen || isPaymentOpen || isPaymentComplete ? 0 : 3, // 예약/결제 화면에서는 패딩 없음
-            ...scrollbarStyle,
-            // 명시적인 최대 높이 설정
-            "@media (min-width: 768px)": {
-              maxHeight: "calc(90vh - 60px)", // 검색 영역 제거 시 높이 조정 (85vh → 90vh)
-            },
+            overflow: "hidden",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            // 선택된 매장이나 예약 화면이 있으면 버튼 공간을 고려한 높이, 없으면 조건부 높이
+            maxHeight: (selectedPlace || isReservationOpen)
+              ? "calc(100vh - 200px)" // 하단 버튼 공간 확보
+              : shouldShowResultArea() ? "calc(90vh - 200px)" : "0px",
+            opacity: shouldShowResultArea() ? 1 : 0,
+            borderRadius: (selectedPlace || isReservationOpen)
+              ? "24px 24px 0 0" // 하단에 버튼이 있을 때 아래쪽 모서리는 둥글지 않게
+              : shouldShowResultArea() ? "0 0 24px 24px" : "0",
             "@media (max-width: 767px)": {
-              maxHeight: "calc(75vh - 20px)", // 검색 영역 제거 시 높이 조정 (60vh → 75vh)
+              maxHeight: (selectedPlace || isReservationOpen)
+                ? "calc(98vh - 120px)" // 하단 버튼 공간 확보
+                : shouldShowResultArea() ? "calc(75vh - 150px)" : "0px",
             },
           }}
         >
+          <Box
+            sx={{
+              overflow: "auto",
+              p: isReservationOpen || isPaymentOpen || isPaymentComplete ? 0 : 3,
+              ...scrollbarStyle,
+              height: "100%",
+              // 명시적인 최대 높이 설정
+              "@media (min-width: 768px)": {
+                maxHeight: (selectedPlace || isReservationOpen)
+                  ? "calc(100vh - 200px)" // 하단 버튼 공간 확보
+                  : "calc(90vh - 200px)", // 검색 영역을 고려한 높이 조정
+              },
+              "@media (max-width: 767px)": {
+                maxHeight: (selectedPlace || isReservationOpen)
+                  ? "calc(98vh - 120px)" // 하단 버튼 공간 확보
+                  : "calc(75vh - 150px)", // 검색 영역을 고려한 높이 조정
+              },
+            }}
+          >
           {selectedPlace ? (
-            // 선택된 장소 상세 정보
+            // 선택된 장소 상세 정보 - Bounce 스타일
             <>
               {!isReservationOpen ? (
-                <Box
-                  sx={{
-                    backgroundColor: "#f8f9fa",
-                    borderRadius: "20px",
-                    p: 3,
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                    {selectedPlace.place_name}
-                  </Typography>
-                  {selectedPlace.business_type && (
-                    <Box
-                      sx={{
-                        display: "inline-block",
-                        mb: 2,
-                        padding: "4px 10px",
-                        borderRadius: "20px",
-                        fontSize: "14px",
-                        fontWeight: 500,
-                      }}
-                      className={`business-type-${selectedPlace.business_type}`}
-                    >
-                      {selectedPlace.business_type}
-                    </Box>
-                  )}
-                  <Typography sx={{ color: "text.secondary", mb: 1 }}>
-                    {selectedPlace.address_name}
-                  </Typography>
-                  <Typography sx={{ color: "primary.main", mb: 1 }}>
-                    {selectedPlace.phone}
-                  </Typography>
-                  <Typography sx={{ color: "text.secondary", mb: 2 }}>
-                    {selectedPlace.opening_hours ||
-                      (selectedPlace.category_group_code === "BK9"
-                        ? t("bankHours")
-                        : t("storeHours"))}
-                  </Typography>
+                <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                  {/* 헤더 */}
                   <Box
                     sx={{
+                      px: 1,
+                      py: 2,
                       display: "flex",
-                      gap: 2,
+                      alignItems: "center",
                       justifyContent: "space-between",
+                      borderBottom: "1px solid #f0f0f0"
                     }}
                   >
-                    <Button
-                      variant="outlined"
-                      sx={{
-                        borderRadius: "12px",
-                        textTransform: "none",
-                        flex: 1,
-                        "&:hover": {
-                          backgroundColor: "rgba(0, 0, 0, 0.04)",
-                        },
-                        "&:focus": {
-                          outline: "none",
-                        },
-                        "&.Mui-focusVisible": {
-                          outline: "none",
-                        },
-                      }}
-                      onClick={() => setSelectedPlace(null)}
-                    >
-                      {t("backToList")}
-                    </Button>
-                    <Button
-                      variant="contained"
-                      sx={{
-                        borderRadius: "12px",
-                        textTransform: "none",
-                        flex: 1,
-                        backgroundColor: "#1a73e8",
-                        "&:hover": {
-                          backgroundColor: "#1565c0",
-                        },
-                        "&:focus": {
-                          outline: "none",
-                        },
-                        "&.Mui-focusVisible": {
-                          outline: "none",
-                        },
-                      }}
-                      onClick={() => {
-                        setIsReservationOpen(true);
-                        // 초기화
-                        setBagSizes({
-                          small: 0,
-                          medium: 0,
-                          large: 0,
-                        });
-                        setTotalPrice(0);
-                      }}
-                    >
-                      {t("makeReservation")}
-                    </Button>
+                    {/* 왼쪽: 뒤로가기 + 매장 타입 */}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                      <Button
+                        onClick={() => setSelectedPlace(null)}
+                        sx={{
+                          minWidth: "auto",
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "6px",
+                          color: "#666",
+                          "&:hover": {
+                            backgroundColor: "#f5f5f5",
+                          },
+                        }}
+                      >
+                        <ChevronLeftIcon />
+                      </Button>
+                      
+                      <Chip
+                        icon={<StorefrontIcon sx={{ fontSize: 14 }} />}
+                        label={selectedPlace.business_type || "보관소"}
+                        size="small"
+                        sx={{ 
+                          backgroundColor: "#e3f2fd",
+                          color: "#1976d2",
+                          fontWeight: 500,
+                          fontSize: "11px",
+                          height: "24px",
+                          "& .MuiChip-icon": { color: "#1976d2" }
+                        }}
+                      />
+                    </Box>
+
+                    {/* 오른쪽: 액션 버튼들 */}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Button
+                        sx={{
+                          minWidth: "auto",
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "6px",
+                          color: "#666",
+                          "&:hover": {
+                            backgroundColor: "#f5f5f5",
+                          },
+                        }}
+                        onClick={() => {
+                          if (navigator.share) {
+                            navigator.share({
+                              title: selectedPlace.place_name,
+                              text: `${selectedPlace.place_name} - 짐보관 서비스`,
+                              url: window.location.href
+                            });
+                          }
+                        }}
+                      >
+                        <ShareIcon sx={{ fontSize: 18 }} />
+                      </Button>
+                      
+                      <Button
+                        sx={{
+                          minWidth: "auto",
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "6px",
+                          color: "#666",
+                          "&:hover": {
+                            backgroundColor: "#f5f5f5",
+                          },
+                        }}
+                      >
+                        <FavoriteBorderIcon sx={{ fontSize: 18 }} />
+                      </Button>
+                      
+                      <Button
+                        sx={{
+                          minWidth: "auto",
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "6px",
+                          color: "#666",
+                          "&:hover": {
+                            backgroundColor: "#f5f5f5",
+                          },
+                        }}
+                      >
+                        <MoreVertIcon sx={{ fontSize: 18 }} />
+                      </Button>
+                    </Box>
+                  </Box>
+
+                  {/* 매장 정보 */}
+                  <Box sx={{ flex: 1, px: 1, py: 2 }}>
+                    {/* 헤더 */}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="h5" sx={{ 
+                        fontWeight: 700, 
+                        color: "#1a1a1a",
+                        mb: 1,
+                        lineHeight: 1.2
+                      }}>
+                        {selectedPlace.place_name}
+                      </Typography>
+                      
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <StarIcon sx={{ color: "#ffc107", fontSize: 16 }} />
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            4.5
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "#666" }}>
+                            (127)
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ color: "#666" }}>•</Typography>
+                        <Typography variant="body2" sx={{ color: "#4caf50", fontWeight: 600 }}>
+                          영업중
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#666" }}>•</Typography>
+                        <Typography variant="body2" sx={{ color: "#666" }}>
+                          도보 5분
+                        </Typography>
+                      </Box>
+
+                      <Typography variant="body2" sx={{ color: "#666", mb: 2 }}>
+                        {selectedPlace.address_name}
+                      </Typography>
+                    </Box>
+
+                    {/* 가격 정보 */}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="h6" sx={{ 
+                        fontWeight: 600, 
+                        mb: 1,
+                        fontSize: "16px"
+                      }}>
+                        보관 요금
+                      </Typography>
+                      
+                      <Box sx={{ 
+                        backgroundColor: "white",
+                        border: "1px solid #e0e0e0",
+                        borderRadius: "8px",
+                        overflow: "hidden"
+                      }}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1.5, borderBottom: "1px solid #f0f0f0" }}>
+                          <Typography variant="body2" sx={{ color: "#333" }}>소형</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>₩3,000</Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1.5, borderBottom: "1px solid #f0f0f0" }}>
+                          <Typography variant="body2" sx={{ color: "#333" }}>중형</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>₩5,000</Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1.5 }}>
+                          <Typography variant="body2" sx={{ color: "#333" }}>대형</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>₩8,000</Typography>
+                        </Box>
+                      </Box>
+                      
+                      <Typography variant="caption" sx={{ 
+                        color: "#888", 
+                        mt: 0.5, 
+                        display: "block",
+                        fontSize: "11px"
+                      }}>
+                        1일 기준 요금
+                      </Typography>
+                    </Box>
+
+                    {/* 편의시설 */}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="h6" sx={{ 
+                        fontWeight: 600, 
+                        mb: 1.5,
+                        fontSize: "16px"
+                      }}>
+                        편의시설
+                      </Typography>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                        <Chip
+                          icon={<SecurityIcon sx={{ fontSize: 16 }} />}
+                          label="24시간 보안"
+                          size="small"
+                          variant="outlined"
+                          sx={{ 
+                            borderColor: "#e0e0e0",
+                            backgroundColor: "white"
+                          }}
+                        />
+                        <Chip
+                          icon={<ShieldIcon sx={{ fontSize: 16 }} />}
+                          label="손해배상보험"
+                          size="small"
+                          variant="outlined"
+                          sx={{ 
+                            borderColor: "#e0e0e0",
+                            backgroundColor: "white"
+                          }}
+                        />
+                        <Chip
+                          icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
+                          label="즉시 이용"
+                          size="small"
+                          variant="outlined"
+                          sx={{ 
+                            borderColor: "#e0e0e0",
+                            backgroundColor: "white"
+                          }}
+                        />
+                        {selectedPlace.phone && (
+                          <Chip
+                            icon={<PhoneIcon sx={{ fontSize: 16 }} />}
+                            label="전화 가능"
+                            size="small"
+                            variant="outlined"
+                            sx={{ 
+                              borderColor: "#e0e0e0",
+                              backgroundColor: "white"
+                            }}
+                          />
+                        )}
+                      </Box>
+                    </Box>
+
+                    {/* 매장 정보 */}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="h6" sx={{ 
+                        fontWeight: 600, 
+                        mb: 1.5,
+                        fontSize: "16px"
+                      }}>
+                        매장 정보
+                      </Typography>
+                      
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                          <AccessTimeIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                              영업시간
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: "#666" }}>
+                              {selectedPlace.opening_hours ||
+                                (selectedPlace.category_group_code === "BK9"
+                                  ? "평일 09:00-16:00"
+                                  : "매일 09:00-22:00")}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                          <LocationOnIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                              위치
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: "#666" }}>
+                              {selectedPlace.address_name}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        {selectedPlace.phone && (
+                          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                            <PhoneIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                                연락처
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: "#666" }}>
+                                {selectedPlace.phone}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+
+                    {/* 안전 보장 */}
+                    <Box sx={{ 
+                      backgroundColor: "#e8f5e8",
+                      borderRadius: "8px",
+                      p: 2,
+                      mb: 2
+                    }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                        <CheckCircleIcon sx={{ color: "#4caf50", fontSize: 18 }} />
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: "#2e7d32" }}>
+                          안전 보장
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" sx={{ color: "#388e3c", fontSize: "13px" }}>
+                        모든 짐은 보안이 유지되며 손해배상보험에 의해 보호됩니다.
+                      </Typography>
+                    </Box>
                   </Box>
                 </Box>
               ) : isPaymentOpen ? (
                 <Box
                   sx={{
-                    backgroundColor: "#f8f9fa",
+                    backgroundColor: "#ffffff",
                     borderRadius: "20px",
                     p: 3,
                     transition: "all 0.2s ease",
@@ -3673,7 +3927,7 @@ const Map = () => {
                         fontSize: "16px",
                       }}
                     >
-                      안전한 포트원 결제
+                      예약 내용을 다시 한번 확인해주세요
                     </Typography>
                     <Typography
                       sx={{
@@ -3704,7 +3958,7 @@ const Map = () => {
                         color: "#333",
                       }}
                     >
-                      결제 정보
+                      예약 내용을 확인해주세요
                     </Typography>
 
                     <Box
@@ -4146,7 +4400,7 @@ const Map = () => {
               ) : (
                 <Box
                   sx={{
-                    backgroundColor: "#f8f9fa",
+                    backgroundColor: "#ffffff",
                     borderRadius: "20px",
                     p: 3,
                     transition: "all 0.2s ease",
@@ -5112,83 +5366,6 @@ const Map = () => {
                       {t("won")}
                     </Typography>
                   </Box>
-
-                  {/* 결제하기 버튼 */}
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    disabled={
-                      (bagSizes.small === 0 &&
-                        bagSizes.medium === 0 &&
-                        bagSizes.large === 0) ||
-                      !storageDate ||
-                      !storageStartTime ||
-                      !storageEndTime ||
-                      (storageDuration === "period" && !storageEndDate) ||
-                      !selectedPlace ||
-                      !isTimeValid ||
-                      isClosedOnDate(storageDate) ||
-                      (storageDuration === "period" &&
-                        storageEndDate &&
-                        isClosedOnDate(storageEndDate))
-                    }
-                    sx={{
-                      backgroundColor: "#1a73e8",
-                      color: "white",
-                      borderRadius: "12px",
-                      p: 1.5,
-                      mt: 2,
-                      boxShadow: "none",
-                      "&:hover": { backgroundColor: "#1565c0" },
-                      "&:disabled": {
-                        backgroundColor: "rgba(0, 0, 0, 0.12)",
-                        color: "rgba(0, 0, 0, 0.26)",
-                      },
-                      "&:focus": {
-                        outline: "none",
-                        backgroundColor: "#0d47a1",
-                      },
-                      transition: "background-color 0.2s ease",
-                    }}
-                    onClick={() => {
-                      if (
-                        totalPrice > 0 &&
-                        isTimeValid &&
-                        storageDate &&
-                        storageStartTime &&
-                        storageEndTime &&
-                        (storageDuration !== "period" || storageEndDate) &&
-                        !isClosedOnDate(storageDate) &&
-                        !(
-                          storageDuration === "period" &&
-                          storageEndDate &&
-                          isClosedOnDate(storageEndDate)
-                        )
-                      ) {
-                        if (!isAuthenticated) {
-                          setReservationError(t("loginRequiredMessage"));
-                        } else {
-                          setIsPaymentOpen(true);
-                        }
-                      }
-                    }}
-                  >
-                    {!isAuthenticated
-                      ? t("loginRequired")
-                      : isClosedOnDate(storageDate) ||
-                        (storageDuration === "period" &&
-                          storageEndDate &&
-                          isClosedOnDate(storageEndDate))
-                      ? "선택한 날짜는 휴무일입니다"
-                      : !isTimeValid
-                      ? t("setWithinOperatingHours")
-                      : !storageDate ||
-                        !storageStartTime ||
-                        !storageEndTime ||
-                        (storageDuration === "period" && !storageEndDate)
-                      ? t("selectAllDateAndTime")
-                      : t("pay")}
-                  </Button>
                 </Box>
               )}
             </>
@@ -5200,11 +5377,11 @@ const Map = () => {
                   borderRadius: "16px",
                   mb: 1.5,
                   backgroundColor: "#f8f9fa",
-                  transition: "all 0.2s ease",
+                  transition: "all 0.2s ease-out",
                   "&:hover": {
                     backgroundColor: "#f0f2f5",
-                    transform: "translateY(-2px)",
-                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                    transform: "translateY(-1px)", // 더 미묘한 호버 효과
+                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
                   },
                 },
                 // 마지막 아이템 아래 여백 추가
@@ -5267,64 +5444,140 @@ const Map = () => {
               ))}
             </List>
           )}
+          </Box>
         </Box>
+
+        {/* 하단 고정 버튼 영역 */}
+        {selectedPlace && !isReservationOpen && !isPaymentOpen && !isPaymentComplete && (
+          <Box
+            sx={{
+              p: 3,
+              borderTop: "1px solid rgba(0, 0, 0, 0.06)",
+              backgroundColor: "white",
+              borderRadius: "0 0 24px 24px",
+            }}
+          >
+            <Button
+              variant="contained"
+              fullWidth
+              size="large"
+              sx={{
+                height: "52px",
+                borderRadius: "12px",
+                textTransform: "none",
+                fontSize: "16px",
+                fontWeight: 600,
+                backgroundColor: "#1976d2",
+                boxShadow: "0 2px 8px rgba(25, 118, 210, 0.3)",
+                "&:hover": {
+                  backgroundColor: "#1565c0",
+                  boxShadow: "0 4px 12px rgba(25, 118, 210, 0.4)",
+                },
+              }}
+              onClick={() => {
+                setIsReservationOpen(true);
+                // 초기화
+                setBagSizes({
+                  small: 0,
+                  medium: 0,
+                  large: 0,
+                });
+                setTotalPrice(0);
+              }}
+            >
+              예약하기
+            </Button>
+          </Box>
+        )}
+
+        {isReservationOpen && !isPaymentOpen && !isPaymentComplete && (
+          <Box
+            sx={{
+              p: 3,
+              borderTop: "1px solid rgba(0, 0, 0, 0.06)",
+              backgroundColor: "white",
+              borderRadius: "0 0 24px 24px",
+            }}
+          >
+            <Button
+              variant="contained"
+              fullWidth
+              disabled={
+                (bagSizes.small === 0 &&
+                  bagSizes.medium === 0 &&
+                  bagSizes.large === 0) ||
+                !storageDate ||
+                !storageStartTime ||
+                !storageEndTime ||
+                (storageDuration === "period" && !storageEndDate) ||
+                !selectedPlace ||
+                !isTimeValid ||
+                isClosedOnDate(storageDate) ||
+                (storageDuration === "period" &&
+                  storageEndDate &&
+                  isClosedOnDate(storageEndDate))
+              }
+              sx={{
+                backgroundColor: "#1a73e8",
+                color: "white",
+                borderRadius: "12px",
+                p: 1.5,
+                boxShadow: "none",
+                "&:hover": { backgroundColor: "#1565c0" },
+                "&:disabled": {
+                  backgroundColor: "rgba(0, 0, 0, 0.12)",
+                  color: "rgba(0, 0, 0, 0.26)",
+                },
+                "&:focus": {
+                  outline: "none",
+                  backgroundColor: "#0d47a1",
+                },
+                transition: "background-color 0.2s ease",
+              }}
+              onClick={() => {
+                if (
+                  totalPrice > 0 &&
+                  isTimeValid &&
+                  storageDate &&
+                  storageStartTime &&
+                  storageEndTime &&
+                  (storageDuration !== "period" || storageEndDate) &&
+                  !isClosedOnDate(storageDate) &&
+                  !(
+                    storageDuration === "period" &&
+                    storageEndDate &&
+                    isClosedOnDate(storageEndDate)
+                  )
+                ) {
+                  if (!isAuthenticated) {
+                    setReservationError(t("loginRequiredMessage"));
+                  } else {
+                    setIsPaymentOpen(true);
+                  }
+                }
+              }}
+            >
+              {!isAuthenticated
+                ? t("loginRequired")
+                : isClosedOnDate(storageDate) ||
+                  (storageDuration === "period" &&
+                    storageEndDate &&
+                    isClosedOnDate(storageEndDate))
+                ? "선택한 날짜는 휴무일입니다"
+                : !isTimeValid
+                ? t("setWithinOperatingHours")
+                : !storageDate ||
+                  !storageStartTime ||
+                  !storageEndTime ||
+                  (storageDuration === "period" && !storageEndDate)
+                ? t("selectAllDateAndTime")
+                : t("pay")}
+            </Button>
+          </Box>
+        )}
       </Box>
 
-      {/* 사이드바 접기/펴기 버튼 */}
-      <Button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        disableRipple
-        sx={{
-          position: "fixed",
-          backgroundColor: "white",
-          zIndex: 101,
-          minWidth: "auto",
-          padding: 0,
-          border: "none",
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
 
-          // 데스크톱: 사이드바 오른쪽에 위치
-          "@media (min-width: 768px)": {
-            left: isSidebarOpen ? "416px" : "16px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: "24px",
-            height: "48px",
-            borderRadius: "0 12px 12px 0",
-          },
-
-          // 모바일: 하단 중앙에 위치 수정
-          "@media (max-width: 767px)": {
-            left: "50%",
-            transform: "translateX(-50%)",
-            bottom: isSidebarOpen ? "75vh" : "0px", // 사이드바 경계선에 정확히 맞춤 (60vh → 75vh)
-            width: "48px",
-            height: "24px",
-            borderRadius: "12px 12px 0 0",
-          },
-
-          // 테두리 제거
-          "&:focus": {
-            outline: "none",
-          },
-          "&.Mui-focusVisible": {
-            outline: "none",
-          },
-        }}
-      >
-        {window.innerWidth >= 768 ? (
-          isSidebarOpen ? (
-            <ChevronLeftIcon />
-          ) : (
-            <ChevronRightIcon />
-          )
-        ) : isSidebarOpen ? (
-          <KeyboardArrowDownIcon />
-        ) : (
-          <KeyboardArrowUpIcon />
-        )}
-      </Button>
 
       {/* 에러 메시지 스낵바 */}
       <Snackbar
