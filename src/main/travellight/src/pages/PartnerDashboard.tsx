@@ -157,7 +157,7 @@ const PartnerDashboard: React.FC = () => {
     // null 또는 undefined인 경우 기본값 반환
     if (storeHour === null || storeHour === undefined) {
       return {
-        enabled: defaultHour.enabled,
+        enabled: false,  // 기본값을 false로 변경
         open: defaultHour.open,
         close: defaultHour.close
       };
@@ -167,7 +167,7 @@ const PartnerDashboard: React.FC = () => {
     if (typeof storeHour === 'string') {
       const [open, close] = storeHour.split('-');
       return {
-        enabled: true,
+        enabled: !!open && !!close,  // 시간이 있으면 true, 없으면 false
         open: open?.trim() || defaultHour.open,
         close: close?.trim() || defaultHour.close
       };
@@ -176,7 +176,8 @@ const PartnerDashboard: React.FC = () => {
     // 객체 형태 처리
     if (typeof storeHour === 'object') {
       return {
-        enabled: storeHour.enabled !== undefined ? storeHour.enabled : true,
+        // 명시적으로 enabled가 설정되지 않았다면 false로 처리
+        enabled: storeHour.enabled !== undefined ? storeHour.enabled : false,
         open: storeHour.open || defaultHour.open,
         close: storeHour.close || defaultHour.close
       };
@@ -184,7 +185,7 @@ const PartnerDashboard: React.FC = () => {
 
     // 그 외의 경우 기본값 반환
     return {
-      enabled: defaultHour.enabled,
+      enabled: false,  // 기본값을 false로 변경
       open: defaultHour.open,
       close: defaultHour.close
     };
@@ -650,9 +651,22 @@ const PartnerDashboard: React.FC = () => {
       ...editBusinessHours,
       [day]: {
         ...editBusinessHours[day],
-        [field]: value
+        [field]: field === 'enabled' ? value : 
+                 field === 'open' && !editBusinessHours[day].enabled ? editBusinessHours[day].open :
+                 field === 'close' && !editBusinessHours[day].enabled ? editBusinessHours[day].close :
+                 value
       }
     };
+
+    // 체크박스 해제 시 시간을 기본값으로 초기화
+    if (field === 'enabled' && !value) {
+      updatedBusinessHours[day] = {
+        enabled: false,
+        open: defaultBusinessHours[day].open,
+        close: defaultBusinessHours[day].close
+      };
+    }
+
     setEditBusinessHours(updatedBusinessHours);
   };
 
@@ -670,10 +684,30 @@ const PartnerDashboard: React.FC = () => {
       console.log('Business Hours:', editBusinessHours);
       console.log('Is 24 Hours:', is24HoursEdit);
 
+      // 24시간 영업이 아닌 경우, 실제 enabled 상태 반영
+      const processedBusinessHours = is24HoursEdit 
+        ? Object.keys(editBusinessHours).reduce((acc, day) => {
+            acc[day] = {
+              enabled: true,
+              open: '00:00',
+              close: '24:00'
+            };
+            return acc;
+          }, {})
+        : Object.keys(editBusinessHours).reduce((acc, day) => {
+            // 각 요일의 실제 enabled 상태 반영
+            acc[day] = {
+              enabled: editBusinessHours[day].enabled,
+              open: editBusinessHours[day].enabled ? editBusinessHours[day].open : defaultBusinessHours[day].open,
+              close: editBusinessHours[day].enabled ? editBusinessHours[day].close : defaultBusinessHours[day].close
+            };
+            return acc;
+          }, {});
+
       // Use the new API method to update business hours
       await partnershipService.updateBusinessHours(
         selectedStore.id, 
-        editBusinessHours, 
+        processedBusinessHours, 
         is24HoursEdit
       );
       
@@ -1332,7 +1366,8 @@ const PartnerDashboard: React.FC = () => {
                         p: 2,
                         border: 1,
                         borderColor: 'divider',
-                        borderRadius: 1
+                        borderRadius: 1,
+                        backgroundColor: !editBusinessHours[day].enabled ? 'rgba(0,0,0,0.05)' : 'inherit'
                       }}>
                         <FormControlLabel
                           control={
