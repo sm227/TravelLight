@@ -104,6 +104,21 @@ export interface DeliveryRequest {
   estimatedPrice: number;
 }
 
+// 배달 응답 타입 정의
+export interface DeliveryResponse {
+  id: number;
+  userId: number;
+  reservationId: number;
+  pickupAddress: string;
+  deliveryAddress: string;
+  itemDescription: string;
+  weight: number;
+  requestedAt: string;
+  status: 'PENDING' | 'ACCEPTED' | 'PICKED_UP' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
+  trackingNumber?: string;
+  estimatedDeliveryTime?: string;
+}
+
 export const userService = {
   register: async (data: RegisterRequest): Promise<ApiResponse<UserResponse>> => {
     const response = await api.post<ApiResponse<UserResponse>>('/users/register', data);
@@ -198,9 +213,9 @@ export const partnershipService = {
   },
   
   // 배달 요청 보내기
-  requestDelivery: async (data: DeliveryRequest): Promise<ApiResponse<any>> => {
+  requestDelivery: async (data: DeliveryRequest): Promise<ApiResponse<DeliveryResponse>> => {
     try {
-      const response = await api.post<ApiResponse<any>>('/delivery/request', data);
+      const response = await api.post<ApiResponse<DeliveryResponse>>('/delivery/request', data);
       return response.data;
     } catch (error) {
       console.error('배달 요청 중 오류 발생:', error);

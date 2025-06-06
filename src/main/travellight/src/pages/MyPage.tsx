@@ -29,7 +29,7 @@ import { useAuth } from '../services/AuthContext';
 import { getMyReservations } from '../services/reservationService';
 import { ReservationDto } from '../types/reservation';
 import { useTranslation } from 'react-i18next';
-import { userService, PasswordChangeRequest, Partnership, partnershipService, DeliveryRequest } from '../services/api';
+import { userService, PasswordChangeRequest, Partnership, partnershipService, DeliveryRequest, DeliveryResponse } from '../services/api';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StorefrontIcon from '@mui/icons-material/Storefront';
@@ -124,7 +124,7 @@ const MyPage = () => {
   const [isSearching, setIsSearching] = useState(false);
 
   // 배달 상태 정보 추가
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [deliveries, setDeliveries] = useState<DeliveryResponse[]>([]);
   const [loadingDeliveries, setLoadingDeliveries] = useState(false);
 
   // 예약 상태를 체크하고 업데이트하는 함수
@@ -772,7 +772,7 @@ const MyPage = () => {
   };
 
   // 배달 상태 스텝 렌더링
-  const renderDeliveryStatusSteps = (delivery: any) => {
+  const renderDeliveryStatusSteps = (delivery: DeliveryResponse) => {
     const activeStep = getDeliveryStatusIndex(delivery.status);
     
     return (
@@ -797,10 +797,10 @@ const MyPage = () => {
         <Container maxWidth="sm" sx={{ mt: 8 }}>
           <div className="mypage-container">
             <div className="mypage-header">
-              <Typography variant="h5" className="mypage-title">
+              <Typography variant="h4" className="mypage-title">
                 {t('myPageTitle')}
               </Typography>
-              <Typography variant="body2" className="mypage-description">
+              <Typography variant="body1" className="mypage-description">
                 {t('myPageDescription')}
               </Typography>
             </div>
