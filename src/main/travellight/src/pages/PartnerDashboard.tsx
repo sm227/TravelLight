@@ -149,39 +149,59 @@ const PartnerDashboard: React.FC = () => {
     SUNDAY: { enabled: false, open: '10:00', close: '17:00' },
   };
 
-  // Ensure type safety for business hours
-  const safeBusinessHourDto = (input: any, defaultDay: string = 'MONDAY'): BusinessHourDto => {
-    // If input is already a valid BusinessHourDto, return it
-    if (
-      input !== null && 
-      typeof input === 'object' && 
-      typeof input.enabled === 'boolean' && 
-      typeof input.open === 'string' && 
-      typeof input.close === 'string'
-    ) {
-      return input as BusinessHourDto;
+  // 영업시간을 안전하게 파싱하는 헬퍼 함수 추가
+  const parseBusinessHours = (storeHour: any, day: string): BusinessHourDto => {
+    // 기본값 설정
+    const defaultHour = defaultBusinessHours[day];
+
+    // null 또는 undefined인 경우 기본값 반환
+    if (storeHour === null || storeHour === undefined) {
+      return {
+        enabled: defaultHour.enabled,
+        open: defaultHour.open,
+        close: defaultHour.close
+      };
     }
 
-    // If input is not a valid object, return default for the specified day
+    // 문자열 형태 처리 (예: "09:00-18:00")
+    if (typeof storeHour === 'string') {
+      const [open, close] = storeHour.split('-');
+      return {
+        enabled: true,
+        open: open?.trim() || defaultHour.open,
+        close: close?.trim() || defaultHour.close
+      };
+    }
+
+    // 객체 형태 처리
+    if (typeof storeHour === 'object') {
+      return {
+        enabled: storeHour.enabled !== undefined ? storeHour.enabled : true,
+        open: storeHour.open || defaultHour.open,
+        close: storeHour.close || defaultHour.close
+      };
+    }
+
+    // 그 외의 경우 기본값 반환
     return {
-      enabled: defaultBusinessHours[defaultDay].enabled,
-      open: defaultBusinessHours[defaultDay].open,
-      close: defaultBusinessHours[defaultDay].close
+      enabled: defaultHour.enabled,
+      open: defaultHour.open,
+      close: defaultHour.close
     };
   };
 
   const [editBusinessHours, setEditBusinessHours] = useState<Record<string, BusinessHourDto>>(() => {
-    // Ensure the returned value is of type Record<string, BusinessHourDto>
+    // 선택된 매장의 영업시간 가져오기
     const storeHours = selectedStore?.businessHours;
     
-    // If storeHours is undefined or not in the correct format, return default
+    // 매장 영업시간이 없으면 기본값 사용
     if (!storeHours) {
       return defaultBusinessHours;
     }
 
-    // Convert and validate business hours
+    // 각 요일별로 영업시간 파싱
     return Object.keys(defaultBusinessHours).reduce((acc, day) => {
-      acc[day] = safeBusinessHourDto(storeHours[day], day);
+      acc[day] = parseBusinessHours(storeHours[day], day);
       return acc;
     }, {} as Record<string, BusinessHourDto>);
   });
@@ -579,7 +599,7 @@ const PartnerDashboard: React.FC = () => {
       
       // Ensure the new business hours match the expected structure
       const validatedBusinessHours = Object.keys(defaultBusinessHours).reduce((acc, day) => {
-        acc[day] = safeBusinessHourDto(newBusinessHours[day], day);
+        acc[day] = parseBusinessHours(newBusinessHours[day], day);
         return acc;
       }, {} as Record<string, BusinessHourDto>);
 
