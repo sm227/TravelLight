@@ -33,9 +33,9 @@ interface Partnership {
 }
 
 interface NaverMap {
-    setCenter(position: any): void;
-    panTo(position: any): void;
-    getCenter(): any;
+    setCenter(position: NaverLatLng): void;
+    panTo(position: NaverLatLng): void;
+    getCenter(): NaverLatLng;
     setZoom(level: number): void;
 }
 
@@ -45,12 +45,14 @@ interface NaverLatLng {
 }
 
 interface NaverMaps {
-    LatLng: any;
-    Map: any;
-    Marker: any;
-    InfoWindow: any;
-    Event: any;
-    Point: any;
+    LatLng: new (lat: number, lng: number) => NaverLatLng;
+    Map: new (element: HTMLElement, options: any) => NaverMap;
+    Marker: new (options: any) => any;
+    InfoWindow: new (options: any) => any;
+    Event: {
+        addListener: (target: any, type: string, listener: () => void) => void;
+    };
+    Point: new (x: number, y: number) => any;
 }
 
 // Window 타입 확장
@@ -144,7 +146,7 @@ const Hero: React.FC = () => {
             // 네이버 지도 API 스크립트 로드
             if (!window.naver) {
                 const script = document.createElement('script');
-                script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${process.env.REACT_APP_NAVER_MAP_CLIENT_ID}`;
+                script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=r23gqqq271&submodules=geocoder`;
                 script.async = true;
                 script.onload = () => {
                     createMap(position);
