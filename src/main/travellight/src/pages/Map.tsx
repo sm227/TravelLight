@@ -2566,6 +2566,79 @@ const Map = () => {
     }
   };
 
+  // 현재 시간 기준으로 영업중인지 확인하는 함수
+  const isCurrentlyOpen = (place: any) => {
+    if (!place) return false;
+
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes(); // 현재 시간을 분 단위로 변환
+    const today = now.getDay(); // 0: 일요일, 1: 월요일, ...
+    
+    // 파트너십 데이터에서 영업시간 확인
+    if (partnerships.length > 0) {
+      const partnership = partnerships.find(
+        (p) =>
+          p.businessName === place.place_name &&
+          p.address === place.address_name
+      );
+
+      if (partnership) {
+        // 24시간 영업인 경우
+        if (partnership.is24Hours) {
+          return true;
+        }
+
+        // 영업시간이 설정되어 있는 경우
+        if (partnership.businessHours && Object.keys(partnership.businessHours).length > 0) {
+          const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+          const todayName = dayNames[today];
+          const todayHours = partnership.businessHours[todayName];
+
+          if (todayHours) {
+            let startTime = "";
+            let endTime = "";
+
+            // 문자열 형태인 경우 (예: "09:00-18:00")
+            if (typeof todayHours === 'string' && todayHours.trim() !== '' && todayHours !== '휴무') {
+              [startTime, endTime] = todayHours.split('-').map(time => time.trim());
+            }
+            // 객체 형태인 경우 (예: { enabled: true, open: "09:00", close: "18:00" })
+            else if (typeof todayHours === 'object' && todayHours.enabled) {
+              startTime = todayHours.open;
+              endTime = todayHours.close;
+            } else {
+              return false; // 오늘은 휴무
+            }
+
+            if (startTime && endTime) {
+              const [startHour, startMin] = startTime.split(":").map(Number);
+              const [endHour, endMin] = endTime.split(":").map(Number);
+              const startMinutes = startHour * 60 + startMin;
+              const endMinutes = endHour * 60 + endMin;
+
+              return currentTime >= startMinutes && currentTime <= endMinutes;
+            }
+          } else {
+            return false; // 오늘은 휴무
+          }
+        }
+      }
+    }
+
+    // 파트너십 데이터가 없는 경우 기본 영업시간으로 판단
+    const operatingHours = getPlaceOperatingHours(place);
+    if (operatingHours) {
+      const [startHour, startMin] = operatingHours.start.split(":").map(Number);
+      const [endHour, endMin] = operatingHours.end.split(":").map(Number);
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
+
+      return currentTime >= startMinutes && currentTime <= endMinutes;
+    }
+
+    return false;
+  };
+
   // 시간대 유효성 검사 함수
   const validateStorageTime = () => {
     if (!selectedPlace || !storageStartTime || !storageEndTime) {
@@ -3812,8 +3885,11 @@ const Map = () => {
                           </Typography>
                         </Box>
                         <Typography variant="body2" sx={{ color: "#666" }}>•</Typography>
-                        <Typography variant="body2" sx={{ color: "#4caf50", fontWeight: 600 }}>
-                          영업중
+                        <Typography variant="body2" sx={{ 
+                          color: isCurrentlyOpen(selectedPlace) ? "#4caf50" : "#f44336", 
+                          fontWeight: 600 
+                        }}>
+                          {isCurrentlyOpen(selectedPlace) ? "영업중" : "휴무"}
                         </Typography>
                         <Typography variant="body2" sx={{ color: "#666" }}>•</Typography>
                         <Typography variant="body2" sx={{ color: "#666" }}>
