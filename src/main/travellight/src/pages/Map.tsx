@@ -1143,23 +1143,174 @@ const Map = () => {
         }
       }
 
-      // 영업 시간 포맷팅 함수
+      // 영업 시간 포맷팅 함수 (문자열 반환)
       function formatBusinessHours(
-        businessHours: Record<string, BusinessHourDto>
+        businessHours: Record<string, BusinessHourDto | string>
       ): string {
         if (!businessHours || Object.keys(businessHours).length === 0) {
           return "영업시간 정보 없음";
         }
 
-        // 요일별 영업 시간 중 첫번째 항목만 표시 (간단하게)
-        const firstDayKey = Object.keys(businessHours)[0];
-        const hourData = businessHours[firstDayKey];
+        const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+        const dayNames = {
+          'MONDAY': '월',
+          'TUESDAY': '화',
+          'WEDNESDAY': '수',
+          'THURSDAY': '목',
+          'FRIDAY': '금',
+          'SATURDAY': '토',
+          'SUNDAY': '일'
+        };
 
-        if (!hourData.enabled) {
+        // 두 가지 데이터 형태 모두 처리
+        const enabledDays = dayOrder.filter(day => {
+          const dayData = businessHours[day];
+          if (!dayData) return false;
+          
+          // 문자열 형태인 경우 (예: "09:00-18:00")
+          if (typeof dayData === 'string') {
+            return dayData.trim() !== '' && dayData !== '휴무';
+          }
+          
+          // 객체 형태인 경우 (예: { enabled: true, open: "09:00", close: "18:00" })
+          if (typeof dayData === 'object') {
+            return dayData.enabled === true;
+          }
+          
+          return false;
+        });
+
+        if (enabledDays.length === 0) {
           return "휴무일";
         }
 
-        return `${hourData.open} - ${hourData.close}`;
+        // 연속된 요일과 같은 시간을 그룹화
+        const groups: { days: string[], time: string }[] = [];
+        let currentGroup: string[] = [];
+        let currentTime = '';
+
+        enabledDays.forEach(day => {
+          const dayData = businessHours[day];
+          let dayTime = '';
+          
+          // 문자열 형태인 경우
+          if (typeof dayData === 'string') {
+            dayTime = dayData.replace('-', ' - ');
+          }
+          // 객체 형태인 경우
+          else if (typeof dayData === 'object') {
+            dayTime = `${dayData.open} - ${dayData.close}`;
+          }
+          
+          if (currentTime === dayTime) {
+            currentGroup.push(dayNames[day as keyof typeof dayNames]);
+          } else {
+            if (currentGroup.length > 0) {
+              groups.push({ days: [...currentGroup], time: currentTime });
+            }
+            currentGroup = [dayNames[day as keyof typeof dayNames]];
+            currentTime = dayTime;
+          }
+        });
+
+        if (currentGroup.length > 0) {
+          groups.push({ days: currentGroup, time: currentTime });
+        }
+
+        // 그룹화된 결과를 문자열로 변환
+        const result = groups.map(group => {
+          if (group.days.length > 2) {
+            return `${group.days[0]}~${group.days[group.days.length - 1]} ${group.time}`;
+          } else {
+            return `${group.days.join(',')} ${group.time}`;
+          }
+        }).join('\n');
+
+        return result;
+      }
+
+      // 영업 시간 포맷팅 함수 (배열 반환 - React에서 세로 표시용)
+      function formatBusinessHoursArray(
+        businessHours: Record<string, BusinessHourDto | string>
+      ): string[] {
+        if (!businessHours || Object.keys(businessHours).length === 0) {
+          return ["영업시간 정보 없음"];
+        }
+
+        const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+        const dayNames = {
+          'MONDAY': '월',
+          'TUESDAY': '화',
+          'WEDNESDAY': '수',
+          'THURSDAY': '목',
+          'FRIDAY': '금',
+          'SATURDAY': '토',
+          'SUNDAY': '일'
+        };
+
+        // 두 가지 데이터 형태 모두 처리
+        const enabledDays = dayOrder.filter(day => {
+          const dayData = businessHours[day];
+          if (!dayData) return false;
+          
+          // 문자열 형태인 경우 (예: "09:00-18:00")
+          if (typeof dayData === 'string') {
+            return dayData.trim() !== '' && dayData !== '휴무';
+          }
+          
+          // 객체 형태인 경우 (예: { enabled: true, open: "09:00", close: "18:00" })
+          if (typeof dayData === 'object') {
+            return dayData.enabled === true;
+          }
+          
+          return false;
+        });
+
+        if (enabledDays.length === 0) {
+          return ["휴무일"];
+        }
+
+        // 연속된 요일과 같은 시간을 그룹화
+        const groups: { days: string[], time: string }[] = [];
+        let currentGroup: string[] = [];
+        let currentTime = '';
+
+        enabledDays.forEach(day => {
+          const dayData = businessHours[day];
+          let dayTime = '';
+          
+          // 문자열 형태인 경우
+          if (typeof dayData === 'string') {
+            dayTime = dayData.replace('-', ' - ');
+          }
+          // 객체 형태인 경우
+          else if (typeof dayData === 'object') {
+            dayTime = `${dayData.open} - ${dayData.close}`;
+          }
+          
+          if (currentTime === dayTime) {
+            currentGroup.push(dayNames[day as keyof typeof dayNames]);
+          } else {
+            if (currentGroup.length > 0) {
+              groups.push({ days: [...currentGroup], time: currentTime });
+            }
+            currentGroup = [dayNames[day as keyof typeof dayNames]];
+            currentTime = dayTime;
+          }
+        });
+
+        if (currentGroup.length > 0) {
+          groups.push({ days: currentGroup, time: currentTime });
+        }
+
+        // 그룹화된 결과를 배열로 반환
+        return groups.map(group => {
+          if (group.days.length > 2) {
+            return `${group.days[0]}~${group.days[group.days.length - 1]} ${group.time}`;
+          } else {
+            return `${group.days.join(',')} ${group.time}`;
+          }
+        });
       }
 
       // 지도 드래그 이벤트
@@ -1938,23 +2089,174 @@ const Map = () => {
     }
   };
 
-  // 영업 시간 포맷팅 함수
+  // 영업 시간 포맷팅 함수 (문자열 반환)
   const formatBusinessHours = (
-    businessHours: Record<string, BusinessHourDto> | undefined
+    businessHours: Record<string, BusinessHourDto | string> | undefined
   ): string => {
     if (!businessHours || Object.keys(businessHours).length === 0) {
       return "영업시간 정보 없음";
     }
 
-    // 요일별 영업 시간 중 첫번째 항목만 표시 (간단하게)
-    const firstDayKey = Object.keys(businessHours)[0];
-    const hourData = businessHours[firstDayKey];
+    const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+    const dayNames = {
+      'MONDAY': '월',
+      'TUESDAY': '화',
+      'WEDNESDAY': '수',
+      'THURSDAY': '목',
+      'FRIDAY': '금',
+      'SATURDAY': '토',
+      'SUNDAY': '일'
+    };
 
-    if (!hourData.enabled) {
+    // 두 가지 데이터 형태 모두 처리
+    const enabledDays = dayOrder.filter(day => {
+      const dayData = businessHours[day];
+      if (!dayData) return false;
+      
+      // 문자열 형태인 경우 (예: "09:00-18:00")
+      if (typeof dayData === 'string') {
+        return dayData.trim() !== '' && dayData !== '휴무';
+      }
+      
+      // 객체 형태인 경우 (예: { enabled: true, open: "09:00", close: "18:00" })
+      if (typeof dayData === 'object') {
+        return dayData.enabled === true;
+      }
+      
+      return false;
+    });
+
+    if (enabledDays.length === 0) {
       return "휴무일";
     }
 
-    return `${hourData.open} - ${hourData.close}`;
+    // 연속된 요일과 같은 시간을 그룹화
+    const groups: { days: string[], time: string }[] = [];
+    let currentGroup: string[] = [];
+    let currentTime = '';
+
+    enabledDays.forEach(day => {
+      const dayData = businessHours[day];
+      let dayTime = '';
+      
+      // 문자열 형태인 경우
+      if (typeof dayData === 'string') {
+        dayTime = dayData.replace('-', ' - ');
+      }
+      // 객체 형태인 경우
+      else if (typeof dayData === 'object') {
+        dayTime = `${dayData.open} - ${dayData.close}`;
+      }
+      
+      if (currentTime === dayTime) {
+        currentGroup.push(dayNames[day as keyof typeof dayNames]);
+      } else {
+        if (currentGroup.length > 0) {
+          groups.push({ days: [...currentGroup], time: currentTime });
+        }
+        currentGroup = [dayNames[day as keyof typeof dayNames]];
+        currentTime = dayTime;
+      }
+    });
+
+    if (currentGroup.length > 0) {
+      groups.push({ days: currentGroup, time: currentTime });
+    }
+
+    // 그룹화된 결과를 문자열로 변환
+    const result = groups.map(group => {
+      if (group.days.length > 2) {
+        return `${group.days[0]}~${group.days[group.days.length - 1]} ${group.time}`;
+      } else {
+        return `${group.days.join(',')} ${group.time}`;
+      }
+    }).join('\n');
+
+    return result;
+  };
+
+  // 영업 시간 포맷팅 함수 (배열 반환 - React에서 세로 표시용)
+  const formatBusinessHoursArray = (
+    businessHours: Record<string, BusinessHourDto | string> | undefined
+  ): string[] => {
+    if (!businessHours || Object.keys(businessHours).length === 0) {
+      return ["영업시간 정보 없음"];
+    }
+
+    const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+    const dayNames = {
+      'MONDAY': '월',
+      'TUESDAY': '화',
+      'WEDNESDAY': '수',
+      'THURSDAY': '목',
+      'FRIDAY': '금',
+      'SATURDAY': '토',
+      'SUNDAY': '일'
+    };
+
+    // 두 가지 데이터 형태 모두 처리
+    const enabledDays = dayOrder.filter(day => {
+      const dayData = businessHours[day];
+      if (!dayData) return false;
+      
+      // 문자열 형태인 경우 (예: "09:00-18:00")
+      if (typeof dayData === 'string') {
+        return dayData.trim() !== '' && dayData !== '휴무';
+      }
+      
+      // 객체 형태인 경우 (예: { enabled: true, open: "09:00", close: "18:00" })
+      if (typeof dayData === 'object') {
+        return dayData.enabled === true;
+      }
+      
+      return false;
+    });
+
+    if (enabledDays.length === 0) {
+      return ["휴무일"];
+    }
+
+    // 연속된 요일과 같은 시간을 그룹화
+    const groups: { days: string[], time: string }[] = [];
+    let currentGroup: string[] = [];
+    let currentTime = '';
+
+    enabledDays.forEach(day => {
+      const dayData = businessHours[day];
+      let dayTime = '';
+      
+      // 문자열 형태인 경우
+      if (typeof dayData === 'string') {
+        dayTime = dayData.replace('-', ' - ');
+      }
+      // 객체 형태인 경우
+      else if (typeof dayData === 'object') {
+        dayTime = `${dayData.open} - ${dayData.close}`;
+      }
+      
+      if (currentTime === dayTime) {
+        currentGroup.push(dayNames[day as keyof typeof dayNames]);
+      } else {
+        if (currentGroup.length > 0) {
+          groups.push({ days: [...currentGroup], time: currentTime });
+        }
+        currentGroup = [dayNames[day as keyof typeof dayNames]];
+        currentTime = dayTime;
+      }
+    });
+
+    if (currentGroup.length > 0) {
+      groups.push({ days: currentGroup, time: currentTime });
+    }
+
+    // 그룹화된 결과를 배열로 반환
+    return groups.map(group => {
+      if (group.days.length > 2) {
+        return `${group.days[0]}~${group.days[group.days.length - 1]} ${group.time}`;
+      } else {
+        return `${group.days.join(',')} ${group.time}`;
+      }
+    });
   };
 
   // 시간 옵션 생성 함수
@@ -2131,24 +2433,38 @@ const Map = () => {
           const todayName = dayNames[today];
 
           // 오늘의 영업시간이 있으면 사용
-          if (
-            partnership.businessHours[todayName] &&
-            partnership.businessHours[todayName].enabled
-          ) {
-            return {
-              start: partnership.businessHours[todayName].open,
-              end: partnership.businessHours[todayName].close,
-            };
+          const todayHours = partnership.businessHours[todayName];
+          if (todayHours) {
+            // 문자열 형태인 경우 (예: "09:00-18:00")
+            if (typeof todayHours === 'string' && todayHours.trim() !== '' && todayHours !== '휴무') {
+              const [start, end] = todayHours.split('-').map(time => time.trim());
+              return { start, end };
+            }
+            // 객체 형태인 경우 (예: { enabled: true, open: "09:00", close: "18:00" })
+            else if (typeof todayHours === 'object' && todayHours.enabled) {
+              return {
+                start: todayHours.open,
+                end: todayHours.close,
+              };
+            }
           }
 
           // 오늘 영업하지 않으면 첫 번째 영업일의 시간 사용
           for (const dayName of dayNames) {
             const dayHours = partnership.businessHours[dayName];
-            if (dayHours && dayHours.enabled) {
-              return {
-                start: dayHours.open,
-                end: dayHours.close,
-              };
+            if (dayHours) {
+              // 문자열 형태인 경우
+              if (typeof dayHours === 'string' && dayHours.trim() !== '' && dayHours !== '휴무') {
+                const [start, end] = dayHours.split('-').map(time => time.trim());
+                return { start, end };
+              }
+              // 객체 형태인 경우
+              else if (typeof dayHours === 'object' && dayHours.enabled) {
+                return {
+                  start: dayHours.open,
+                  end: dayHours.close,
+                };
+              }
             }
           }
         }
@@ -3622,12 +3938,41 @@ const Map = () => {
                             <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
                               영업시간
                             </Typography>
-                            <Typography variant="body2" sx={{ color: "#666" }}>
-                              {selectedPlace.opening_hours ||
-                                (selectedPlace.category_group_code === "BK9"
-                                  ? "평일 09:00-16:00"
-                                  : "매일 09:00-22:00")}
-                            </Typography>
+                            <Box>
+                              {(() => {
+                                // 영업시간 배열 생성
+                                let hoursArray: string[] = [];
+                                
+                                if (selectedPlace.opening_hours) {
+                                  // 제휴점인 경우 businessHours에서 배열로 가져오기
+                                  const partnership = partnerships.find(p => 
+                                    p.businessName === selectedPlace.place_name &&
+                                    p.address === selectedPlace.address_name
+                                  );
+                                  
+                                  if (partnership && partnership.businessHours) {
+                                    hoursArray = formatBusinessHoursArray(partnership.businessHours);
+                                  } else {
+                                    hoursArray = [selectedPlace.opening_hours];
+                                  }
+                                } else {
+                                  // 기본값
+                                  hoursArray = selectedPlace.category_group_code === "BK9"
+                                    ? ["평일 09:00-16:00"]
+                                    : ["매일 09:00-22:00"];
+                                }
+                                
+                                return hoursArray.map((hour, index) => (
+                                  <Typography 
+                                    key={index} 
+                                    variant="body2" 
+                                    sx={{ color: "#666", lineHeight: 1.4 }}
+                                  >
+                                    {hour}
+                                  </Typography>
+                                ));
+                              })()}
+                            </Box>
                           </Box>
                         </Box>
 
@@ -3697,7 +4042,8 @@ const Map = () => {
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        backgroundColor: "rgba(255, 255, 255, 0.95)",
+                        backgroundColor: "rgba(255, 255, 255, 0.98)",
+                        backdropFilter: "blur(8px)",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
@@ -3711,137 +4057,110 @@ const Map = () => {
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
-                          gap: 2,
+                          gap: 3,
                         }}
                       >
-                        {/* 모던한 로딩 스피너 */}
+                                                {/* 깔끔한 로딩 애니메이션 */}
                         <Box
                           sx={{
-                            width: "56px",
-                            height: "56px",
                             position: "relative",
-                            mb: 1,
+                            width: "64px",
+                            height: "64px",
+                            mb: 2,
                           }}
                         >
-                          {/* 첫 번째 원 */}
+                          {/* 단순한 회전 링 */}
                           <Box
                             sx={{
                               position: "absolute",
+                              top: 0,
+                              left: 0,
                               width: "100%",
                               height: "100%",
-                              border: "3px solid transparent",
+                              border: "3px solid rgba(26, 115, 232, 0.1)",
                               borderTopColor: "#1a73e8",
                               borderRadius: "50%",
-                              animation: "spinClockwise 1.2s linear infinite",
+                              animation: "simpleRotate 1.5s linear infinite",
                             }}
                           />
-
-                          {/* 두 번째 원 */}
+                          
+                          {/* 중앙 신용카드 아이콘 */}
                           <Box
                             sx={{
                               position: "absolute",
-                              top: "8px",
-                              left: "8px",
-                              right: "8px",
-                              bottom: "8px",
-                              border: "3px solid transparent",
-                              borderTopColor: "#4285f4",
-                              borderRadius: "50%",
-                              animation:
-                                "spinCounterClockwise 1.8s linear infinite",
+                              top: "50%",
+                              left: "50%",
+                              transform: "translate(-50%, -50%)",
+                              width: "32px",
+                              height: "32px",
+                              backgroundColor: "#1a73e8",
+                              borderRadius: "6px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
-                          />
-
-                          {/* 세 번째 원 */}
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              top: "16px",
-                              left: "16px",
-                              right: "16px",
-                              bottom: "16px",
-                              border: "3px solid transparent",
-                              borderTopColor: "#1a73e8",
-                              borderRadius: "50%",
-                              animation: "spinClockwise 1.5s linear infinite",
-                            }}
-                          />
-
-                          {/* 애니메이션 키프레임 스타일 */}
-                          <Box
-                            sx={{
-                              "@keyframes spinClockwise": {
-                                "0%": { transform: "rotate(0deg)" },
-                                "100%": { transform: "rotate(360deg)" },
-                              },
-                              "@keyframes spinCounterClockwise": {
-                                "0%": { transform: "rotate(0deg)" },
-                                "100%": { transform: "rotate(-360deg)" },
-                              },
-                            }}
-                          />
+                          >
+                            <svg
+                              width="18"
+                              height="18"
+                              viewBox="0 0 24 24"
+                              fill="white"
+                            >
+                              <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+                            </svg>
+                          </Box>
                         </Box>
 
                         {/* 텍스트 메시지 */}
                         <Typography
                           sx={{
-                            fontWeight: 500,
+                            fontWeight: 600,
                             color: "#1a73e8",
-                            fontSize: "15px",
-                            display: "flex",
-                            alignItems: "center",
+                            fontSize: "18px",
+                            textAlign: "center",
+                            mb: 2,
                           }}
                         >
-                          {t("processingPayment")}
+                          결제 처리 중입니다
+                        </Typography>
+
+                        {/* 보안 메시지 */}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            color: "#666",
+                            fontSize: "14px",
+                          }}
+                        >
                           <Box
-                            component="span"
                             sx={{
-                              display: "inline-flex",
-                              ml: 0.5,
-                              "& > span": {
-                                width: "4px",
-                                height: "4px",
-                                margin: "0 1px",
-                                backgroundColor: "#1a73e8",
-                                borderRadius: "50%",
-                                display: "inline-block",
-                              },
+                              width: "16px",
+                              height: "16px",
+                              backgroundColor: "#4caf50",
+                              borderRadius: "50%",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
-                            <Box
-                              component="span"
-                              sx={{
-                                animation: "dotPulse 1.5s infinite ease-in-out",
-                                animationDelay: "0s",
-                              }}
-                            />
-                            <Box
-                              component="span"
-                              sx={{
-                                animation: "dotPulse 1.5s infinite ease-in-out",
-                                animationDelay: "0.2s",
-                              }}
-                            />
-                            <Box
-                              component="span"
-                              sx={{
-                                animation: "dotPulse 1.5s infinite ease-in-out",
-                                animationDelay: "0.4s",
-                              }}
-                            />
-                            <Box
-                              sx={{
-                                "@keyframes dotPulse": {
-                                  "0%, 100%": {
-                                    transform: "scale(0.5)",
-                                    opacity: 0.5,
-                                  },
-                                  "50%": { transform: "scale(1)", opacity: 1 },
-                                },
-                              }}
-                            />
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
+                              <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z" />
+                            </svg>
                           </Box>
-                        </Typography>
+                          결제 정보는 암호화되어 안전하게 처리됩니다
+                        </Box>
+
+                        {/* 애니메이션 키프레임 정의 */}
+                        <Box
+                          sx={{
+                            "@keyframes simpleRotate": {
+                              "0%": { transform: "rotate(0deg)" },
+                              "100%": { transform: "rotate(360deg)" },
+                            },
+                          }}
+                        />
                       </Box>
                     </Box>
                   )}
@@ -4065,60 +4384,72 @@ const Map = () => {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          gap: 1.5,
+                          gap: 2,
                           position: "relative",
                         }}
                       >
+                        {/* 신용카드 회전 아이콘 */}
+                        <Box
+                          sx={{
+                            width: "24px",
+                            height: "24px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            animation: "cardRotate 2s ease-in-out infinite",
+                            "@keyframes cardRotate": {
+                              "0%": { transform: "rotateY(0deg)" },
+                              "50%": { transform: "rotateY(180deg)" },
+                              "100%": { transform: "rotateY(360deg)" },
+                            },
+                          }}
+                        >
+                          <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="rgba(255, 255, 255, 0.9)"
+                          >
+                            <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+                          </svg>
+                        </Box>
+                        
+                        <Typography sx={{ fontWeight: 600, fontSize: "16px" }}>
+                          안전하게 결제 중입니다
+                        </Typography>
+                        
+                        {/* 점진적 점들 */}
                         <Box
                           sx={{
                             display: "flex",
-                            gap: 0.5,
+                            gap: 0.4,
+                            ml: 0.5,
                           }}
                         >
-                          <Box
-                            sx={{
-                              width: "8px",
-                              height: "8px",
-                              backgroundColor: "rgba(255, 255, 255, 0.9)",
-                              borderRadius: "50%",
-                              animation: "pulse 1.5s infinite ease-in-out",
-                              animationDelay: "0s",
-                              "@keyframes pulse": {
-                                "0%, 100%": {
-                                  transform: "scale(0.5)",
-                                  opacity: 0.5,
+                          {[0, 1, 2].map((index) => (
+                            <Box
+                              key={index}
+                              sx={{
+                                width: "4px",
+                                height: "4px",
+                                backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                borderRadius: "50%",
+                                animation: "dotWave 1.8s ease-in-out infinite",
+                                animationDelay: `${index * 0.3}s`,
+                                "@keyframes dotWave": {
+                                  "0%, 60%, 100%": {
+                                    transform: "scale(0.7)",
+                                    opacity: 0.5,
+                                  },
+                                  "30%": {
+                                    transform: "scale(1.2)",
+                                    opacity: 1,
+                                  },
                                 },
-                                "50%": {
-                                  transform: "scale(1)",
-                                  opacity: 1,
-                                },
-                              },
-                            }}
-                          />
-                          <Box
-                            sx={{
-                              width: "8px",
-                              height: "8px",
-                              backgroundColor: "rgba(255, 255, 255, 0.9)",
-                              borderRadius: "50%",
-                              animation: "pulse 1.5s infinite ease-in-out",
-                              animationDelay: "0.3s",
-                            }}
-                          />
-                          <Box
-                            sx={{
-                              width: "8px",
-                              height: "8px",
-                              backgroundColor: "rgba(255, 255, 255, 0.9)",
-                              borderRadius: "50%",
-                              animation: "pulse 1.5s infinite ease-in-out",
-                              animationDelay: "0.6s",
-                            }}
-                          />
+                              }}
+                            />
+                          ))}
                         </Box>
-                        <Typography sx={{ fontWeight: 500, fontSize: "14px" }}>
-                          결제 진행 중...
-                        </Typography>
                       </Box>
                     ) : (
                       <Box
@@ -4138,29 +4469,7 @@ const Map = () => {
                       </Box>
                     )}
 
-                    {/* 물결 효과 */}
-                    {isProcessingPayment && (
-                      <Box
-                        sx={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          backgroundImage:
-                            "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%)",
-                          animation: "wave 1.5s infinite linear",
-                          "@keyframes wave": {
-                            "0%": {
-                              transform: "translateX(-100%)",
-                            },
-                            "100%": {
-                              transform: "translateX(100%)",
-                            },
-                          },
-                        }}
-                      />
-                    )}
+
                   </Button>
                 </Box>
               ) : isPaymentComplete ? (
@@ -5649,22 +5958,48 @@ const Map = () => {
                   >
                     {place.phone || t("noPhoneNumber")}
                   </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: place.opening_hours?.includes("24시간")
-                        ? "success.main"
-                        : "text.secondary",
-                      mt: 0.5,
-                    }}
-                  >
-                    {place.opening_hours ||
-                      (place.category_group_code === "BK9"
-                        ? t("bankHours")
-                        : place.category_group_code === "CS2"
-                        ? t("storeHours")
-                        : t("noOpeningHours"))}
-                  </Typography>
+                  <Box sx={{ mt: 0.5 }}>
+                    {(() => {
+                      // 영업시간 배열 생성
+                      let hoursArray: string[] = [];
+                      
+                      if (place.opening_hours) {
+                        // 제휴점인 경우 businessHours에서 배열로 가져오기
+                        const partnership = partnerships.find(p => 
+                          p.businessName === place.place_name &&
+                          p.address === place.address_name
+                        );
+                        
+                        if (partnership && partnership.businessHours) {
+                          hoursArray = formatBusinessHoursArray(partnership.businessHours);
+                        } else {
+                          hoursArray = [place.opening_hours];
+                        }
+                      } else {
+                        // 기본값
+                        hoursArray = place.category_group_code === "BK9"
+                          ? [t("bankHours")]
+                          : place.category_group_code === "CS2"
+                          ? [t("storeHours")]
+                          : [t("noOpeningHours")];
+                      }
+                      
+                      return hoursArray.map((hour, index) => (
+                        <Typography
+                          key={index}
+                          variant="body2"
+                          sx={{
+                            color: hour.includes("24시간")
+                              ? "success.main"
+                              : "text.secondary",
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {hour}
+                        </Typography>
+                      ));
+                    })()}
+                  </Box>
                 </Box>
               ))}
             </Stack>
