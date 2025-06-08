@@ -19,8 +19,19 @@ import {
   Alert,
   Stack,
   Chip,
+  IconButton,
+  Menu,
+  Divider,
+  Typography,
 } from "@mui/material";
-import { Typography } from "@mui/material";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
+import { ko } from "date-fns/locale";
+import { useAuth } from "../services/AuthContext";
+import axios from "axios";
+import { useTranslation } from "react-i18next";
+import PortOne from "@portone/browser-sdk/v2";
+import { useLocation, useNavigate } from "react-router-dom";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
@@ -39,14 +50,16 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import StorefrontIcon from "@mui/icons-material/Storefront";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
-import { ko } from "date-fns/locale";
-import { useAuth } from "../services/AuthContext";
-import axios from "axios";
-import { useTranslation } from "react-i18next";
-import PortOne from "@portone/browser-sdk/v2";
-import { useLocation } from "react-router-dom";
+import TranslateIcon from "@mui/icons-material/Translate";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import PersonIcon from "@mui/icons-material/Person";
+import SettingsIcon from "@mui/icons-material/Settings";
+import LogoutIcon from "@mui/icons-material/Logout";
+import LoginIcon from "@mui/icons-material/Login";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import LanguageIcon from "@mui/icons-material/Language";
+import MenuIcon from "@mui/icons-material/Menu";
 
 declare global {
   interface Window {
@@ -100,8 +113,9 @@ interface BusinessHourDto {
 //영문 지도 변환
 const Map = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
 
   const mapRef = useRef<HTMLDivElement>(null);
   const [userPosition, setUserPosition] = useState<{
@@ -178,6 +192,35 @@ const Map = () => {
     medium: number;
     large: number;
   }>({ small: 0, medium: 0, large: 0 });
+
+  // 사용자 메뉴 및 언어 메뉴 상태
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
+
+  // 메뉴 처리 함수들
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLangMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setLangMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleLangMenuClose = () => {
+    setLangMenuAnchorEl(null);
+  };
+
+  const changeLanguage = (lng: string) => {
+    localStorage.setItem('preferredLanguage', lng);
+    handleLangMenuClose();
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+  };
 
   // 공통 스크롤바 스타일 정의
   const scrollbarStyle = {
@@ -3430,8 +3473,7 @@ const Map = () => {
 
   return (
     <>
-      <Navbar />
-      {/* 지도 전체 영역 - Box 헤더와 함께 제거 */}
+      {/* 지도 전체 영역 */}
       <div
         id="map"
         style={{
@@ -3473,10 +3515,10 @@ const Map = () => {
 
           // 데스크톱
           "@media (min-width: 768px)": {
-            top: "90px",
+            top: "16px",
             left: "16px",
             width: "400px",
-            maxHeight: (selectedPlace || isReservationOpen) ? "calc(100vh - 100px)" : "calc(90vh - 60px)", // 매장 선택 시 검색 영역이 없으므로 더더더 길게
+            maxHeight: (selectedPlace || isReservationOpen) ? "calc(100vh - 32px)" : "calc(90vh - 16px)",
           },
 
           // 모바일
@@ -3485,20 +3527,107 @@ const Map = () => {
             right: 0,
             bottom: 0,
             width: "100%",
-            maxHeight: (selectedPlace || isReservationOpen) ? "98vh" : "75vh", // 매장 선택 시 검색 영역이 없으므로 더더더 길게
+            maxHeight: (selectedPlace || isReservationOpen) ? "98vh" : "75vh",
             borderTopLeftRadius: "24px",
             borderTopRightRadius: "24px",
           },
         }}
       >
+        {/* 헤더 섹션 - 항상 표시 */}
+        <Box
+          sx={{
+            px: 2,
+            py: 1.5,
+            backgroundColor: "primary.main",
+            borderRadius: "24px 24px 0 0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+            boxShadow: "0 2px 8px rgba(25, 118, 210, 0.15)"
+          }}
+        >
+          {/* 로고 및 브랜드 */}
+          <Box 
+            sx={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: 1,
+              cursor: "pointer",
+              "&:hover": {
+                opacity: 0.8
+              }
+            }}
+            onClick={() => navigate('/')}
+          >
+            <LuggageIcon sx={{ color: "white", fontSize: 28 }} />
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                color: "white",
+                fontSize: "20px"
+              }}
+            >
+              TravelLight
+            </Typography>
+          </Box>
+
+          {/* 오른쪽 메뉴들 */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            {/* 언어 선택 버튼 */}
+            <IconButton
+              onClick={handleLangMenuOpen}
+              size="small"
+              sx={{ 
+                color: "white",
+                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" }
+              }}
+            >
+              <TranslateIcon fontSize="small" />
+            </IconButton>
+
+            {/* 사용자 메뉴 버튼 */}
+            {isAuthenticated ? (
+              <Button
+                onClick={handleProfileMenuOpen}
+                endIcon={<ArrowDropDownIcon />}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: "medium",
+                  color: "white",
+                  minWidth: "auto",
+                  padding: "4px 8px",
+                  fontSize: "14px",
+                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" }
+                }}
+              >
+                {user?.name}님
+              </Button>
+            ) : (
+              <IconButton
+                onClick={handleProfileMenuOpen}
+                size="small"
+                sx={{ 
+                  color: "white",
+                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" }
+                }}
+              >
+                <AccountCircleIcon fontSize="small" />
+              </IconButton>
+            )}
+          </Box>
+        </Box>
+
         {/* 검색 영역 - 매장 선택 시 숨김 */}
         {!selectedPlace && (
           <Box
             sx={{
-              p: 3,
+              px: 3,
+              py: 2,
               borderBottom: shouldShowResultArea() ? "1px solid rgba(0, 0, 0, 0.06)" : "none",
               backgroundColor: "rgba(255, 255, 255, 0.98)",
-              borderRadius: shouldShowResultArea() ? "24px 24px 0 0" : "24px",
+              borderRadius: shouldShowResultArea() ? "0" : "0 0 24px 24px", // 결과 영역이 없으면 하단 모서리 둥글게
               transition: "all 0.2s ease-out", // 부드러운 전환
             }}
           >
@@ -3512,9 +3641,11 @@ const Map = () => {
                   if (e.key === "Enter" && !isPaymentComplete) searchPlaces();
                 }}
                 disabled={isPaymentComplete}
+                size="small"
                 sx={{
                   "& .MuiOutlinedInput-root": {
-                    borderRadius: "16px",
+                    height: "40px",
+                    borderRadius: "12px",
                     backgroundColor: "#f8f9fa",
                     "& fieldset": {
                       border: "none",
@@ -3533,6 +3664,10 @@ const Map = () => {
                       backgroundColor: "#f0f0f0",
                     },
                   },
+                  "& .MuiInputBase-input": {
+                    padding: "8px 12px",
+                    fontSize: "14px",
+                  },
                 }}
               />
               <Button
@@ -3540,12 +3675,14 @@ const Map = () => {
                 onClick={searchPlaces}
                 disableRipple
                 disabled={isPaymentComplete}
+                size="small"
                 sx={{
-                  minWidth: "80px",
-                  height: "56px",
-                  borderRadius: "16px",
+                  minWidth: "60px",
+                  height: "40px",
+                  borderRadius: "12px",
                   boxShadow: "none",
-                  padding: "0 16px",
+                  padding: "0 12px",
+                  fontSize: "14px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -3569,13 +3706,14 @@ const Map = () => {
             </Box>
 
             {/* 시간 선택 영역 */}
-            <Box sx={{ mt: 2, display: "flex", gap: 2 }}>
-              <FormControl sx={{ flex: 1 }}>
-                <InputLabel id="start-time-label">{t("start")}</InputLabel>
+            <Box sx={{ mt: 1.5, display: "flex", gap: 1.5 }}>
+              <FormControl sx={{ flex: 1 }} size="small">
+                <InputLabel id="start-time-label" sx={{ fontSize: "14px" }}>{t("start")}</InputLabel>
                 <Select
                   labelId="start-time-label"
                   value={startTime}
                   label={t("start")}
+                  size="small"
                   onChange={(e) => {
                     const newStartTime = e.target.value;
                     setStartTime(newStartTime);
@@ -3586,8 +3724,10 @@ const Map = () => {
                     }
                   }}
                   sx={{
-                    borderRadius: "16px",
+                    height: "40px",
+                    borderRadius: "12px",
                     backgroundColor: "#f8f9fa",
+                    fontSize: "14px",
                     "& .MuiOutlinedInput-notchedOutline": {
                       border: "none",
                     },
@@ -3601,6 +3741,7 @@ const Map = () => {
                       },
                     },
                     "& .MuiSelect-select": {
+                      padding: "8px 12px",
                       paddingRight: "32px !important",
                     },
                   }}
@@ -3642,12 +3783,13 @@ const Map = () => {
                   ))}
                 </Select>
               </FormControl>
-              <FormControl sx={{ flex: 1 }}>
-                <InputLabel id="end-time-label">{t("end")}</InputLabel>
+              <FormControl sx={{ flex: 1 }} size="small">
+                <InputLabel id="end-time-label" sx={{ fontSize: "14px" }}>{t("end")}</InputLabel>
                 <Select
                   labelId="end-time-label"
                   value={endTime}
                   label={t("end")}
+                  size="small"
                   onChange={(e) => {
                     setEndTime(e.target.value);
                     if (searchResults.length > 0) {
@@ -3655,8 +3797,10 @@ const Map = () => {
                     }
                   }}
                   sx={{
-                    borderRadius: "16px",
+                    height: "40px",
+                    borderRadius: "12px",
                     backgroundColor: "#f8f9fa",
+                    fontSize: "14px",
                     "& .MuiOutlinedInput-notchedOutline": {
                       border: "none",
                     },
@@ -3670,6 +3814,7 @@ const Map = () => {
                       },
                     },
                     "& .MuiSelect-select": {
+                      padding: "8px 12px",
                       paddingRight: "32px !important",
                     },
                   }}
@@ -3726,8 +3871,8 @@ const Map = () => {
               : shouldShowResultArea() ? "calc(90vh - 200px)" : "0px",
             opacity: shouldShowResultArea() ? 1 : 0,
             borderRadius: (selectedPlace || isReservationOpen)
-              ? "24px 24px 0 0" // 하단에 버튼이 있을 때 아래쪽 모서리는 둥글지 않게
-              : shouldShowResultArea() ? "0 0 24px 24px" : "0",
+              ? "0" // 하단에 버튼이 있을 때 모서리는 둥글지 않게
+              : shouldShowResultArea() ? "0 0 24px 24px" : "0", // 검색 결과만 있을 때 하단 모서리 둥글게
             "@media (max-width: 767px)": {
               maxHeight: (selectedPlace || isReservationOpen)
                 ? "calc(98vh - 120px)" // 하단 버튼 공간 확보
@@ -3762,8 +3907,8 @@ const Map = () => {
                   {/* 헤더 */}
                   <Box
                     sx={{
-                      px: 1,
-                      py: 2,
+                      px: 0,
+                      pb: 2,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
@@ -5985,7 +6130,7 @@ const Map = () => {
         !isPaymentOpen &&
         !isPaymentComplete &&
         searchResults.length > 0 && (
-          <Box>
+          <Box sx={{ pb: 2 }}> {/* 하단 여백 추가 */}
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               {t("searchResultTitle", { count: searchResults.length })}
             </Typography>
@@ -6081,6 +6226,156 @@ const Map = () => {
             </Stack>
           </Box>
         )}
+
+      {/* 사용자 메뉴 */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        sx={{
+          '& .MuiPaper-root': {
+            borderRadius: '12px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+            border: '1px solid #f3f4f6',
+            minWidth: '160px',
+            marginTop: '8px',
+          },
+          '& .MuiMenuItem-root': {
+            padding: '10px 16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#1a1a1a',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            '&:hover': {
+              backgroundColor: '#f9fafb',
+              color: '#2563eb',
+            },
+            '&:first-of-type': {
+              marginTop: '4px',
+            },
+            '&:last-of-type': {
+              marginBottom: '4px',
+            },
+            '& .MuiSvgIcon-root': {
+              fontSize: '18px',
+            },
+          },
+          '& .MuiDivider-root': {
+            margin: '6px 0',
+            borderColor: '#f3f4f6',
+          },
+        }}
+      >
+        {isAuthenticated ? (
+          [
+            <MenuItem key="profile" onClick={() => { handleMenuClose(); window.location.href = '/mypage'; }}>
+              <PersonIcon />
+              마이페이지
+            </MenuItem>,
+            <MenuItem key="settings" onClick={() => { handleMenuClose(); window.location.href = '/settings'; }}>
+              <SettingsIcon />
+              설정
+            </MenuItem>,
+            <Divider key="divider" />,
+            <MenuItem 
+              key="logout" 
+              onClick={() => { 
+                handleMenuClose(); 
+                logout();
+                navigate('/');
+              }}
+              sx={{
+                color: '#dc2626 !important',
+                '&:hover': {
+                  backgroundColor: '#fee2e2 !important',
+                  color: '#dc2626 !important',
+                },
+              }}
+            >
+              <LogoutIcon />
+              로그아웃
+            </MenuItem>
+          ]
+        ) : (
+          [
+            <MenuItem key="login" onClick={() => { handleMenuClose(); window.location.href = '/login'; }}>
+              <LoginIcon />
+              로그인
+            </MenuItem>,
+            <MenuItem key="register" onClick={() => { handleMenuClose(); window.location.href = '/register'; }}>
+              <PersonAddIcon />
+              회원가입
+            </MenuItem>
+          ]
+        )}
+      </Menu>
+
+      {/* 언어 선택 메뉴 */}
+      <Menu
+        anchorEl={langMenuAnchorEl}
+        open={Boolean(langMenuAnchorEl)}
+        onClose={handleLangMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        sx={{
+          '& .MuiPaper-root': {
+            borderRadius: '12px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+            border: '1px solid #f3f4f6',
+            minWidth: '160px',
+            marginTop: '8px',
+          },
+          '& .MuiMenuItem-root': {
+            padding: '10px 16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#1a1a1a',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            '&:hover': {
+              backgroundColor: '#f9fafb',
+              color: '#2563eb',
+            },
+            '&:first-of-type': {
+              marginTop: '4px',
+            },
+            '&:last-of-type': {
+              marginBottom: '4px',
+            },
+            '& .MuiSvgIcon-root': {
+              fontSize: '18px',
+            },
+          },
+        }}
+      >
+        <MenuItem onClick={() => changeLanguage('ko')}>
+          <LanguageIcon />
+          한국어
+        </MenuItem>
+        <MenuItem onClick={() => changeLanguage('en')}>
+          <LanguageIcon />
+          English
+        </MenuItem>
+      </Menu>
     </>
   );
 };
