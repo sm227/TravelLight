@@ -25,7 +25,7 @@ import LoginIcon from '@mui/icons-material/Login';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LanguageIcon from '@mui/icons-material/Language';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
 
@@ -85,7 +85,14 @@ const Navbar: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user, isAuthenticated, isPartner, isWaiting, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
+
+  // 파트너 관련 페이지인지 확인
+  const isPartnerPage = location.pathname.includes('/partner') || 
+                       location.pathname.includes('/StoragePartnership') ||
+                       location.pathname.includes('/EventStorage') ||
+                       location.pathname.includes('/Inquiry');
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -229,7 +236,18 @@ const Navbar: React.FC = () => {
 
   return (
     <>
-      <AppBar position="fixed" color="default" elevation={0} sx={{ backgroundColor: 'white' }}>
+      <AppBar 
+        position="fixed" 
+        color="default" 
+        elevation={0} 
+        sx={{ 
+          background: isPartnerPage 
+            ? 'linear-gradient(135deg, #2E7DF1 0%, #5D9FFF 100%)' 
+            : 'white',
+          transition: 'background 0.3s ease',
+          borderRadius: 0
+        }}
+      >
         <Container maxWidth="lg">
           <Toolbar disableGutters>
             <Typography
@@ -242,9 +260,10 @@ const Navbar: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 fontWeight: 700,
-                color: 'primary.main',
+                color: isPartnerPage ? 'white' : 'primary.main',
                 textDecoration: 'none',
-                flexGrow: 1
+                flexGrow: 1,
+                transition: 'color 0.3s ease'
               }}
             >
               <LuggageIcon sx={{ mr: 1 }} />
@@ -259,9 +278,12 @@ const Navbar: React.FC = () => {
                 aria-haspopup="true"
                 aria-expanded={isLangMenuOpen ? 'true' : undefined}
                 onClick={handleLangMenuOpen}
-                color="primary"
                 size="small"
-                sx={{ mx: 1 }}
+                sx={{ 
+                  mx: 1,
+                  color: isPartnerPage ? 'white' : 'primary.main',
+                  transition: 'color 0.3s ease'
+                }}
               >
                 <TranslateIcon />
               </IconButton>
@@ -270,13 +292,17 @@ const Navbar: React.FC = () => {
               {isAuthenticated ? (
                 <Button
                   onClick={handleProfileMenuOpen}
-                  color="primary"
                   sx={{ 
                     ml: 1, 
                     textTransform: 'none',
                     fontWeight: 'medium',
                     display: 'flex',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    color: isPartnerPage ? 'white' : 'primary.main',
+                    transition: 'color 0.3s ease',
+                    '&:hover': {
+                      backgroundColor: isPartnerPage ? 'rgba(255, 255, 255, 0.1)' : 'rgba(46, 125, 241, 0.1)'
+                    }
                   }}
                   endIcon={<ArrowDropDownIcon />}
                 >
@@ -286,9 +312,12 @@ const Navbar: React.FC = () => {
                 <IconButton
                   aria-label="user menu"
                   onClick={handleProfileMenuOpen}
-                  color="primary"
                   size="small"
-                  sx={{ mx: 1 }}
+                  sx={{ 
+                    mx: 1,
+                    color: isPartnerPage ? 'white' : 'primary.main',
+                    transition: 'color 0.3s ease'
+                  }}
                 >
                   <AccountCircleIcon />
                 </IconButton>
@@ -296,11 +325,15 @@ const Navbar: React.FC = () => {
               
               {/* 햄버거 버튼 */}
               <IconButton
-                color="inherit"
                 aria-label="open overlay menu"
                 edge="end"
                 onClick={handleOverlayOpen}
-                sx={{ display: 'flex', ml: 1 }}
+                sx={{ 
+                  display: 'flex', 
+                  ml: 1,
+                  color: isPartnerPage ? 'white' : 'inherit',
+                  transition: 'color 0.3s ease'
+                }}
               >
                 <MenuIcon />
               </IconButton>
