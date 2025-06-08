@@ -4,7 +4,6 @@ import {
   Container, 
   Typography, 
   Button, 
-  Paper,
   useTheme
 } from '@mui/material';
 import { Home, ArrowBack, Explore } from '@mui/icons-material';
@@ -96,7 +95,7 @@ const NotFound: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center',
         py: 2,
-        background: 'linear-gradient(180deg, #FAFBFC 0%, #F0F5FF 100%)',
+        backgroundColor: '#fff',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -111,20 +110,12 @@ const NotFound: React.FC = () => {
             alignItems: 'center',
             textAlign: 'center',
             animation: `${fadeIn} 0.8s ease-out`,
+            p: { xs: 3, sm: 4, md: 5 },
+            width: '100%',
+            maxWidth: { xs: '500px', sm: '600px', md: '800px', lg: '900px' },
+            mx: 'auto',
           }}
         >
-          <Paper 
-            elevation={3} 
-            sx={{ 
-              p: { xs: 3, sm: 4, md: 5 }, 
-              width: '100%',
-              maxWidth: { xs: '500px', sm: '600px', md: '800px', lg: '900px' },
-              borderRadius: 2,
-              backgroundColor: '#fff',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-              position: 'relative',
-            }}
-          >
             {/* 귀여운 404 이미지 */}
             <Box
               sx={{
@@ -289,7 +280,7 @@ const NotFound: React.FC = () => {
             </Box>
 
             {/* 추가 도움말 */}
-            <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+            <Box sx={{ mt: 2, pt: 2 }}>
               <Typography
                 variant="body2"
                 sx={{
@@ -319,7 +310,6 @@ const NotFound: React.FC = () => {
                 로 문의해주세요.
               </Typography>
             </Box>
-          </Paper>
         </Box>
       </Container>
     </Box>
