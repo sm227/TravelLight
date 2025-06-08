@@ -54,9 +54,6 @@ dependencies {
     implementation 'software.amazon.awssdk:ec2'
     implementation 'software.amazon.awssdk:rds'
     implementation 'software.amazon.awssdk:s3'
-    
-    // 시스템 메트릭 수집용
-    implementation 'com.sun.management:jmxremote_optional:1.0.1-ea'
 }
 
 tasks.named('test') {

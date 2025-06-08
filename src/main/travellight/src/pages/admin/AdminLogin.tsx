@@ -41,7 +41,7 @@ const COLORS = {
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { adminLogin, isAdmin } = useAuth();
+  const { adminLogin, isAdmin, isInitialLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -55,6 +55,39 @@ const AdminLogin = () => {
       navigate('/admin');
     }
   }, [isAdmin, navigate]);
+
+  // 초기 로딩 중이면 로딩 화면 표시
+  if (isInitialLoading) {
+    return (
+      <Box sx={{ 
+        minHeight: '100vh',
+        bgcolor: COLORS.backgroundDark,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress 
+            size={40} 
+            sx={{ 
+              color: COLORS.accentPrimary,
+              mb: 2
+            }} 
+          />
+          <Typography variant="body2" sx={{ 
+            color: COLORS.textSecondary,
+            fontSize: '0.75rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+            fontFamily: 'monospace',
+            fontWeight: 600
+          }}>
+            SYSTEM INITIALIZING...
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
