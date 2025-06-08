@@ -24,6 +24,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import LoginIcon from '@mui/icons-material/Login';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LanguageIcon from '@mui/icons-material/Language';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -197,6 +198,10 @@ const Navbar: React.FC = () => {
       onClose={handleMenuClose}
       sx={menuStyles}
     >
+      <MenuItem onClick={() => { handleMenuClose(); navigate('/map', { state: { showReservations: true } }); }}>
+        <BookmarkIcon />
+        내 예약
+      </MenuItem>
       <MenuItem onClick={() => { handleMenuClose(); navigate('/mypage'); }}>
         <PersonIcon />
         {t('myPage')}
@@ -243,7 +248,7 @@ const Navbar: React.FC = () => {
               }}
             >
               <LuggageIcon sx={{ mr: 1 }} />
-              TravelLight
+              Travelight
             </Typography>
             
             <Box sx={{ display: 'flex', alignItems: 'center' }}>

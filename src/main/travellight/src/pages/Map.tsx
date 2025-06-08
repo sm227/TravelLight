@@ -60,6 +60,10 @@ import LoginIcon from "@mui/icons-material/Login";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import LanguageIcon from "@mui/icons-material/Language";
 import MenuIcon from "@mui/icons-material/Menu";
+import BookmarkIcon from "@mui/icons-material/Bookmark";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { getMyReservations } from '../services/reservationService';
+import { ReservationDto } from '../types/reservation';
 
 declare global {
   interface Window {
@@ -144,7 +148,7 @@ const Map = () => {
 
   // 검색 결과 영역 표시 여부 결정
   const shouldShowResultArea = () => {
-    return selectedPlace !== null || searchResults.length > 0 || isReservationOpen || isPaymentOpen || isPaymentComplete;
+    return selectedPlace !== null || searchResults.length > 0 || isReservationOpen || isPaymentOpen || isPaymentComplete || showReservations;
   };
 
   // 포트원 결제 관련 상태
@@ -193,6 +197,11 @@ const Map = () => {
     large: number;
   }>({ small: 0, medium: 0, large: 0 });
 
+  // 예약 목록 관련 상태
+  const [showReservations, setShowReservations] = useState(false);
+  const [myReservations, setMyReservations] = useState<ReservationDto[]>([]);
+  const [loadingReservations, setLoadingReservations] = useState(false);
+
   // 사용자 메뉴 및 언어 메뉴 상태
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -220,6 +229,78 @@ const Map = () => {
     setTimeout(() => {
       window.location.reload();
     }, 100);
+  };
+
+  // 예약 목록 관련 함수들
+  const fetchMyReservations = async () => {
+    if (!user?.id) return;
+    
+    setLoadingReservations(true);
+    try {
+      const reservations = await getMyReservations(user.id);
+      // 예약 상태를 체크하고 업데이트
+      const updatedReservations = checkAndUpdateReservationStatus(reservations);
+      setMyReservations(updatedReservations);
+    } catch (error) {
+      console.error('예약 목록을 불러오는데 실패했습니다:', error);
+    } finally {
+      setLoadingReservations(false);
+    }
+  };
+
+  const checkAndUpdateReservationStatus = (reservations: ReservationDto[]): ReservationDto[] => {
+    const now = new Date();
+    return reservations.map(reservation => {
+      const endDateTime = new Date(`${reservation.storageEndDate}T${reservation.storageEndTime}`);
+
+      if (reservation.status === 'RESERVED' && now > endDateTime) {
+        return {
+          ...reservation,
+          status: 'COMPLETED' as const
+        };
+      }
+      return reservation;
+    });
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'RESERVED':
+        return '예약중';
+      case 'COMPLETED':
+        return '완료';
+      case 'CANCELLED':
+        return '취소됨';
+      default:
+        return status;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const formatTimeForReservation = (timeString: string) => {
+    return timeString.slice(0, 5); // HH:MM 형식으로 변환
+  };
+
+  const handleReservationsClick = () => {
+    setShowReservations(true);
+    setSelectedPlace(null);
+    setSearchResults([]);
+    setIsReservationOpen(false);
+    setIsPaymentOpen(false);
+    setIsPaymentComplete(false);
+    fetchMyReservations();
+  };
+
+  const handleBackToSearch = () => {
+    setShowReservations(false);
   };
 
   // 공통 스크롤바 스타일 정의
@@ -331,7 +412,27 @@ const Map = () => {
     searchResults: initialSearchResults = [],
     initialPosition,
     searchType,
+    showReservations: initialShowReservations = false,
   } = (location.state as any) || {};
+
+  // Navbar에서 예약 목록 요청 처리
+  useEffect(() => {
+    if (initialShowReservations && isAuthenticated) {
+      console.log('Navbar에서 예약 목록 화면 요청됨');
+      setShowReservations(true);
+      setSelectedPlace(null);
+      setSearchResults([]);
+      setIsReservationOpen(false);
+      setIsPaymentOpen(false);
+      setIsPaymentComplete(false);
+      fetchMyReservations();
+      
+      // location.state 정리
+      if (location.state) {
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [initialShowReservations, isAuthenticated]);
 
   // 메인페이지에서 전달받은 검색어 처리
   useEffect(() => {
@@ -1121,6 +1222,7 @@ const Map = () => {
             };
 
             setSelectedPlace(placeData);
+            setShowReservations(false); // 예약목록 숨기기
             // 사이드바가 닫혀있으면 열기
             setIsSidebarOpen(true);
 
@@ -3510,7 +3612,7 @@ const Map = () => {
           zIndex: 100,
           display: "flex",
           flexDirection: "column",
-          borderRadius: "24px",
+          borderRadius: "16px",
           transition: "height 0.2s ease-out", // 높이 변화에 대한 부드러운 애니메이션
 
           // 데스크톱
@@ -3528,8 +3630,8 @@ const Map = () => {
             bottom: 0,
             width: "100%",
             maxHeight: (selectedPlace || isReservationOpen) ? "98vh" : "75vh",
-            borderTopLeftRadius: "24px",
-            borderTopRightRadius: "24px",
+            borderTopLeftRadius: "16px",
+            borderTopRightRadius: "16px",
           },
         }}
       >
@@ -3539,7 +3641,7 @@ const Map = () => {
             px: 2,
             py: 1.5,
             backgroundColor: "primary.main",
-            borderRadius: "24px 24px 0 0",
+            borderRadius: "16px 16px 0 0",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -3569,12 +3671,26 @@ const Map = () => {
                 fontSize: "20px"
               }}
             >
-              TravelLight
+              Travelight
             </Typography>
           </Box>
 
           {/* 오른쪽 메뉴들 */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            {/* 예약 목록 버튼 */}
+            {isAuthenticated && (
+              <IconButton
+                onClick={handleReservationsClick}
+                size="small"
+                sx={{ 
+                  color: "white",
+                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" }
+                }}
+              >
+                <BookmarkIcon fontSize="small" />
+              </IconButton>
+            )}
+            
             {/* 언어 선택 버튼 */}
             <IconButton
               onClick={handleLangMenuOpen}
@@ -3619,15 +3735,15 @@ const Map = () => {
           </Box>
         </Box>
 
-        {/* 검색 영역 - 매장 선택 시 숨김 */}
-        {!selectedPlace && (
+        {/* 검색 영역 - 매장 선택 시나 예약 목록 화면에서 숨김 */}
+        {!selectedPlace && !showReservations && (
           <Box
             sx={{
               px: 3,
               py: 2,
               borderBottom: shouldShowResultArea() ? "1px solid rgba(0, 0, 0, 0.06)" : "none",
               backgroundColor: "rgba(255, 255, 255, 0.98)",
-              borderRadius: shouldShowResultArea() ? "0" : "0 0 24px 24px", // 결과 영역이 없으면 하단 모서리 둥글게
+              borderRadius: shouldShowResultArea() ? "0" : "0 0 16px 16px", // 결과 영역이 없으면 하단 모서리 둥글게
               transition: "all 0.2s ease-out", // 부드러운 전환
             }}
           >
@@ -3899,7 +4015,332 @@ const Map = () => {
               },
             }}
           >
-          {selectedPlace ? (
+          {showReservations ? (
+            // 예약 목록 화면
+            <Box sx={{ px: 1, py: 0 }}>
+              {/* 헤더 */}
+              <Box sx={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 1.5, 
+                mb: 3,
+                pb: 1,
+                borderBottom: "1px solid #f0f0f0"
+              }}>
+                <IconButton
+                  onClick={handleBackToSearch}
+                  size="small"
+                  sx={{
+                    p: 0.5,
+                    color: "#666",
+                    "&:hover": { backgroundColor: "#f5f5f5" }
+                  }}
+                >
+                  <ArrowBackIcon fontSize="small" />
+                </IconButton>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: "#1a1a1a" }}>
+                  내 예약 목록
+                </Typography>
+              </Box>
+
+              {/* 예약 목록 */}
+              {loadingReservations ? (
+                <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                  <Typography variant="body2" sx={{ color: "#666" }}>
+                    예약 목록을 불러오는 중...
+                  </Typography>
+                </Box>
+              ) : myReservations.length === 0 ? (
+                <Box sx={{ 
+                  display: "flex", 
+                  flexDirection: "column", 
+                  alignItems: "center", 
+                  py: 6,
+                  textAlign: "center"
+                }}>
+                  <BookmarkIcon sx={{ fontSize: 48, color: "#e0e0e0", mb: 2 }} />
+                  <Typography variant="h6" sx={{ color: "#666", mb: 1 }}>
+                    예약 내역이 없습니다
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "#999" }}>
+                    새로운 보관소를 예약해보세요
+                  </Typography>
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {myReservations.map((reservation) => (
+                    <Box
+                      key={reservation.id}
+                      sx={{
+                        position: "relative",
+                        backgroundColor: "#fafafa",
+                        borderRadius: "8px",
+                        overflow: "hidden",
+                        border: "2px solid #e0e0e0",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          borderColor: "#ccc"
+                        }
+                      }}
+                    >
+                                              {/* 티켓 상단 - 헤더 */}
+                        <Box sx={{ 
+                          px: 1.5,
+                          py: 1,
+                          borderBottom: "1px solid #ddd",
+                          backgroundColor: "#f5f5f5"
+                        }}>
+                        {/* 예약번호와 상태 */}
+                        <Box sx={{ 
+                          display: "flex", 
+                          justifyContent: "space-between", 
+                          alignItems: "center",
+                          mb: 1
+                        }}>
+                          <Typography 
+                            variant="body1" 
+                            sx={{ 
+                              fontWeight: 700,
+                              color: "#333",
+                              fontSize: "14px",
+                              fontFamily: "monospace",
+                              letterSpacing: "1px"
+                            }}
+                          >
+                            TRAVEL LIGHT
+                          </Typography>
+                          <Typography variant="caption" sx={{
+                            color: "#666",
+                            fontWeight: 500,
+                            fontSize: '11px',
+                            px: 1,
+                            py: 0.5,
+                            backgroundColor: "#eee",
+                            borderRadius: "4px",
+                            border: "1px solid #ddd"
+                          }}>
+                            {getStatusText(reservation.status)}
+                          </Typography>
+                        </Box>
+
+                        {/* 예약번호 */}
+                        <Box sx={{ 
+                          display: "flex", 
+                          alignItems: "center",
+                          gap: 1
+                        }}>
+                          <Typography variant="caption" sx={{ 
+                            color: "#888", 
+                            fontSize: "9px",
+                            fontWeight: 600,
+                            letterSpacing: "0.5px",
+                            textTransform: "uppercase"
+                          }}>
+                            NO.
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            fontWeight: 700,
+                            color: "#333",
+                            fontFamily: "monospace",
+                            fontSize: "13px"
+                          }}>
+                            {reservation.reservationNumber}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                                              {/* 티켓 본문 */}
+                        <Box sx={{ px: 1.5, py: 1 }}>
+                        {/* 매장 정보 */}
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="body1" sx={{ 
+                            fontWeight: 600, 
+                            mb: 0.5,
+                            color: "#333",
+                            fontSize: "14px"
+                          }}>
+                            {reservation.placeName}
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            color: "#666", 
+                            fontSize: "12px"
+                          }}>
+                            {reservation.placeAddress}
+                          </Typography>
+                        </Box>
+
+                        {/* 예약 세부 정보 */}
+                                                  <Box sx={{ 
+                            display: "grid", 
+                            gridTemplateColumns: "1fr 1fr", 
+                            gap: 1,
+                            mb: 1.5,
+                            py: 0.5,
+                            px: 1,
+                            backgroundColor: "#f0f0f0",
+                            borderRadius: "4px",
+                            border: "1px solid #ddd"
+                          }}>
+                          <Box>
+                            <Typography variant="caption" sx={{ 
+                              color: "#777", 
+                              display: "block",
+                              fontSize: "9px",
+                              fontWeight: 600,
+                              textTransform: "uppercase",
+                              mb: 0.5
+                            }}>
+                              날짜
+                            </Typography>
+                            <Typography variant="body2" sx={{ 
+                              fontWeight: 600,
+                              color: "#333",
+                              fontSize: "12px"
+                            }}>
+                              {formatDate(reservation.storageDate)}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography variant="caption" sx={{ 
+                              color: "#777", 
+                              display: "block",
+                              fontSize: "9px",
+                              fontWeight: 600,
+                              textTransform: "uppercase",
+                              mb: 0.5
+                            }}>
+                              시간
+                            </Typography>
+                            <Typography variant="body2" sx={{ 
+                              fontWeight: 600,
+                              color: "#333",
+                              fontSize: "12px"
+                            }}>
+                              {formatTimeForReservation(reservation.storageStartTime)} - {formatTimeForReservation(reservation.storageEndTime)}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        {/* 가방 정보 - 영수증 스타일 */}
+                        <Box sx={{ mb: 1.5 }}>
+                          <Typography variant="caption" sx={{ 
+                            color: "#777",
+                            fontSize: "9px",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            mb: 0.5,
+                            display: "block"
+                          }}>
+                            품목
+                          </Typography>
+                          <Box sx={{ 
+                            display: "flex", 
+                            flexDirection: "column",
+                            gap: 0.5
+                          }}>
+                            {reservation.smallBags > 0 && (
+                              <Box sx={{ 
+                                display: "flex", 
+                                justifyContent: "space-between", 
+                                alignItems: "center"
+                              }}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                  <Typography variant="body2" sx={{ 
+                                    color: "#555",
+                                    fontSize: "11px"
+                                  }}>
+                                    • 소형 가방
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 600,
+                                  color: "#333",
+                                  fontSize: "11px"
+                                }}>
+                                  {reservation.smallBags}개
+                                </Typography>
+                              </Box>
+                            )}
+                            {reservation.mediumBags > 0 && (
+                              <Box sx={{ 
+                                display: "flex", 
+                                justifyContent: "space-between", 
+                                alignItems: "center"
+                              }}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                  <Typography variant="body2" sx={{ 
+                                    color: "#555",
+                                    fontSize: "11px"
+                                  }}>
+                                    • 중형 가방
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 600,
+                                  color: "#333",
+                                  fontSize: "11px"
+                                }}>
+                                  {reservation.mediumBags}개
+                                </Typography>
+                              </Box>
+                            )}
+                            {reservation.largeBags > 0 && (
+                              <Box sx={{ 
+                                display: "flex", 
+                                justifyContent: "space-between", 
+                                alignItems: "center"
+                              }}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                  <Typography variant="body2" sx={{ 
+                                    color: "#555",
+                                    fontSize: "11px"
+                                  }}>
+                                    • 대형 가방
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 600,
+                                  color: "#333",
+                                  fontSize: "11px"
+                                }}>
+                                  {reservation.largeBags}개
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+                        </Box>
+
+                        {/* 총 금액 */}
+                        <Box sx={{ 
+                          pt: 1,
+                          borderTop: "1px dashed #ccc",
+                          display: "flex", 
+                          justifyContent: "space-between", 
+                          alignItems: "center"
+                        }}>
+                          <Typography variant="body2" sx={{ 
+                            color: "#555",
+                            fontWeight: 600,
+                            fontSize: "12px"
+                          }}>
+                            합계
+                          </Typography>
+                          <Typography variant="h6" sx={{ 
+                            fontWeight: 700, 
+                            color: "#333",
+                            fontSize: "16px",
+                            fontFamily: "monospace"
+                          }}>
+                            {reservation.totalPrice.toLocaleString()}원
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          ) : selectedPlace ? (
             // 선택된 장소 상세 정보 - Bounce 스타일
             <>
               {!isReservationOpen ? (
@@ -5930,6 +6371,7 @@ const Map = () => {
                     }
 
                     setSelectedPlace(place);
+                    setShowReservations(false); // 예약목록 숨기기
                     const moveLatLng = new window.naver.maps.LatLng(
                       place.y,
                       place.x
@@ -6138,7 +6580,10 @@ const Map = () => {
               {searchResults.map((place, index) => (
                 <Box
                   key={index}
-                  onClick={() => setSelectedPlace(place)}
+                  onClick={() => {
+                    setSelectedPlace(place);
+                    setShowReservations(false); // 예약목록 숨기기
+                  }}
                   sx={{
                     borderRadius: "12px",
                     backgroundColor: "white",
