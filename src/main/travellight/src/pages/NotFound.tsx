@@ -101,43 +101,7 @@ const NotFound: React.FC = () => {
         overflow: 'hidden',
       }}
     >
-      {/* 배경 장식 요소들 */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '10%',
-          left: '10%',
-          width: '100px',
-          height: '100px',
-          borderRadius: '50%',
-          background: alpha(theme.palette.primary.main, 0.1),
-          animation: `${float} 3s ease-in-out infinite`,
-        }}
-      />
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '60%',
-          right: '15%',
-          width: '60px',
-          height: '60px',
-          borderRadius: '50%',
-          background: alpha(theme.palette.secondary.main, 0.1),
-          animation: `${float} 4s ease-in-out infinite`,
-        }}
-      />
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: '20%',
-          left: '20%',
-          width: '80px',
-          height: '80px',
-          borderRadius: '50%',
-          background: alpha(theme.palette.primary.main, 0.05),
-          animation: `${float} 5s ease-in-out infinite`,
-        }}
-      />
+
 
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
         <Box
@@ -167,7 +131,6 @@ const NotFound: React.FC = () => {
                 mb: 2,
                 display: 'flex',
                 justifyContent: 'center',
-                animation: `${float} 3s ease-in-out infinite`,
               }}
             >
               <img
@@ -223,9 +186,9 @@ const NotFound: React.FC = () => {
                 mx: 'auto',
               }}
             >
-              요청하신 페이지가 존재하지 않거나 이동되었을 수 있습니다.
+              여행하다 보면  예상치 못한 곳에 도착하기도 하죠!
               <br />
-              아래 버튼을 통해 다른 페이지로 이동해보세요.
+              트래블라이트와 함께 다시 올바른 길을 찾아보세요
             </Typography>
 
             {/* 여행 관련 아이콘 */}
