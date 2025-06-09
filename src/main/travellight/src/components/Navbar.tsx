@@ -89,6 +89,8 @@ const logoutMenuItemStyles = {
 
 const Navbar: React.FC = () => {
     const [hamburgerMenuOpen, setHamburgerMenuOpen] = useState(false);
+    const [hasBeenClicked, setHasBeenClicked] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [partnerMenuAnchorEl, setPartnerMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -98,6 +100,10 @@ const Navbar: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { t } = useTranslation();
+
+    useEffect(() => {
+        setIsInitialized(true);
+    }, []);
 
     // 파트너 관련 페이지인지 확인
     const isPartnerPage = location.pathname.includes('/partner') ||
@@ -190,6 +196,9 @@ const Navbar: React.FC = () => {
     };
 
     const handleHamburgerToggle = () => {
+        if (!hasBeenClicked) {
+            setHasBeenClicked(true);
+        }
         setHamburgerMenuOpen(!hamburgerMenuOpen);
     };
 
@@ -271,8 +280,8 @@ const Navbar: React.FC = () => {
                     transition: 'background 0.3s ease',
                     borderRadius: 0,
                     boxShadow: isPartnerPage ? 'none' : undefined,
-                    border: isPartnerPage ? 'none' : undefined,
-                    borderBottom: isPartnerPage ? 'none' : undefined
+                    border: 'none',
+                    borderBottom: 'none'
                 }}
             >
                 <Container maxWidth="lg">
@@ -362,6 +371,9 @@ const Navbar: React.FC = () => {
                                     height: '30px',
                                     position: 'relative',
                                     cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
                                     '& span': {
                                         display: 'block',
                                         position: 'absolute',
@@ -374,17 +386,17 @@ const Navbar: React.FC = () => {
                                         transition: 'all .25s',
                                     },
                                     '& span:nth-of-type(1)': {
-                                        top: '10px',
-                                        animation: hamburgerMenuOpen ? 'active-menu-bar07-01 .4s forwards' : 'menu-bar07-01 .4s forwards',
+                                        top: '8px',
+                                        animation: hasBeenClicked ? (hamburgerMenuOpen ? 'active-menu-bar07-01 .4s forwards' : 'menu-bar07-01 .4s forwards') : 'none',
                                     },
                                     '& span:nth-of-type(2)': {
-                                        top: '16px',
+                                        top: '14px',
                                         transition: 'all .2s .1s',
                                         opacity: hamburgerMenuOpen ? 0 : 1,
                                     },
                                     '& span:nth-of-type(3)': {
-                                        top: '22px',
-                                        animation: hamburgerMenuOpen ? 'active-menu-bar07-02 .4s forwards' : 'menu-bar07-02 .4s forwards',
+                                        top: '20px',
+                                        animation: hasBeenClicked ? (hamburgerMenuOpen ? 'active-menu-bar07-02 .4s forwards' : 'menu-bar07-02 .4s forwards') : 'none',
                                     },
                                     '@keyframes menu-bar07-01': {
                                         '0%': {
@@ -511,7 +523,8 @@ const Navbar: React.FC = () => {
                         left: 0,
                         right: 0,
                         backgroundColor: 'white',
-                        borderBottom: '1px solid #e0e0e0',
+                        border: 'none',
+                        borderBottom: 'none',
                         zIndex: 1300,
                         maxHeight: hamburgerMenuOpen ? '300px' : 0,
                         overflow: 'hidden',
