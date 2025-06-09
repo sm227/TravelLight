@@ -518,7 +518,7 @@ const Navbar: React.FC = () => {
                         transition: 'max-height 0.3s ease-in-out',
                     }}
                 >
-                    <Container 
+                    <Container
                         maxWidth="lg"
                         sx={{
                             py: 2,
@@ -527,8 +527,8 @@ const Navbar: React.FC = () => {
                             transition: 'all 0.3s ease-in-out',
                         }}
                     >
-                        <Box sx={{ 
-                            display: 'flex', 
+                        <Box sx={{
+                            display: 'flex',
                             justifyContent: 'space-between',
                             gap: 4
                         }}>
@@ -537,7 +537,7 @@ const Navbar: React.FC = () => {
                                 sx={{
                                     flex: 1,
                                     opacity: 0,
-                                    animation: hamburgerMenuOpen 
+                                    animation: hamburgerMenuOpen
                                         ? 'fadeIn 0.3s ease-out forwards 0.1s'
                                         : 'none',
                                     '@keyframes fadeIn': {
@@ -600,7 +600,7 @@ const Navbar: React.FC = () => {
                                 sx={{
                                     flex: 1,
                                     opacity: 0,
-                                    animation: hamburgerMenuOpen 
+                                    animation: hamburgerMenuOpen
                                         ? 'fadeIn 0.3s ease-out forwards 0.2s'
                                         : 'none'
                                 }}
@@ -654,7 +654,7 @@ const Navbar: React.FC = () => {
                                 sx={{
                                     flex: 1,
                                     opacity: 0,
-                                    animation: hamburgerMenuOpen 
+                                    animation: hamburgerMenuOpen
                                         ? 'fadeIn 0.3s ease-out forwards 0.3s'
                                         : 'none'
                                 }}
