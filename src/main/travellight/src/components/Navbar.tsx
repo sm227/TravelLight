@@ -27,8 +27,6 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
-import CompleteHamburgerOverlayMenu from './CompleteHamburgerOverlayMenu';
-import {hover} from "framer-motion";
 
 interface MenuItem {
   text: string;
@@ -202,12 +200,13 @@ const Navbar: React.FC = () => {
     ...partnerSubMenuItems
   ];
 
-  const handleMenuItemClick = (item: any, index: number) => {
+  const handleMenuItemClick = (item: { text: string; href?: string; onClick?: () => void }, index: number) => {
     if (item.onClick) {
       item.onClick();
     } else if (item.href) {
       window.location.href = item.href;
     }
+    setOverlayOpen(false); // 메뉴 아이템 클릭 시 오버레이 닫기
   };
 
   const isMenuOpen = Boolean(anchorEl);
@@ -358,35 +357,71 @@ const Navbar: React.FC = () => {
                 </IconButton>
               )}
               
-              {/* 🍔 완성된 햄버거 메뉴 */}
-              <CompleteHamburgerOverlayMenu
-                menuItems={allMenuItems}
-                title=""
-                slideDirection="right"
-                buttonPosition="relative"
-                showCloseButton={true}
-                onMenuItemClick={handleMenuItemClick}
-                customStyles={{
-                  overlay: {
-                    zIndex: 3000,
-                    backgroundColor: 'rgba(0, 0, 0, 0.10)'
-                  },
-                  panel: {
-                    padding: '60px 40px 40px 40px',
-                  },
-                  menuItem: {
-                    itemColor: '#2c3e50',
-                    itemHoverColor: '#3498db',
-                    subItemSize: '18px',
-                    itemSize: '26px',
-                    margin: '24px 0',
-                    subItemMargin: '18px 0 18px 20px',
-                    underlineColor: '#3498db',
-                    underlineHeight: '2px'
+              {/* 🍔 햄버거/X 메뉴 버튼 */}
+              <IconButton
+                onClick={() => setOverlayOpen(!overlayOpen)}
+                sx={{
+                  mx: 1,
+                  color: isPartnerPage ? 'white' : 'primary.main',
+                  transition: 'color 0.3s ease, transform 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: isPartnerPage ? 'rgba(255, 255, 255, 0.1)' : 'rgba(46, 125, 241, 0.1)'
                   }
                 }}
-                ariaLabel="메뉴"
-              />
+              >
+                <Box
+                  sx={{
+                    width: '24px',
+                    height: '24px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    position: 'relative',
+                  }}
+                >
+                  {/* 첫 번째 선 */}
+                  <Box
+                    sx={{
+                      width: '18px',
+                      height: '2px',
+                      backgroundColor: 'currentColor',
+                      borderRadius: '1px',
+                      position: 'absolute',
+                      top: overlayOpen ? '50%' : '6px',
+                      transform: overlayOpen ? 'translateY(-50%) rotate(45deg)' : 'translateY(0) rotate(0deg)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                  />
+                  {/* 두 번째 선 */}
+                  <Box
+                    sx={{
+                      width: '18px',
+                      height: '2px',
+                      backgroundColor: 'currentColor',
+                      borderRadius: '1px',
+                      position: 'absolute',
+                      top: '11px',
+                      opacity: overlayOpen ? 0 : 1,
+                      transform: overlayOpen ? 'scale(0)' : 'scale(1)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                  />
+                  {/* 세 번째 선 */}
+                  <Box
+                    sx={{
+                      width: '18px',
+                      height: '2px',
+                      backgroundColor: 'currentColor',
+                      borderRadius: '1px',
+                      position: 'absolute',
+                      top: overlayOpen ? '50%' : '16px',
+                      transform: overlayOpen ? 'translateY(-50%) rotate(-45deg)' : 'translateY(0) rotate(0deg)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                  />
+                </Box>
+              </IconButton>
             </Box>
           </Toolbar>
         </Container>
@@ -433,179 +468,138 @@ const Navbar: React.FC = () => {
           </MenuItem>
         </Menu>
       </AppBar>
-      {/* 오버레이 메뉴: 항상 DOM에 렌더링, 스타일로만 제어 */}
-      <div
-        style={{
+      
+      {/* 토스뱅크 스타일 드롭다운 메뉴 */}
+      <Box
+        sx={{
           position: 'fixed',
-          top: 0,
+          top: '64px',
           left: 0,
-          width: '100vw',
-          height: '100vh',
-          zIndex: 3000,
-          display: 'flex',
-          flexDirection: 'row',
-          pointerEvents: overlayOpen ? 'auto' : 'none',
+          right: 0,
+          zIndex: 2999,
+          backgroundColor: '#ffffff',
+          boxShadow: overlayOpen ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none',
+          height: overlayOpen ? 'auto' : '0',
+          opacity: overlayOpen ? 1 : 0,
+          transform: overlayOpen ? 'scaleY(1)' : 'scaleY(0)',
+          transformOrigin: 'top',
+          transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease',
+          overflow: 'hidden',
+          borderBottom: overlayOpen ? '1px solid #f0f0f0' : 'none',
         }}
       >
-        {/* 블러+반투명 배경 (메뉴 패널 제외 전체) */}
-        <div
-          onClick={overlayOpen ? handleOverlayClose : undefined}
-          style={{
-            flex: 1,
-            height: '100vh',
-            background: 'rgba(0,0,0,0.10)',
-            backdropFilter: overlayOpen ? 'blur(8px)' : 'none',
-            cursor: overlayOpen ? 'pointer' : 'default',
-            transition: 'backdrop-filter 0.4s, background 0.4s',
-            opacity: overlayOpen ? 1 : 0,
-            pointerEvents: overlayOpen ? 'auto' : 'none',
+        <Container maxWidth="lg">
+          <Box sx={{ py: 3, px: { xs: 2, sm: 4 } }}>
+            {/* 메인 메뉴 아이템들 - 2열 그리드 배치 */}
+            <Box sx={{ 
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+              gap: { xs: 0, sm: 3 },
+              mb: 3
+            }}>
+              {hamburgerMenuItems.map((item, idx) => (
+                <Box
+                  key={item.text}
+                  onClick={() => handleMenuItemClick(item, idx)}
+                  sx={{
+                    py: { xs: 2, sm: 1.5 },
+                    px: { xs: 0, sm: 2 },
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: 500,
+                    color: '#333333',
+                    borderRadius: { xs: 0, sm: '8px' },
+                    borderBottom: { xs: '1px solid #f5f5f5', sm: 'none' },
+                    '&:hover': {
+                      color: '#0066ff',
+                      backgroundColor: '#fafafa',
+                      paddingLeft: { xs: '8px', sm: '16px' },
+                    },
+                    '&:last-child': {
+                      borderBottom: { xs: 'none', sm: 'none' },
+                    },
+                    opacity: overlayOpen ? 1 : 0,
+                    transform: overlayOpen ? 'translateY(0)' : 'translateY(-10px)',
+                    transition: `opacity 0.3s ${idx * 0.05}s ease, transform 0.3s ${idx * 0.05}s ease, color 0.2s ease, background-color 0.2s ease, padding-left 0.2s ease`,
+                  }}
+                >
+                  {item.text}
+                </Box>
+              ))}
+            </Box>
+
+            {/* 파트너 서비스 섹션 */}
+            <Box>
+              <Typography
+                sx={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#999999',
+                  mb: 1.5,
+                  pb: 1,
+                  borderBottom: '1px solid #f0f0f0',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                파트너 서비스
+              </Typography>
+              <Box sx={{ 
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: { xs: 0, sm: 2 },
+                flexWrap: 'wrap'
+              }}>
+                {partnerSubMenuItems.map((item, idx) => (
+                  <Box
+                    key={item.text}
+                    onClick={() => handleMenuItemClick(item, idx)}
+                    sx={{
+                      py: { xs: 1.5, sm: 1 },
+                      px: { xs: 0, sm: 2 },
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 400,
+                      color: '#666666',
+                      borderRadius: { xs: 0, sm: '6px' },
+                      minWidth: { sm: '140px' },
+                      '&:hover': {
+                        color: '#0066ff',
+                        backgroundColor: '#fafafa',
+                        paddingLeft: { xs: '8px', sm: '12px' },
+                      },
+                      opacity: overlayOpen ? 1 : 0,
+                      transform: overlayOpen ? 'translateY(0)' : 'translateY(-10px)',
+                      transition: `opacity 0.3s ${(hamburgerMenuItems.length + idx) * 0.05}s ease, transform 0.3s ${(hamburgerMenuItems.length + idx) * 0.05}s ease, color 0.2s ease, background-color 0.2s ease, padding-left 0.2s ease`,
+                    }}
+                  >
+                    {item.text}
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          </Box>
+        </Container>
+      </Box>
+
+      {/* 오버레이 배경 (클릭 시 메뉴 닫기) - 네비바 아래부터 시작 */}
+      {overlayOpen && (
+        <Box
+          onClick={handleOverlayClose}
+          sx={{
+            position: 'fixed',
+            top: '64px', // 네비바 아래부터 시작
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 2998,
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            backdropFilter: 'blur(4px)',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
           }}
         />
-        {/* 오른쪽 메뉴 패널 */}
-        <div
-          style={{
-            width: 400,
-            maxWidth: '90vw',
-            height: '100vh',
-            background: 'rgba(255,255,255,1)',
-            boxShadow: '-2px 0 16px rgba(0,0,0,0.08)',
-            position: 'relative',
-            zIndex: 2,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            justifyContent: 'flex-start',
-            padding: '48px 40px',
-            transform: overlayOpen ? 'translateX(0)' : 'translateX(100%)',
-            transition: 'transform 0.4s cubic-bezier(.77,0,.18,1), opacity 0.3s',
-            opacity: overlayOpen ? 1 : 0,
-            pointerEvents: overlayOpen ? 'auto' : 'none',
-            flexShrink: 0,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-          }}
-        >
-          {/* 나가기 버튼 */}
-          <IconButton
-            onClick={handleOverlayClose}
-            sx={{
-              position: 'sticky',
-              top: 24,
-              right: 24,
-              width: 48,
-              height: 48,
-              zIndex: 10,
-              background: '#fff',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              '&:hover': { background: '#f5f5f5' },
-            }}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="11" fill="#f5f5f5" />
-              <line x1="8" y1="8" x2="16" y2="16" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
-              <line x1="16" y1="8" x2="8" y2="16" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </IconButton>
-          {/* 애니메이션 효과 유지 */}
-          <div style={{ marginTop: 40, width: '100%', maxWidth: 400, textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
-            {menuItems.map((item, idx) => (
-              <div
-                key={item.text}
-                style={{
-                  display: 'inline-block',
-                  fontSize: 28,
-                  fontWeight: 600,
-                  margin: '28px 0',
-                  opacity: overlayOpen ? 1 : 0,
-                  transform: overlayOpen ? 'translateY(0)' : 'translateY(30px)',
-                  transition: `opacity 0.4s ${idx * 0.05}s, transform 0.4s ${idx * 0.05}s`,
-                  cursor: 'pointer',
-                  position: 'relative',
-                  width: 'fit-content',
-                }}
-                onClick={() => {
-                  setOverlayOpen(false);
-                  if (item.onClick) {
-                    item.onClick();
-                  } else if (item.href) {
-                    window.location.href = item.href;
-                  }
-                }}
-                onMouseEnter={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(1)';
-                }}
-                onMouseLeave={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(0)';
-                }}
-              >
-                {item.text}
-                <div
-                  className="menu-underline"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    bottom: 0,
-                    width: '100%',
-                    height: 2,
-                    background: '#222',
-                    transform: 'scaleX(0)',
-                    transformOrigin: 'left',
-                    transition: 'transform 0.3s'
-                  }}
-                />
-              </div>
-            ))}
-            <div style={{ height: 32 }} />
-            {partnerSubMenuItems.map((item, idx) => (
-              <div
-                key={item.text}
-                style={{
-                  display: 'inline-block',
-                  fontSize: 20,
-                  fontWeight: 400,
-                  margin: '16px 0',
-                  opacity: overlayOpen ? 1 : 0,
-                  transform: overlayOpen ? 'translateY(0)' : 'translateY(30px)',
-                  transition: `opacity 0.4s ${(menuItems.length + idx) * 0.05}s, transform 0.4s ${(menuItems.length + idx) * 0.05}s`,
-                  cursor: 'pointer',
-                  position: 'relative',
-                  width: 'fit-content'
-                }}
-                onClick={() => {
-                  setOverlayOpen(false);
-                  item.onClick();
-                }}
-                onMouseEnter={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(1)';
-                }}
-                onMouseLeave={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(0)';
-                }}
-              >
-                {item.text}
-                <div
-                  className="menu-underline"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    bottom: 0,
-                    width: '100%',
-                    height: 2,
-                    background: '#222',
-                    transform: 'scaleX(0)',
-                    transformOrigin: 'left',
-                    transition: 'transform 0.3s'
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      )}
       <Box sx={{ height: '64px' }} /> {/* AppBar 높이만큼의 여백 추가 */}
     </>
   );
