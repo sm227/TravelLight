@@ -242,10 +242,13 @@ const Navbar: React.FC = () => {
         elevation={0} 
         sx={{ 
           background: isPartnerPage 
-            ? 'linear-gradient(135deg, #2E7DF1 0%, #5D9FFF 100%)' 
+            ? '#2E7DF1' 
             : 'white',
           transition: 'background 0.3s ease',
-          borderRadius: 0
+          borderRadius: 0,
+          boxShadow: isPartnerPage ? 'none' : undefined,
+          border: isPartnerPage ? 'none' : undefined,
+          borderBottom: isPartnerPage ? 'none' : undefined
         }}
       >
         <Container maxWidth="lg">

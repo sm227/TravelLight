@@ -813,7 +813,7 @@ const PartnerDashboard: React.FC = () => {
         <Paper
             elevation={0}
             sx={{
-              background: 'linear-gradient(135deg, #2E7DF1 0%, #5D9FFF 100%)',
+              background: '#2E7DF1',
               color: 'white',
               py: 4,
               px: 3,
