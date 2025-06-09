@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -23,6 +23,46 @@ import StorefrontIcon from '@mui/icons-material/Storefront';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import api, { partnershipService } from '../services/api';
+
+// 타입 정의
+interface Partnership {
+    businessName: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+}
+
+interface NaverMap {
+    setCenter(position: NaverLatLng): void;
+    panTo(position: NaverLatLng): void;
+    getCenter(): NaverLatLng;
+    setZoom(level: number): void;
+}
+
+interface NaverLatLng {
+    lat(): number;
+    lng(): number;
+}
+
+interface NaverMaps {
+    LatLng: new (lat: number, lng: number) => NaverLatLng;
+    Map: new (element: HTMLElement, options: any) => NaverMap;
+    Marker: new (options: any) => any;
+    InfoWindow: new (options: any) => any;
+    Event: {
+        addListener: (target: any, type: string, listener: () => void) => void;
+    };
+    Point: new (x: number, y: number) => any;
+}
+
+// Window 타입 확장
+declare global {
+    interface Window {
+        naver: {
+            maps: NaverMaps;
+        };
+    }
+}
 
 // 애니메이션 정의
 const fadeIn = keyframes`
@@ -54,9 +94,230 @@ const Hero: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<Partnership[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    
+    // 지도 관련 상태
+    const mapRef = useRef<HTMLDivElement>(null);
+    const [map, setMap] = useState<NaverMap | null>(null);
+    const [partnerships, setPartnerships] = useState<Partnership[]>([]);
+    const [currentPosition, setCurrentPosition] = useState<{lat: number, lng: number} | null>(null);
+
+    // 현재 위치 가져오기
+    const getCurrentPosition = (): Promise<{lat: number, lng: number}> => {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('Geolocation is not supported'));
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    setCurrentPosition(pos);
+                    resolve(pos);
+                },
+                (error) => {
+                    console.error('위치 정보 가져오기 실패:', error);
+                    // 위치 정보 가져오기 실패 시 서울 중심으로 설정
+                    const defaultPos = { lat: 37.5665, lng: 126.9780 };
+                    setCurrentPosition(defaultPos);
+                    resolve(defaultPos);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 300000
+                }
+            );
+        });
+    };
+
+    // 네이버 지도 초기화
+    useEffect(() => {
+        const initializeMap = async () => {
+            // 현재 위치 먼저 가져오기
+            const position = await getCurrentPosition();
+
+            // 네이버 지도 API 스크립트 로드
+            if (!window.naver) {
+                const script = document.createElement('script');
+                script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=r23gqqq271&submodules=geocoder`;
+                script.async = true;
+                script.onload = () => {
+                    createMap(position);
+                };
+                document.head.appendChild(script);
+            } else {
+                createMap(position);
+            }
+        };
+
+        const createMap = (position: {lat: number, lng: number}) => {
+            if (mapRef.current && window.naver) {
+                const mapOptions = {
+                    center: new window.naver.maps.LatLng(position.lat, position.lng),
+                    zoom: 15, // 현재 위치이므로 좀 더 확대
+                    mapTypeControl: false,
+                    scaleControl: false,
+                    logoControl: false,
+                    mapDataControl: false,
+                    zoomControl: false
+                };
+
+                const naverMap = new window.naver.maps.Map(mapRef.current, mapOptions);
+                setMap(naverMap);
+
+                // 현재 위치 마커 추가
+                addCurrentLocationMarker(naverMap, position);
+
+                // 파트너십 데이터 로드
+                loadPartnerships(naverMap);
+            }
+        };
+
+        initializeMap();
+    }, []);
+
+    // 현재 위치 마커 추가
+    const addCurrentLocationMarker = (naverMap: NaverMap, position: {lat: number, lng: number}) => {
+        const currentLocationMarker = new window.naver.maps.Marker({
+            position: new window.naver.maps.LatLng(position.lat, position.lng),
+            map: naverMap,
+            title: '현재 위치',
+            icon: {
+                content: `
+                    <div style="
+                        width: 20px;
+                        height: 20px;
+                        background: #EF4444;
+                        border: 3px solid white;
+                        border-radius: 50%;
+                        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+                        position: relative;
+                        animation: pulse 2s infinite;
+                    ">
+                        <div style="
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            transform: translate(-50%, -50%);
+                            width: 8px;
+                            height: 8px;
+                            background: white;
+                            border-radius: 50%;
+                        "></div>
+                    </div>
+                    <style>
+                        @keyframes pulse {
+                            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+                            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+                            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+                        }
+                    </style>
+                `,
+                anchor: new window.naver.maps.Point(10, 10)
+            },
+            zIndex: 1000 // 다른 마커들보다 위에 표시
+        });
+
+        // 현재 위치 마커 클릭 이벤트
+        window.naver.maps.Event.addListener(currentLocationMarker, 'click', () => {
+            const infoWindow = new window.naver.maps.InfoWindow({
+                content: `
+                    <div style="padding: 12px; min-width: 150px; text-align: center;">
+                        <h4 style="margin: 0 0 5px 0; color: #EF4444;">📍 현재 위치</h4>
+                        <p style="margin: 0; color: #6B7280; font-size: 12px;">여기서 주변 매장을 찾아보세요!</p>
+                    </div>
+                `
+            });
+            infoWindow.open(naverMap, currentLocationMarker);
+        });
+    };
+
+    // 파트너십 데이터 로드 및 마커 표시
+    const loadPartnerships = async (naverMap: NaverMap) => {
+        try {
+            const response = await partnershipService.getAllPartnerships();
+            const partnershipsData = response.data || [];
+            setPartnerships(partnershipsData);
+
+            // 마커 생성
+            partnershipsData.forEach((partnership: Partnership) => {
+                if (partnership.latitude && partnership.longitude) {
+                    const marker = new window.naver.maps.Marker({
+                        position: new window.naver.maps.LatLng(partnership.latitude, partnership.longitude),
+                        map: naverMap,
+                        title: partnership.businessName,
+                        icon: {
+                            content: `
+                                <div style="
+                                    width: 24px;
+                                    height: 24px;
+                                    background: #3B82F6;
+                                    border: 2px solid white;
+                                    border-radius: 50%;
+                                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 12px;
+                                    color: white;
+                                    font-weight: bold;
+                                ">📦</div>
+                            `,
+                            anchor: new window.naver.maps.Point(12, 12)
+                        }
+                    });
+
+                    // 현재 위치와의 거리 계산
+                    let distance = '';
+                    if (currentPosition) {
+                        const dist = calculateDistance(
+                            currentPosition.lat,
+                            currentPosition.lng,
+                            partnership.latitude,
+                            partnership.longitude
+                        );
+                        distance = `<p style="margin: 5px 0 0 0; color: #10B981; font-size: 11px; font-weight: 600;">📍 ${dist.toFixed(1)}km 거리</p>`;
+                    }
+
+                    // 마커 클릭 이벤트
+                    window.naver.maps.Event.addListener(marker, 'click', () => {
+                        const infoWindow = new window.naver.maps.InfoWindow({
+                            content: `
+                                <div style="padding: 10px; min-width: 200px;">
+                                    <h4 style="margin: 0 0 5px 0; color: #1F2937;">${partnership.businessName}</h4>
+                                    <p style="margin: 0; color: #6B7280; font-size: 12px;">${partnership.address}</p>
+                                    ${distance}
+                                </div>
+                            `
+                        });
+                        infoWindow.open(naverMap, marker);
+                    });
+                }
+            });
+        } catch (error) {
+            console.error('파트너십 데이터 로드 실패:', error);
+        }
+    };
+
+    // 두 지점 간의 거리 계산 (km)
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+        const R = 6371; // 지구의 반경 (km)
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    };
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
@@ -76,7 +337,7 @@ const Hero: React.FC = () => {
             console.log('파싱된 데이터:', partnerships);
 
             // 검색어로 필터링 (매장명 또는 주소) - 대소문자 구분 없이 검색
-            const filteredResults = partnerships.filter((p: any) =>
+            const filteredResults = partnerships.filter((p: Partnership) =>
                 p.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 p.address.toLowerCase().includes(searchQuery.toLowerCase())
             );
@@ -169,20 +430,20 @@ const Hero: React.FC = () => {
             sx={{
                 position: 'relative',
                 overflow: 'hidden',
-                background: 'linear-gradient(135deg, #F8FAFF 0%, #E8F0FF 100%)',
-                pt: { xs: 16, md: 20 },
-                pb: { xs: 12, md: 16 },
+                background: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 50%, #F1F5F9 100%)',
+                pt: { xs: 12, md: 16 },
+                pb: { xs: 8, md: 12 },
             }}
         >
-            {/* 장식 요소들 */}
+            {/* 미니멀한 장식 요소 */}
             <Box
                 sx={{
                     position: 'absolute',
-                    top: '10%',
-                    right: '15%',
-                    width: '300px',
-                    height: '300px',
-                    background: 'radial-gradient(circle, rgba(93, 159, 255, 0.2) 0%, rgba(93, 159, 255, 0) 70%)',
+                    top: '20%',
+                    right: '10%',
+                    width: '200px',
+                    height: '200px',
+                    background: 'radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0) 70%)',
                     borderRadius: '50%',
                     zIndex: 0,
                 }}
@@ -190,206 +451,264 @@ const Hero: React.FC = () => {
             <Box
                 sx={{
                     position: 'absolute',
-                    bottom: '5%',
-                    left: '10%',
-                    width: '400px',
-                    height: '400px',
-                    background: 'radial-gradient(circle, rgba(255, 90, 90, 0.1) 0%, rgba(255, 90, 90, 0) 70%)',
+                    bottom: '10%',
+                    left: '5%',
+                    width: '150px',
+                    height: '150px',
+                    background: 'radial-gradient(circle, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0) 70%)',
                     borderRadius: '50%',
                     zIndex: 0,
                 }}
             />
 
             <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-                <Grid container spacing={6} alignItems="center" justifyContent="center">
-                    <Grid
-                        item
-                        xs={12}
-                        md={8}
-                        sx={{
-                            animation: `${fadeIn} 0.8s ease-out`,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                        }}
-                    >
-
-                        <Typography
-                            component="h1"
-                            variant={isMobile ? 'h4' : 'h3'}
-                            sx={{
-                                fontWeight: 800,
-                                mb: 3,
-                                background: 'linear-gradient(90deg, #1A2138 0%, #2E7DF1 100%)',
-                                backgroundClip: 'text',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                                letterSpacing: '-0.02em',
-                                lineHeight: 1.5,
-                            }}
-                        >
-                            {t('heroTitle1')}{' '}
-                            <Box component="span" sx={{ color: theme.palette.primary.main }}>
-                                {t('heroTitle2')}
-                            </Box>
-                        </Typography>
-                        <Typography
-                            variant="h6"
-                            color="text.secondary"
-                            sx={{
-                                mb: 4,
-                                maxWidth: '700px',
-                                mx: 'auto',
-                                lineHeight: 1.6,
-                                fontWeight: 'normal',
-                            }}
-                        >
-                            {t('heroDescription')}
-                        </Typography>
-
-                        {/* 검색 박스 */}
-                        <Paper
-                            component="form"
-                            elevation={2}
-                            sx={{
-                                p: '2px 4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                width: '100%',
-                                maxWidth: '600px',
-                                mb: 4,
-                                borderRadius: '50px',
-                                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
-                            }}
-                        >
-                            <IconButton sx={{ p: '10px', color: 'primary.main' }} aria-label="search">
-                                <SearchIcon />
-                            </IconButton>
-                            <InputBase
-                                sx={{ ml: 1, flex: 1, py: 1.2 }}
-                                placeholder="매장명 또는 주소 검색"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                inputProps={{ 'aria-label': '매장명 또는 주소 검색' }}
-                            />
-                            <Button
-                                variant="contained"
-                                onClick={handleSearch}
-                                disabled={isSearching}
-                                sx={{
-                                    borderRadius: '40px',
-                                    py: 1,
-                                    px: 3,
-                                    mx: 1,
-                                    textTransform: 'none',
-                                    fontWeight: 'bold',
-                                    background: 'linear-gradient(90deg, #2E7DF1 0%, #5D9FFF 100%)'
-                                }}
-                            >
-                                {isSearching ? '검색 중...' : '검색'}
-                            </Button>
-                        </Paper>
-
-                        <Button
-                            variant="contained"
-                            size="large"
-                            component={Link}
-                            to="/map"
-                            startIcon={<ExploreIcon />}
-                            sx={{
-                                py: 1.5,
-                                px: 4,
-                                fontSize: '1rem',
-                                width: { xs: '100%', sm: 'auto' },
-                                maxWidth: '600px',
-                                background: 'linear-gradient(90deg, #2E7DF1 0%, #5D9FFF 100%)',
-                                '&:hover': {
-                                    background: 'linear-gradient(90deg, #0051BF 0%, #2E7DF1 100%)',
-                                }
-                            }}
-                        >
-                            가까운 위치 찾기
-                        </Button>
-
-                        {/* 간단한 통계 정보 */}
+                <Grid container spacing={4} alignItems="center">
+                    <Grid item xs={12} md={6}>
                         <Box
                             sx={{
-                                mt: 4,
-                                width: '100%',
-                                display: 'flex',
-                                justifyContent: 'center'
+                                animation: `${fadeIn} 1s ease-out`,
+                                textAlign: { xs: 'center', md: 'left' }
                             }}
                         >
-                            <Box
+                            <Typography
+                                variant="h1"
                                 sx={{
-                                    display: 'grid',
-                                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-                                    gap: { xs: 3, md: 5 },
-                                    width: '100%',
-                                    maxWidth: '900px',
-                                    position: 'relative',
-                                    '&::after': {
-                                        content: '""',
-                                        position: 'absolute',
-                                        top: { xs: 'auto', sm: '100%' },
-                                        left: { xs: '50%', sm: 'auto' },
-                                        width: { xs: '80%', sm: '100%' },
-                                        height: { xs: '1px', sm: '1px' },
-                                        background: 'rgba(0,0,0,0.06)',
-                                        transform: { xs: 'translateX(-50%)', sm: 'none' },
-                                        display: { xs: 'none', sm: 'block' },
-                                        zIndex: 0
+                                    fontSize: { xs: '2.5rem', md: '3.5rem', lg: '4rem' },
+                                    fontWeight: 700,
+                                    color: '#0F172A',
+                                    mb: 3,
+                                    lineHeight: 1.1,
+                                    letterSpacing: '-0.02em'
+                                }}
+                            >
+                                {t('heroTitle1')}{' '}
+                                <Box component="span" sx={{ color: theme.palette.primary.main }}>
+                                    {t('heroTitle2')}
+                                </Box>
+                            </Typography>
+                            <Typography
+                                variant="h6"
+                                sx={{
+                                    fontSize: { xs: '1.1rem', md: '1.25rem' },
+                                    color: '#64748B',
+                                    mb: 4,
+                                    fontWeight: 400,
+                                    lineHeight: 1.6,
+                                    maxWidth: '500px',
+                                    mx: { xs: 'auto', md: 0 }
+                                }}
+                            >
+                                {t('heroDescription')}
+                            </Typography>
+
+                            {/* 모던한 검색 바 */}
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    maxWidth: '500px',
+                                    mx: { xs: 'auto', md: 0 },
+                                    mb: 3,
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1px solid #E2E8F0',
+                                    borderRadius: '12px',
+                                    overflow: 'hidden',
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                        borderColor: '#3B82F6',
+                                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)'
+                                    },
+                                    '&:focus-within': {
+                                        borderColor: '#3B82F6',
+                                        boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)'
                                     }
                                 }}
                             >
-                                {[
-                                    { value: '1.2천+', label: t('stores'), icon: <StorefrontIcon sx={{ fontSize: 28 }} /> },
-                                    { value: '4.8/5', label: t('rating'), icon: <LuggageIcon sx={{ fontSize: 28 }} /> },
-                                    { value: '7천+', label: t('users'), icon: <AccessTimeIcon sx={{ fontSize: 28 }} /> },
-                                ].map((stat, index) => (
-                                    <Box
-                                        key={index}
-                                        sx={{
-                                            display: 'flex',
-                                            flexDirection: 'row',
-                                            alignItems: 'center',
-                                            gap: 2,
-                                            p: 2,
-                                            position: 'relative',
-                                            zIndex: 1,
-                                            background: 'transparent',
-                                            transition: 'all 0.2s ease',
-                                            '&:hover': {
-                                                transform: 'translateY(-3px)',
-                                            }
-                                        }}
-                                    >
-                                        <Box
-                                            sx={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                width: 50,
-                                                height: 50,
-                                                borderRadius: '12px',
-                                                background: 'rgba(46, 125, 241, 0.08)',
-                                                color: 'primary.main'
-                                            }}
-                                        >
-                                            {stat.icon}
-                                        </Box>
-                                        <Box>
-                                            <Typography variant="h6" fontWeight="600" sx={{ lineHeight: 1.2 }}>
-                                                {stat.value}
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.8 }}>
-                                                {stat.label}
-                                            </Typography>
-                                        </Box>
-                                    </Box>
-                                ))}
+                                <InputBase
+                                    placeholder="매장명 또는 주소 검색"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyPress={handleKeyPress}
+                                    sx={{
+                                        flex: 1,
+                                        px: 3,
+                                        py: 2,
+                                        fontSize: '1rem',
+                                        color: '#1E293B',
+                                        '&::placeholder': {
+                                            color: '#94A3B8'
+                                        }
+                                    }}
+                                />
+                                <IconButton
+                                    onClick={handleSearch}
+                                    disabled={isSearching || !searchQuery.trim()}
+                                    sx={{
+                                        mx: 1,
+                                        backgroundColor: '#3B82F6',
+                                        color: 'white',
+                                        borderRadius: '8px',
+                                        '&:hover': {
+                                            backgroundColor: '#2563EB'
+                                        },
+                                        '&:disabled': {
+                                            backgroundColor: '#CBD5E1',
+                                            color: '#94A3B8'
+                                        }
+                                    }}
+                                >
+                                    <SearchIcon />
+                                </IconButton>
+                            </Paper>
+
+                            {errorMessage && (
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: '#EF4444',
+                                        backgroundColor: '#FEF2F2',
+                                        border: '1px solid #FECACA',
+                                        borderRadius: '8px',
+                                        px: 3,
+                                        py: 2,
+                                        mb: 3,
+                                        maxWidth: '500px',
+                                        mx: { xs: 'auto', md: 0 }
+                                    }}
+                                >
+                                    {errorMessage}
+                                </Typography>
+                            )}
+
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    gap: 2,
+                                    justifyContent: { xs: 'center', md: 'flex-start' },
+                                    flexWrap: 'wrap'
+                                }}
+                            >
+                                <Button
+                                    variant="contained"
+                                    size="large"
+                                    component={Link}
+                                    to="/map"
+                                    sx={{
+                                        backgroundColor: '#3B82F6',
+                                        color: 'white',
+                                        px: 4,
+                                        py: 1.5,
+                                        borderRadius: '10px',
+                                        fontSize: '1rem',
+                                        fontWeight: 600,
+                                        textTransform: 'none',
+                                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
+                                        '&:hover': {
+                                            backgroundColor: '#2563EB',
+                                            boxShadow: '0 6px 16px rgba(37, 99, 235, 0.4)',
+                                            transform: 'translateY(-1px)'
+                                        }
+                                    }}
+                                >
+                                    가까운 위치 찾기
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    size="large"
+                                    sx={{
+                                        borderColor: '#E2E8F0',
+                                        color: '#475569',
+                                        px: 4,
+                                        py: 1.5,
+                                        borderRadius: '10px',
+                                        fontSize: '1rem',
+                                        fontWeight: 600,
+                                        textTransform: 'none',
+                                        '&:hover': {
+                                            backgroundColor: '#F8FAFC',
+                                            borderColor: '#CBD5E1'
+                                        }
+                                    }}
+                                >
+                                    더 알아보기
+                                </Button>
+                            </Box>
+                        </Box>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                height: { xs: '400px', md: '500px' },
+                                animation: `${fadeIn} 1.2s ease-out`,
+                                position: 'relative'
+                            }}
+                        >
+                            {/* 실제 네이버 지도 */}
+                            <Box
+                                ref={mapRef}
+                                sx={{
+                                    width: '100%',
+                                    height: '100%',
+                                    borderRadius: '20px',
+                                    overflow: 'hidden',
+                                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+                                    border: '1px solid #E2E8F0',
+                                    position: 'relative'
+                                }}
+                            />
+                            
+                            {/* 지도 오버레이 정보 */}
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    top: 16,
+                                    left: 16,
+                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                    borderRadius: '12px',
+                                    px: 2,
+                                    py: 1.5,
+                                    backdropFilter: 'blur(8px)',
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1
+                                }}
+                            >
+                                <StorefrontIcon sx={{ fontSize: 20, color: '#3B82F6' }} />
+                                <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
+                                    {partnerships.length}개의 매장
+                                </Typography>
+                            </Box>
+
+                            {/* 지도 우하단 컨트롤 */}
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    bottom: 16,
+                                    right: 16,
+                                    backgroundColor: 'rgba(59, 130, 246, 0.9)',
+                                    borderRadius: '10px',
+                                    px: 2,
+                                    py: 1,
+                                    backdropFilter: 'blur(8px)',
+                                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(59, 130, 246, 1)',
+                                        transform: 'translateY(-1px)'
+                                    }
+                                }}
+                                onClick={() => navigate('/map')}
+                            >
+                                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'white' }}>
+                                    전체 지도 보기
+                                </Typography>
                             </Box>
                         </Box>
                     </Grid>
