@@ -12,6 +12,12 @@ import {
   Menu,
   MenuItem,
   Divider,
+  Collapse,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
 } from '@mui/material';
 import LuggageIcon from '@mui/icons-material/Luggage';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
@@ -24,6 +30,15 @@ import LoginIcon from '@mui/icons-material/Login';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LanguageIcon from '@mui/icons-material/Language';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
+import MenuIcon from '@mui/icons-material/Menu';
+import HomeIcon from '@mui/icons-material/Home';
+import InfoIcon from '@mui/icons-material/Info';
+import BusinessIcon from '@mui/icons-material/Business';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import HelpIcon from '@mui/icons-material/Help';
+import StorageIcon from '@mui/icons-material/Storage';
+import EventIcon from '@mui/icons-material/Event';
+import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -82,8 +97,7 @@ const logoutMenuItemStyles = {
 };
 
 const Navbar: React.FC = () => {
-  const [overlayOpen, setOverlayOpen] = useState(false);
-  const handleOverlayClose = () => setOverlayOpen(false);
+  const [hamburgerMenuOpen, setHamburgerMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [partnerMenuAnchorEl, setPartnerMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -144,21 +158,25 @@ const Navbar: React.FC = () => {
   const navigateToStoragePartnership = () => {
     handlePartnerMenuClose();
     navigate('/StoragePartnership');
+    setHamburgerMenuOpen(false);
   };
 
   const navigateToEventStorage = () => {
     handlePartnerMenuClose();
     navigate('/EventStorage');
+    setHamburgerMenuOpen(false);
   };
 
   const navigateToInquiry = () => {
     handlePartnerMenuClose();
     navigate('/Inquiry');
+    setHamburgerMenuOpen(false);
   }
 
   const navigateToFAQ = () => {
     handlePartnerMenuClose();
     navigate('/FAQ');
+    setHamburgerMenuOpen(false);
   };
 
   const navigateToPartner = () => {
@@ -166,6 +184,7 @@ const Navbar: React.FC = () => {
     
     if (!isAuthenticated) {
       navigate('/login', { state: { from: '/partner' } });
+      setHamburgerMenuOpen(false);
       return;
     }
     
@@ -176,37 +195,24 @@ const Navbar: React.FC = () => {
     } else {
       navigate('/partner');
     }
+    setHamburgerMenuOpen(false);
   };
 
-  // 햄버거 메뉴 아이템 구성
-  const hamburgerMenuItems = [
-    { text: t('home'), href: '/#home', type: 'main' as const },
-    { text: t('services'), href: '/#services', type: 'main' as const },
-    { text: t('howItWorks'), onClick: navigateToFAQ, type: 'main' as const },
-    { text: t('pricing'), href: '/#pricing', type: 'main' as const },
-    { text: t('partner'), onClick: navigateToPartner, type: 'main' as const },
-  ];
+  const handleHamburgerToggle = () => {
+    setHamburgerMenuOpen(!hamburgerMenuOpen);
+  };
 
-  const partnerSubMenuItems = [
-    { text: t('storageService'), onClick: navigateToStoragePartnership, type: 'sub' as const },
-    { text: t('eventStorage'), onClick: navigateToEventStorage, type: 'sub' as const },
-    { text: '1:1 문의', onClick: navigateToInquiry, type: 'sub' as const },
-  ];
-
-  // 모든 메뉴 아이템 통합 (SpacerDiv를 위해 특별 아이템 추가)
-  const allMenuItems = [
-    ...hamburgerMenuItems,
-    { text: '', type: 'spacer' as const, key: 'spacer' }, // 공간 구분자
-    ...partnerSubMenuItems
-  ];
-
-  const handleMenuItemClick = (item: { text: string; href?: string; onClick?: () => void }, index: number) => {
-    if (item.onClick) {
-      item.onClick();
-    } else if (item.href) {
-      window.location.href = item.href;
+  const handleMenuItemClick = (href?: string, onClick?: () => void) => {
+    if (onClick) {
+      onClick();
+    } else if (href) {
+      if (href.startsWith('/#')) {
+        window.location.href = href;
+      } else {
+        navigate(href);
+      }
     }
-    setOverlayOpen(false); // 메뉴 아이템 클릭 시 오버레이 닫기
+    setHamburgerMenuOpen(false);
   };
 
   const isMenuOpen = Boolean(anchorEl);
@@ -357,70 +363,21 @@ const Navbar: React.FC = () => {
                 </IconButton>
               )}
               
-              {/* 🍔 햄버거/X 메뉴 버튼 */}
+              {/* 햄버거 메뉴 버튼 */}
               <IconButton
-                onClick={() => setOverlayOpen(!overlayOpen)}
+                aria-label="menu"
+                onClick={handleHamburgerToggle}
+                size="small"
                 sx={{
                   mx: 1,
                   color: isPartnerPage ? 'white' : 'primary.main',
-                  transition: 'color 0.3s ease, transform 0.2s ease',
+                  transition: 'color 0.3s ease',
                   '&:hover': {
                     backgroundColor: isPartnerPage ? 'rgba(255, 255, 255, 0.1)' : 'rgba(46, 125, 241, 0.1)'
                   }
                 }}
               >
-                <Box
-                  sx={{
-                    width: '24px',
-                    height: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    position: 'relative',
-                  }}
-                >
-                  {/* 첫 번째 선 */}
-                  <Box
-                    sx={{
-                      width: '18px',
-                      height: '2px',
-                      backgroundColor: 'currentColor',
-                      borderRadius: '1px',
-                      position: 'absolute',
-                      top: overlayOpen ? '50%' : '6px',
-                      transform: overlayOpen ? 'translateY(-50%) rotate(45deg)' : 'translateY(0) rotate(0deg)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}
-                  />
-                  {/* 두 번째 선 */}
-                  <Box
-                    sx={{
-                      width: '18px',
-                      height: '2px',
-                      backgroundColor: 'currentColor',
-                      borderRadius: '1px',
-                      position: 'absolute',
-                      top: '11px',
-                      opacity: overlayOpen ? 0 : 1,
-                      transform: overlayOpen ? 'scale(0)' : 'scale(1)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}
-                  />
-                  {/* 세 번째 선 */}
-                  <Box
-                    sx={{
-                      width: '18px',
-                      height: '2px',
-                      backgroundColor: 'currentColor',
-                      borderRadius: '1px',
-                      position: 'absolute',
-                      top: overlayOpen ? '50%' : '16px',
-                      transform: overlayOpen ? 'translateY(-50%) rotate(-45deg)' : 'translateY(0) rotate(0deg)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}
-                  />
-                </Box>
+                <MenuIcon />
               </IconButton>
             </Box>
           </Toolbar>
@@ -468,138 +425,146 @@ const Navbar: React.FC = () => {
           </MenuItem>
         </Menu>
       </AppBar>
-      
-      {/* 토스뱅크 스타일 드롭다운 메뉴 */}
-      <Box
-        sx={{
-          position: 'fixed',
-          top: '64px',
-          left: 0,
-          right: 0,
-          zIndex: 2999,
-          backgroundColor: '#ffffff',
-          boxShadow: overlayOpen ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none',
-          height: overlayOpen ? 'auto' : '0',
-          opacity: overlayOpen ? 1 : 0,
-          transform: overlayOpen ? 'scaleY(1)' : 'scaleY(0)',
-          transformOrigin: 'top',
-          transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease',
-          overflow: 'hidden',
-          borderBottom: overlayOpen ? '1px solid #f0f0f0' : 'none',
-        }}
-      >
-        <Container maxWidth="lg">
-          <Box sx={{ py: 3, px: { xs: 2, sm: 4 } }}>
-            {/* 메인 메뉴 아이템들 - 2열 그리드 배치 */}
-            <Box sx={{ 
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-              gap: { xs: 0, sm: 3 },
-              mb: 3
-            }}>
-              {hamburgerMenuItems.map((item, idx) => (
-                <Box
-                  key={item.text}
-                  onClick={() => handleMenuItemClick(item, idx)}
-                  sx={{
-                    py: { xs: 2, sm: 1.5 },
-                    px: { xs: 0, sm: 2 },
-                    cursor: 'pointer',
-                    fontSize: '16px',
-                    fontWeight: 500,
-                    color: '#333333',
-                    borderRadius: { xs: 0, sm: '8px' },
-                    borderBottom: { xs: '1px solid #f5f5f5', sm: 'none' },
-                    '&:hover': {
-                      color: '#0066ff',
-                      backgroundColor: '#fafafa',
-                      paddingLeft: { xs: '8px', sm: '16px' },
-                    },
-                    '&:last-child': {
-                      borderBottom: { xs: 'none', sm: 'none' },
-                    },
-                    opacity: overlayOpen ? 1 : 0,
-                    transform: overlayOpen ? 'translateY(0)' : 'translateY(-10px)',
-                    transition: `opacity 0.3s ${idx * 0.05}s ease, transform 0.3s ${idx * 0.05}s ease, color 0.2s ease, background-color 0.2s ease, padding-left 0.2s ease`,
-                  }}
-                >
-                  {item.text}
-                </Box>
-              ))}
-            </Box>
 
-            {/* 파트너 서비스 섹션 */}
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#999999',
-                  mb: 1.5,
-                  pb: 1,
-                  borderBottom: '1px solid #f0f0f0',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                }}
-              >
-                파트너 서비스
-              </Typography>
-              <Box sx={{ 
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                gap: { xs: 0, sm: 2 },
-                flexWrap: 'wrap'
-              }}>
-                {partnerSubMenuItems.map((item, idx) => (
-                  <Box
-                    key={item.text}
-                    onClick={() => handleMenuItemClick(item, idx)}
-                    sx={{
-                      py: { xs: 1.5, sm: 1 },
-                      px: { xs: 0, sm: 2 },
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: 400,
-                      color: '#666666',
-                      borderRadius: { xs: 0, sm: '6px' },
-                      minWidth: { sm: '140px' },
-                      '&:hover': {
-                        color: '#0066ff',
-                        backgroundColor: '#fafafa',
-                        paddingLeft: { xs: '8px', sm: '12px' },
-                      },
-                      opacity: overlayOpen ? 1 : 0,
-                      transform: overlayOpen ? 'translateY(0)' : 'translateY(-10px)',
-                      transition: `opacity 0.3s ${(hamburgerMenuItems.length + idx) * 0.05}s ease, transform 0.3s ${(hamburgerMenuItems.length + idx) * 0.05}s ease, color 0.2s ease, background-color 0.2s ease, padding-left 0.2s ease`,
-                    }}
-                  >
-                    {item.text}
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          </Box>
-        </Container>
-      </Box>
-
-      {/* 오버레이 배경 (클릭 시 메뉴 닫기) - 네비바 아래부터 시작 */}
-      {overlayOpen && (
+      {/* 햄버거 드롭다운 메뉴 */}
+      <Collapse in={hamburgerMenuOpen}>
         <Box
-          onClick={handleOverlayClose}
           sx={{
             position: 'fixed',
-            top: '64px', // 네비바 아래부터 시작
+            top: '64px', // AppBar 높이
             left: 0,
             right: 0,
-            bottom: 0,
-            zIndex: 2998,
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
-            backdropFilter: 'blur(4px)',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
+            backgroundColor: 'white',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+            zIndex: 1300,
+            borderBottom: '1px solid #e0e0e0'
           }}
-        />
-      )}
+        >
+          <Container maxWidth="lg">
+                         <List sx={{ py: 2 }}>
+               {/* 메인 메뉴 아이템들 */}
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick('/#home')}
+                   sx={{ 
+                     borderRadius: '8px',
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><HomeIcon color="primary" /></ListItemIcon>
+                   <ListItemText primary={t('home')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick('/#services')}
+                   sx={{ 
+                     borderRadius: '8px',
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><InfoIcon color="primary" /></ListItemIcon>
+                   <ListItemText primary={t('services')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick(undefined, navigateToFAQ)}
+                   sx={{ 
+                     borderRadius: '8px',
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><HelpIcon color="primary" /></ListItemIcon>
+                   <ListItemText primary={t('howItWorks')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick('/#pricing')}
+                   sx={{ 
+                     borderRadius: '8px',
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><AttachMoneyIcon color="primary" /></ListItemIcon>
+                   <ListItemText primary={t('pricing')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 2 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick(undefined, navigateToPartner)}
+                   sx={{ 
+                     borderRadius: '8px',
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><BusinessIcon color="primary" /></ListItemIcon>
+                   <ListItemText primary={t('partner')} />
+                 </ListItemButton>
+               </ListItem>
+
+               <Divider sx={{ my: 1 }} />
+               
+               {/* 파트너 서브메뉴 */}
+               <Typography 
+                 variant="body2" 
+                 color="text.secondary" 
+                 sx={{ px: 2, py: 1, fontWeight: 600 }}
+               >
+                 파트너 서비스
+               </Typography>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick(undefined, navigateToStoragePartnership)}
+                   sx={{ 
+                     borderRadius: '8px',
+                     pl: 4,
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><StorageIcon color="secondary" /></ListItemIcon>
+                   <ListItemText primary={t('storageService')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick(undefined, navigateToEventStorage)}
+                   sx={{ 
+                     borderRadius: '8px',
+                     pl: 4,
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><EventIcon color="secondary" /></ListItemIcon>
+                   <ListItemText primary={t('eventStorage')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick(undefined, navigateToInquiry)}
+                   sx={{ 
+                     borderRadius: '8px',
+                     pl: 4,
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><ContactSupportIcon color="secondary" /></ListItemIcon>
+                   <ListItemText primary="1:1 문의" />
+                 </ListItemButton>
+               </ListItem>
+             </List>
+          </Container>
+        </Box>
+      </Collapse>
+
       <Box sx={{ height: '64px' }} /> {/* AppBar 높이만큼의 여백 추가 */}
     </>
   );
