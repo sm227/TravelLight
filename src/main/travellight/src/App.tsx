@@ -25,6 +25,7 @@ import './i18n'; // i18n 설정 파일 임포트
 import FAQ from './pages/FAQ';
 import Inquiry from './pages/Inquiry';
 import AdminPartnerships from './pages/admin/AdminPartnerships';
+import AdminServices from './pages/admin/AdminServices';
 import { useTranslation } from 'react-i18next';
 import Partner from './pages/Partner';
 import PartnerSignup from './pages/PartnerSignup';
@@ -38,6 +39,7 @@ declare global {
     kakao: any;
     naver: any;
     naverMapLoaded?: boolean;
+    KAKAO_REST_API_KEY?: string;
   }
 }
 
@@ -302,6 +304,7 @@ function App() {
               <Route path="orders" element={<AdminOrders />} />
               <Route path="event-storage" element={<AdminEventStorage />} />
               <Route path="partnerships" element={<AdminPartnerships />} />
+              <Route path="services" element={<AdminServices />} />
             </Route>
 
             {/* Catch-all route for 404 Not Found */}

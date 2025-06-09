@@ -47,6 +47,13 @@ dependencies {
 
     // Swagger 의존성 추가
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
+    
+    // AWS SDK 의존성 추가 (서버 모니터링용)
+    implementation platform('software.amazon.awssdk:bom:2.20.0')
+    implementation 'software.amazon.awssdk:cloudwatch'
+    implementation 'software.amazon.awssdk:ec2'
+    implementation 'software.amazon.awssdk:rds'
+    implementation 'software.amazon.awssdk:s3'
 }
 
 tasks.named('test') {

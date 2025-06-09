@@ -813,7 +813,7 @@ const PartnerDashboard: React.FC = () => {
         <Paper
             elevation={0}
             sx={{
-              background: 'linear-gradient(135deg, #2E7DF1 0%, #5D9FFF 100%)',
+              background: '#2E7DF1',
               color: 'white',
               py: 4,
               px: 3,
@@ -909,59 +909,59 @@ const PartnerDashboard: React.FC = () => {
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                   <Card sx={{ height: '100%' }}>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <BusinessIcon sx={{ color: 'primary.main', mr: 1 }} />
-                        <Typography color="textSecondary" variant="h6" fontWeight="bold">
-                          매장 정보
-                        </Typography>
-                      </Box>
-                      <Divider sx={{ my: 2 }} />
+                    <CardContent sx={{ p: 2.5 }}>
+                      <Typography variant="h6" fontWeight="600" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+                        <BusinessIcon sx={{ mr: 1, color: 'primary.main', fontSize: 20 }} />
+                        매장 정보
+                      </Typography>
                       
-                      {/* 상호명 */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, p: 2, backgroundColor: 'rgba(46, 125, 241, 0.05)', borderRadius: 2 }}>
-                        <StoreIcon sx={{ color: 'primary.main', mr: 2, fontSize: 24 }} />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {/* 상호명 */}
                         <Box>
-                          <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500, fontSize: '0.75rem' }}>
                             상호명
                           </Typography>
-                          <Typography variant="h6" fontWeight="bold" color="primary.main">
+                          <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                             {selectedStore?.name || '-'}
                           </Typography>
                         </Box>
-                      </Box>
 
-                      {/* 주소 */}
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3, p: 2, backgroundColor: 'rgba(76, 175, 80, 0.05)', borderRadius: 2 }}>
-                        <LocationOnIcon sx={{ color: 'success.main', mr: 2, fontSize: 24, mt: 0.5 }} />
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                        <Divider sx={{ my: 0.5 }} />
+
+                        {/* 주소 */}
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500, fontSize: '0.75rem' }}>
                             매장 주소
                           </Typography>
-                          <Typography variant="body1" sx={{ lineHeight: 1.5 }}>
+                          <Typography variant="body2" sx={{ lineHeight: 1.5, color: 'text.primary' }}>
                             {selectedStore?.address || '-'}
                           </Typography>
                         </Box>
-                      </Box>
 
-                      {/* 영업시간 */}
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', p: 2, backgroundColor: 'rgba(255, 152, 0, 0.05)', borderRadius: 2 }}>
-                        <AccessTimeIcon sx={{ color: 'warning.main', mr: 2, fontSize: 24, mt: 0.5 }} />
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                        <Divider sx={{ my: 0.5 }} />
+
+                        {/* 영업시간 */}
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500, fontSize: '0.75rem' }}>
                             영업시간
                           </Typography>
                           {selectedStore?.is24Hours ? (
-                            <Chip 
-                              label="24시간 영업" 
-                              color="success" 
-                              variant="outlined"
-                              sx={{ fontWeight: 'bold' }}
-                            />
+                            <Box sx={{ 
+                              display: 'inline-flex', 
+                              px: 1.5, 
+                              py: 0.5, 
+                              backgroundColor: 'success.main', 
+                              color: 'white', 
+                              borderRadius: 0.5,
+                              fontWeight: 600,
+                              fontSize: '0.75rem'
+                            }}>
+                              24시간 영업
+                            </Box>
                           ) : (
                             <Box>
                               {selectedStore?.businessHours ? (
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
                                   {['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => {
                                     const hours = selectedStore.businessHours[day];
                                     if (!hours) return null;
@@ -973,25 +973,26 @@ const PartnerDashboard: React.FC = () => {
                                                         day === 'SATURDAY' ? '토' :
                                                             day === 'SUNDAY' ? '일' : day;
                                     return (
-                                        <Chip
+                                        <Box 
                                           key={day}
-                                          label={`${formattedDay}: ${hours}`}
-                                          variant="outlined"
-                                          size="small"
                                           sx={{ 
-                                            fontSize: '0.75rem',
-                                            height: 'auto',
-                                            '& .MuiChip-label': {
-                                              padding: '4px 8px',
-                                              whiteSpace: 'nowrap'
-                                            }
+                                            display: 'flex', 
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
                                           }}
-                                        />
+                                        >
+                                          <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                                            {formattedDay}
+                                          </Typography>
+                                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                                            {hours}
+                                          </Typography>
+                                        </Box>
                                     );
                                   }).filter(Boolean)}
                                 </Box>
                               ) : (
-                                <Typography variant="body2" color="textSecondary">
+                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
                                   영업 시간이 설정되지 않았습니다.
                                 </Typography>
                               )}

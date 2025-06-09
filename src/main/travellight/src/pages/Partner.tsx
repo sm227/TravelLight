@@ -100,9 +100,9 @@ const Partner: React.FC = () => {
       <Paper 
         elevation={0}
         sx={{
-          background: 'linear-gradient(135deg, #2E7DF1 0%, #5D9FFF 100%)',
+          background: '#2E7DF1',
           color: 'white',
-          py: { xs: 6, md: 10 },
+          py: { xs: 8, md: 12 },
           px: 3,
           textAlign: 'center',
           position: 'relative',
@@ -110,306 +110,245 @@ const Partner: React.FC = () => {
         }}
       >
         <Container maxWidth="lg">
-          <Typography variant="h3" component="h1" gutterBottom>
-            {t('partnerWelcome', '트래블라이트 파트너 프로그램')}
+          <Typography 
+            variant="h2" 
+            component="h1" 
+            gutterBottom
+            sx={{ 
+              fontWeight: 800,
+              fontSize: { xs: '2.5rem', md: '3.5rem' },
+              lineHeight: 1.2,
+              mb: 3
+            }}
+          >
+            {t('partnerMainTitle', '트래블라이트 파트너 프로그램')}
           </Typography>
-          <Typography variant="h6" sx={{ mb: 4, maxWidth: '800px', mx: 'auto' }}>
-            {t('partnerDescription', '고객들에게 수하물 보관 서비스를 제공하고 추가 수익을 창출하세요. 트래블라이트와 함께 여행자들의 편의를 돕고 비즈니스를 성장시키세요.')}
+          <Typography 
+            variant="h5" 
+            sx={{ 
+              mb: 5, 
+              maxWidth: '700px', 
+              mx: 'auto',
+              fontWeight: 400,
+              opacity: 0.95
+            }}
+          >
+            {t('partnerSubtitle', '고객들에게 수하물 보관 서비스를 제공하고 추가 수익을 창출하세요. 트래블라이트와 함께 여행자들의 편의를 돕고 비즈니스를 성장시키세요.')}
           </Typography>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button 
+              variant="contained"
+              size="large"
+              onClick={handleStoreManagement}
+              sx={{ 
+                bgcolor: 'white',
+                color: 'primary.main',
+                px: 4,
+                py: 1.5,
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                '&:hover': {
+                  bgcolor: 'rgba(255,255,255,0.9)',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+            >
+              {isPartner ? t('manageStore', '매장 관리하기') : t('applyPartner', '파트너 신청하기')}
+            </Button>
+            <Button 
+              variant="outlined"
+              size="large"
+              onClick={handleMapView}
+              sx={{ 
+                borderColor: 'white',
+                color: 'white',
+                px: 4,
+                py: 1.5,
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                '&:hover': {
+                  borderColor: 'white',
+                  bgcolor: 'rgba(255,255,255,0.1)',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+            >
+              {t('viewMap', '지도 보기')}
+            </Button>
+          </Box>
         </Container>
       </Paper>
 
-      {/* 메인 액션 버튼 */}
-      <Container maxWidth="lg" sx={{ mt: -4, position: 'relative', zIndex: 1 }}>
-        <Grid container spacing={3} justifyContent="center">
-          <Grid item xs={12} md={6}>
-            <Card 
-              elevation={3} 
-              sx={{ 
-                textAlign: 'center', 
-                py: 4,
-                height: '100%',
-                borderRadius: 4,
-                background: theme.palette.background.paper,
-                transition: 'transform 0.3s, box-shadow 0.3s',
-                '&:hover': {
-                  transform: 'translateY(-8px)',
-                  boxShadow: '0 16px 30px rgba(0, 0, 0, 0.1)'
-                }
-              }}
-            >
-              <CardContent>
-                <StorefrontIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-                <Typography variant="h4" gutterBottom>
-                  {isPartner ? t('storeManagement', '매장 관리') : t('partnerSignup', '파트너 신청')}
-                </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                  {isPartner 
-                    ? t('storeManagementDescription', '예약 관리, 매장 정보 설정, 운영 시간 조정 등 매장 운영에 필요한 모든 기능을 제공합니다.') 
-                    : t('partnerSignupDescription', '여행자들에게 수하물 보관 서비스를 제공하고 추가 수익을 창출하세요. 지금 파트너 신청을 시작하세요.')}
-                </Typography>
-                <Button 
-                  variant="contained" 
-                  size="large" 
-                  onClick={handleStoreManagement}
-                  sx={{ px: 4, py: 1.5 }}
-                >
-                  {isPartner ? t('manageStore', '매장 관리하기') : t('applyPartner', '파트너 신청하기')}
-                </Button>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} md={6}>
-            <Card 
-              elevation={3} 
-              sx={{ 
-                textAlign: 'center', 
-                py: 4,
-                height: '100%',
-                borderRadius: 4,
-                background: theme.palette.background.paper,
-                transition: 'transform 0.3s, box-shadow 0.3s',
-                '&:hover': {
-                  transform: 'translateY(-8px)',
-                  boxShadow: '0 16px 30px rgba(0, 0, 0, 0.1)'
-                }
-              }}
-            >
-              <CardContent>
-                <MapIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-                <Typography variant="h4" gutterBottom>
-                  {t('mapView', '지도 보기')}
-                </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                  {t('mapViewDescription', '내 매장 위치 및 주변 트래블라이트 파트너 매장을 지도에서 확인하세요.')}
-                </Typography>
-                <Button 
-                  variant="outlined" 
-                  size="large" 
-                  onClick={handleMapView}
-                  sx={{ px: 4, py: 1.5 }}
-                >
-                  {t('viewMap', '지도 보기')}
-                </Button>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      </Container>
-      
-      {/* 파트너 혜택 섹션 */}
-      <Container maxWidth="lg" sx={{ mt: 8, mb: 8 }}>
-        <Typography variant="h4" component="h2" gutterBottom textAlign="center" sx={{ mb: 5 }}>
-          {t('partnerBenefits', '파트너 프로그램 혜택')}
+      {/* 파트너 혜택 섹션 - 간결하게 */}
+      <Container maxWidth="lg" sx={{ py: 8 }}>
+        <Typography 
+          variant="h3" 
+          component="h2" 
+          gutterBottom 
+          textAlign="center" 
+          sx={{ mb: 6, fontWeight: 700 }}
+        >
+          {t('whyPartner', '왜 파트너가 되어야 할까요?')}
         </Typography>
         
         <Grid container spacing={4}>
-          <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ height: '100%', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box sx={{ 
-                    bgcolor: 'primary.light', 
-                    borderRadius: '50%', 
-                    width: 50, 
-                    height: 50, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    mr: 2
-                  }}>
-                    <StorefrontIcon sx={{ color: 'white' }} />
-                  </Box>
-                  <Typography variant="h6">
-                    {t('additionalRevenue', '추가 수익 창출')}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  {t('additionalRevenueDescription', '유휴 공간을 활용해 추가 수익을 창출하세요. 여행자들의 수하물 보관 수요를 통해 새로운 비즈니스 기회를 얻을 수 있습니다.')}
-                </Typography>
-              </CardContent>
-            </Card>
+          <Grid item xs={12} md={4}>
+            <Box sx={{ textAlign: 'center', p: 3 }}>
+              <Box sx={{ 
+                bgcolor: 'primary.main', 
+                borderRadius: '50%', 
+                width: 80, 
+                height: 80, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 3
+              }}>
+                <StorefrontIcon sx={{ color: 'white', fontSize: 40 }} />
+              </Box>
+              <Typography variant="h4" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+                {t('extraTraffic', '추가 고객')}
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                {t('extraTrafficDescription', '지역 주민과 관광객 모두를 매장으로 유도합니다. 수하물을 맡기러 온 고객들이 자연스럽게 매장 상품을 구매할 기회를 만들어보세요.')}
+              </Typography>
+            </Box>
           </Grid>
           
-          <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ height: '100%', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box sx={{ 
-                    bgcolor: 'primary.light', 
-                    borderRadius: '50%', 
-                    width: 50, 
-                    height: 50, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    mr: 2
-                  }}>
-                    <AnalyticsIcon sx={{ color: 'white' }} />
-                  </Box>
-                  <Typography variant="h6">
-                    {t('increasedTraffic', '방문객 증가')}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  {t('increasedTrafficDescription', '수하물을 맡기러 온 여행자들이 매장 내 상품이나 서비스를 구매할 가능성이 높아집니다. 새로운 고객층을 확보하세요.')}
-                </Typography>
-              </CardContent>
-            </Card>
+          <Grid item xs={12} md={4}>
+            <Box sx={{ textAlign: 'center', p: 3 }}>
+              <Box sx={{ 
+                bgcolor: 'primary.main', 
+                borderRadius: '50%', 
+                width: 80, 
+                height: 80, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 3
+              }}>
+                <AnalyticsIcon sx={{ color: 'white', fontSize: 40 }} />
+              </Box>
+              <Typography variant="h4" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+                {t('extraRevenue', '추가 수익')}
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                {t('extraRevenueDescription', '보관하는 모든 아이템에서 수익을 얻습니다. 매월 말 자동으로 정산됩니다. 유휴 공간을 활용한 완전히 새로운 수익원입니다.')}
+              </Typography>
+            </Box>
           </Grid>
           
-          <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ height: '100%', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box sx={{ 
-                    bgcolor: 'primary.light', 
-                    borderRadius: '50%', 
-                    width: 50, 
-                    height: 50, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    mr: 2
-                  }}>
-                    <HelpOutlineIcon sx={{ color: 'white' }} />
-                  </Box>
-                  <Typography variant="h6">
-                    {t('marketingSupport', '마케팅 지원')}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  {t('marketingSupportDescription', '트래블라이트 앱과 웹사이트에 매장이 노출되어 홍보 효과를 얻을 수 있습니다. 여행자들에게 자연스럽게 매장을 알릴 수 있는 기회입니다.')}
-                </Typography>
-              </CardContent>
-            </Card>
+          <Grid item xs={12} md={4}>
+            <Box sx={{ textAlign: 'center', p: 3 }}>
+              <Box sx={{ 
+                bgcolor: 'primary.main', 
+                borderRadius: '50%', 
+                width: 80, 
+                height: 80, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 3
+              }}>
+                <HelpOutlineIcon sx={{ color: 'white', fontSize: 40 }} />
+              </Box>
+              <Typography variant="h4" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+                {t('extraFlexible', '완전 자율')}
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                {t('extraFlexibleDescription', '온라인 플랫폼으로 모든 것이 처리됩니다. 보관 용량과 운영 시간을 직접 관리하세요. 이메일과 SMS로 고객 방문을 알려드립니다.')}
+              </Typography>
+            </Box>
           </Grid>
         </Grid>
       </Container>
       
-      {/* 파트너 가입 안내 섹션 */}
-      <Box sx={{ bgcolor: 'background.default', py: 8 }}>
-        <Container maxWidth="lg">
-          <Grid container spacing={4} alignItems="center">
-            <Grid item xs={12} md={6}>
-              <Typography variant="h4" component="h2" gutterBottom>
-                {t('howToJoin', '파트너 가입 방법')}
-              </Typography>
-              <Typography variant="body1" paragraph>
-                {t('joinDescription', '간단한 절차를 통해 트래블라이트 파트너가 될 수 있습니다. 아래 단계를 따라 진행해 주세요:')}
-              </Typography>
-              
-              <Box sx={{ mb: 2, display: 'flex', alignItems: 'flex-start' }}>
-                <Box sx={{ 
-                  bgcolor: 'primary.main', 
-                  color: 'white', 
-                  width: 30, 
-                  height: 30, 
-                  borderRadius: '50%', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  mr: 2,
-                  flexShrink: 0
-                }}>
-                  1
-                </Box>
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    {t('registerTitle', '가입 신청')}
-                  </Typography>
-                  <Typography variant="body2" sx={{ mb: 3 }}>
-                    {t('registerDescription', '파트너 페이지에서 필요한 정보를 입력하여 파트너 가입을 신청합니다.')}
-                  </Typography>
-                </Box>
-              </Box>
-              
-              <Box sx={{ mb: 2, display: 'flex', alignItems: 'flex-start' }}>
-                <Box sx={{ 
-                  bgcolor: 'primary.main', 
-                  color: 'white', 
-                  width: 30, 
-                  height: 30, 
-                  borderRadius: '50%', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  mr: 2,
-                  flexShrink: 0
-                }}>
-                  2
-                </Box>
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    {t('reviewTitle', '검토 및 승인')}
-                  </Typography>
-                  <Typography variant="body2" sx={{ mb: 3 }}>
-                    {t('reviewDescription', '트래블라이트 팀이 신청 내용을 검토하고 승인 여부를 이메일로 안내해 드립니다.')}
-                  </Typography>
-                </Box>
-              </Box>
-              
-              <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                <Box sx={{ 
-                  bgcolor: 'primary.main', 
-                  color: 'white', 
-                  width: 30, 
-                  height: 30, 
-                  borderRadius: '50%', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  mr: 2,
-                  flexShrink: 0
-                }}>
-                  3
-                </Box>
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    {t('startTitle', '서비스 시작')}
-                  </Typography>
-                  <Typography variant="body2">
-                    {t('startDescription', '승인 후 파트너 계정을 생성하여 매장 관리 시스템에 접속하고 서비스를 시작합니다.')}
-                  </Typography>
-                </Box>
-              </Box>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Card sx={{ borderRadius: 4, overflow: 'hidden', boxShadow: '0 12px 24px rgba(0,0,0,0.1)' }}>
-                <CardMedia
-                  component="img"
-                  height="300"
-                  image="/traveler-luggage.jpg"
-                  alt="Partner Program"
-                  sx={{ 
-                    objectFit: 'cover',
-                    // 이미지가 없을 경우 임시로 색상 그라데이션 표시
-                    background: 'linear-gradient(45deg, #2E7DF1 30%, #5D9FFF 90%)'
-                  }}
-                />
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="h5" gutterBottom>
-                    {t('joinNow', '지금 파트너 가입하기')}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    {t('joinNowDescription', '더 많은 정보가 필요하시면 문의하세요. 트래블라이트 팀이 상세히 안내해 드리겠습니다.')}
-                  </Typography>
-                  <Button 
-                    variant="contained" 
-                    size="large" 
-                    fullWidth
-                    onClick={isPartner ? () => navigate('/partner-dashboard') : handlePartnerSignup}
-                  >
-                    {isPartner ? t('manageStore', '매장 관리하기') : t('applyNow', '지금 신청하기')}
-                  </Button>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+      {/* 파트너 신청 CTA 섹션 */}
+      <Box sx={{ bgcolor: 'background.default', py: 8, textAlign: 'center' }}>
+        <Container maxWidth="md">
+          <Typography variant="h3" component="h2" gutterBottom sx={{ fontWeight: 700, mb: 3 }}>
+            {t('readyToStart', '파트너 신청 준비 완료')}
+          </Typography>
+          <Typography variant="h6" sx={{ mb: 4, color: 'text.secondary', lineHeight: 1.6 }}>
+            {t('ctaDescription', '간단한 절차를 통해 트래블라이트 파트너가 되어 새로운 수익원을 만들어보세요.')}
+          </Typography>
+          <Button 
+            variant="contained" 
+            size="large"
+            onClick={isPartner ? () => navigate('/partner-dashboard') : handlePartnerSignup}
+            sx={{ 
+              px: 6, 
+              py: 2, 
+              fontSize: '1.2rem',
+              fontWeight: 600,
+              borderRadius: 3,
+              boxShadow: '0 8px 24px rgba(46, 125, 241, 0.3)',
+              '&:hover': {
+                transform: 'translateY(-3px)',
+                boxShadow: '0 12px 30px rgba(46, 125, 241, 0.4)'
+              }
+            }}
+          >
+            {isPartner ? t('manageStore', '매장 관리하기') : t('applyNow', '지금 신청하기')}
+          </Button>
         </Container>
       </Box>
+      
+      {/* FAQ 섹션 */}
+      <Container maxWidth="lg" sx={{ py: 8 }}>
+        <Typography variant="h3" component="h2" gutterBottom textAlign="center" sx={{ mb: 6, fontWeight: 700 }}>
+          {t('faq', '자주 묻는 질문')}
+        </Typography>
+        
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={6}>
+            <Card sx={{ p: 4, height: '100%', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+                {t('faqSpace', '보관할 공간이 많지 않은데도 파트너가 될 수 있나요?')}
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                {t('faqSpaceAnswer', '최소 5개 아이템 정도의 공간을 권장하지만, 용량에 대한 최소/최대 요구사항은 없습니다. 공간이 많을수록 수익 가능성이 높아집니다.')}
+              </Typography>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Card sx={{ p: 4, height: '100%', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+                {t('faqBenefit', '파트너십을 통해 어떤 혜택을 얻을 수 있나요?')}
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                {t('faqBenefitAnswer', '추가 수익원 확보, 새로운 고객 유입, 브랜드 인지도 향상 등의 혜택을 얻을 수 있습니다. 보관하는 모든 아이템에 대해 수수료를 받습니다.')}
+              </Typography>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Card sx={{ p: 4, height: '100%', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+                {t('faqNotification', '고객이 언제 오는지 어떻게 알 수 있나요?')}
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                {t('faqNotificationAnswer', '새로운 예약이 들어오면 이메일과 SMS로 알림을 보내드립니다. 보관할 아이템 수와 예상 맡김/찾기 시간을 미리 알려드립니다.')}
+              </Typography>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Card sx={{ p: 4, height: '100%', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+                {t('faqSecurity', '보안 문제는 어떻게 해결되나요?')}
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                {t('faqSecurityAnswer', '고객 아이템에 대해 최대 천만원까지 보장합니다. 각 가방에는 고유 번호가 있는 보안 태그를 제공하며, 모든 결제는 온라인으로 처리됩니다.')}
+              </Typography>
+            </Card>
+          </Grid>
+        </Grid>
+      </Container>
       
       {/* 파트너 신청 다이얼로그 */}
       <Dialog
