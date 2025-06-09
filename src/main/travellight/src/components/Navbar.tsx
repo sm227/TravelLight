@@ -522,7 +522,7 @@ const Navbar: React.FC = () => {
                         top: '64px',
                         left: 0,
                         right: 0,
-                        backgroundColor: 'white',
+                        backgroundColor: isPartnerPage ? '#2E7DF1' : 'white',
                         border: 'none',
                         borderBottom: 'none',
                         zIndex: 1300,
@@ -568,7 +568,7 @@ const Navbar: React.FC = () => {
                                 <Typography
                                     variant="subtitle2"
                                     sx={{
-                                        color: 'text.secondary',
+                                        color: isPartnerPage ? 'rgba(255, 255, 255, 0.8)' : 'text.secondary',
                                         fontWeight: 600,
                                         mb: 1.5,
                                         fontSize: '0.95rem'
@@ -584,9 +584,10 @@ const Navbar: React.FC = () => {
                                         <Button
                                             key={item.text}
                                             onClick={() => handleMenuItemClick(item.href)}
+                                            disableRipple
                                             sx={{
                                                 justifyContent: 'flex-start',
-                                                color: 'text.primary',
+                                                color: isPartnerPage ? 'white' : 'text.primary',
                                                 fontSize: '1rem',
                                                 fontWeight: 400,
                                                 textTransform: 'none',
@@ -595,11 +596,10 @@ const Navbar: React.FC = () => {
                                                 borderRadius: '8px',
                                                 width: '100%',
                                                 '&:hover': {
-                                                    backgroundColor: 'rgba(37, 99, 235, 0.04)',
-                                                    color: 'primary.main',
-                                                    transform: 'translateX(5px)'
+                                                    backgroundColor: 'transparent',
+                                                    opacity: 0.7
                                                 },
-                                                transition: 'all 0.2s'
+                                                transition: 'opacity 0.2s'
                                             }}
                                         >
                                             {item.text}
@@ -621,7 +621,7 @@ const Navbar: React.FC = () => {
                                 <Typography
                                     variant="subtitle2"
                                     sx={{
-                                        color: 'text.secondary',
+                                        color: isPartnerPage ? 'rgba(255, 255, 255, 0.8)' : 'text.secondary',
                                         fontWeight: 600,
                                         mb: 1.5,
                                         fontSize: '0.95rem'
@@ -638,9 +638,10 @@ const Navbar: React.FC = () => {
                                         <Button
                                             key={item.text}
                                             onClick={() => handleMenuItemClick(item.href, item.onClick)}
+                                            disableRipple
                                             sx={{
                                                 justifyContent: 'flex-start',
-                                                color: 'text.primary',
+                                                color: isPartnerPage ? 'white' : 'text.primary',
                                                 fontSize: '1rem',
                                                 fontWeight: 400,
                                                 textTransform: 'none',
@@ -649,11 +650,10 @@ const Navbar: React.FC = () => {
                                                 borderRadius: '8px',
                                                 width: '100%',
                                                 '&:hover': {
-                                                    backgroundColor: 'rgba(37, 99, 235, 0.04)',
-                                                    color: 'primary.main',
-                                                    transform: 'translateX(5px)'
+                                                    backgroundColor: 'transparent',
+                                                    opacity: 0.7
                                                 },
-                                                transition: 'all 0.2s'
+                                                transition: 'opacity 0.2s'
                                             }}
                                         >
                                             {item.text}
@@ -675,7 +675,7 @@ const Navbar: React.FC = () => {
                                 <Typography
                                     variant="subtitle2"
                                     sx={{
-                                        color: 'text.secondary',
+                                        color: isPartnerPage ? 'rgba(255, 255, 255, 0.8)' : 'text.secondary',
                                         fontWeight: 600,
                                         mb: 1.5,
                                         fontSize: '0.95rem'
@@ -692,9 +692,10 @@ const Navbar: React.FC = () => {
                                         <Button
                                             key={item.text}
                                             onClick={() => handleMenuItemClick(undefined, item.onClick)}
+                                            disableRipple
                                             sx={{
                                                 justifyContent: 'flex-start',
-                                                color: 'text.primary',
+                                                color: isPartnerPage ? 'white' : 'text.primary',
                                                 fontSize: '1rem',
                                                 fontWeight: 400,
                                                 textTransform: 'none',
@@ -703,11 +704,10 @@ const Navbar: React.FC = () => {
                                                 borderRadius: '8px',
                                                 width: '100%',
                                                 '&:hover': {
-                                                    backgroundColor: 'rgba(37, 99, 235, 0.04)',
-                                                    color: 'primary.main',
-                                                    transform: 'translateX(5px)'
+                                                    backgroundColor: 'transparent',
+                                                    opacity: 0.7
                                                 },
-                                                transition: 'all 0.2s'
+                                                transition: 'opacity 0.2s'
                                             }}
                                         >
                                             {item.text}
