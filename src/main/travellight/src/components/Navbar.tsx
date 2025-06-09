@@ -30,6 +30,12 @@ import { useTranslation } from 'react-i18next';
 import CompleteHamburgerOverlayMenu from './CompleteHamburgerOverlayMenu';
 import {hover} from "framer-motion";
 
+interface MenuItem {
+  text: string;
+  href?: string;
+  onClick?: () => void;
+}
+
 // 메뉴 스타일 정의
 const menuStyles = {
   '& .MuiPaper-root': {
@@ -78,6 +84,8 @@ const logoutMenuItemStyles = {
 };
 
 const Navbar: React.FC = () => {
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const handleOverlayClose = () => setOverlayOpen(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [partnerMenuAnchorEl, setPartnerMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -246,6 +254,13 @@ const Navbar: React.FC = () => {
   );
 
   const isLangMenuOpen = Boolean(langMenuAnchorEl);
+
+  const menuItems: MenuItem[] = [
+    { text: t('home'), href: '/' },
+    { text: t('about'), href: '/about' },
+    { text: t('services'), href: '/services' },
+    { text: t('contact'), href: '/contact' },
+  ];
 
   return (
     <>
