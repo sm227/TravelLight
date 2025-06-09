@@ -205,7 +205,7 @@ const AdminServices = () => {
               fontSize: '1.25rem',
               letterSpacing: '-0.025em'
             }}>
-              서비스 상태 모니터링
+              시스템 상태 모니터링
             </Typography>
             {getStatusIcon(overallStatus)}
           </Box>

@@ -383,7 +383,7 @@ const AdminDashboard = () => {
             mb: 0.25,
             letterSpacing: '-0.025em'
           }}>
-            TravelLight ERP
+            전국 서비스 현황
           </Typography>
           <Typography variant="body2" sx={{ 
             color: COLORS.textSecondary,

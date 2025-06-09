@@ -58,7 +58,7 @@ const AdminLayout = () => {
     {
       title: '대시보드',
       items: [
-        { text: '시스템 현황', icon: <DashboardIcon />, path: '/admin' },
+        { text: '서비스 현황', icon: <DashboardIcon />, path: '/admin' },
         { text: '실시간 분석', icon: <AssessmentIcon />, path: '/admin/analytics' },
       ]
     },
@@ -66,7 +66,7 @@ const AdminLayout = () => {
       title: '운영 관리',
       items: [
         { text: '보관함 모니터링', icon: <InventoryIcon />, path: '/admin/lockers' },
-        { text: '서비스 상태', icon: <MonitorHeartIcon />, path: '/admin/services' },
+        { text: '시스템 상태', icon: <MonitorHeartIcon />, path: '/admin/services' },
         { text: '이벤트 짐보관', icon: <EventIcon />, path: '/admin/event-storage' },
         { text: '클라우드 현황', icon: <CloudQueueIcon />, path: '/admin/cloud-status' },
       ]
@@ -163,7 +163,7 @@ const AdminLayout = () => {
                   mb: 0.25
                 }}
               >
-                TravelLight
+                Travelight
               </Typography>
               <Typography 
                 variant="caption" 
