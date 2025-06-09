@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -12,8 +12,13 @@ import {
   Menu,
   MenuItem,
   Divider,
+  Collapse,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
 } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
 import LuggageIcon from '@mui/icons-material/Luggage';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
@@ -25,9 +30,24 @@ import LoginIcon from '@mui/icons-material/Login';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LanguageIcon from '@mui/icons-material/Language';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
+import MenuIcon from '@mui/icons-material/Menu';
+import HomeIcon from '@mui/icons-material/Home';
+import InfoIcon from '@mui/icons-material/Info';
+import BusinessIcon from '@mui/icons-material/Business';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import HelpIcon from '@mui/icons-material/Help';
+import StorageIcon from '@mui/icons-material/Storage';
+import EventIcon from '@mui/icons-material/Event';
+import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
+
+interface MenuItem {
+  text: string;
+  href?: string;
+  onClick?: () => void;
+}
 
 // 메뉴 스타일 정의
 const menuStyles = {
@@ -77,10 +97,10 @@ const logoutMenuItemStyles = {
 };
 
 const Navbar: React.FC = () => {
+  const [hamburgerMenuOpen, setHamburgerMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [partnerMenuAnchorEl, setPartnerMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
-  const [overlayOpen, setOverlayOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user, isAuthenticated, isPartner, isWaiting, logout } = useAuth();
@@ -89,7 +109,7 @@ const Navbar: React.FC = () => {
   const { t } = useTranslation();
 
   // 파트너 관련 페이지인지 확인
-  const isPartnerPage = location.pathname.includes('/partner') || 
+  const isPartnerPage = location.pathname.includes('/partner') ||
                        location.pathname.includes('/StoragePartnership') ||
                        location.pathname.includes('/EventStorage') ||
                        location.pathname.includes('/Inquiry');
@@ -138,21 +158,25 @@ const Navbar: React.FC = () => {
   const navigateToStoragePartnership = () => {
     handlePartnerMenuClose();
     navigate('/StoragePartnership');
+    setHamburgerMenuOpen(false);
   };
 
   const navigateToEventStorage = () => {
     handlePartnerMenuClose();
     navigate('/EventStorage');
+    setHamburgerMenuOpen(false);
   };
 
   const navigateToInquiry = () => {
     handlePartnerMenuClose();
     navigate('/Inquiry');
+    setHamburgerMenuOpen(false);
   }
 
   const navigateToFAQ = () => {
     handlePartnerMenuClose();
     navigate('/FAQ');
+    setHamburgerMenuOpen(false);
   };
 
   const navigateToPartner = () => {
@@ -160,6 +184,7 @@ const Navbar: React.FC = () => {
     
     if (!isAuthenticated) {
       navigate('/login', { state: { from: '/partner' } });
+      setHamburgerMenuOpen(false);
       return;
     }
     
@@ -170,21 +195,25 @@ const Navbar: React.FC = () => {
     } else {
       navigate('/partner');
     }
+    setHamburgerMenuOpen(false);
   };
 
-  const menuItems = [
-    { text: t('home'), href: '/#home' },
-    { text: t('services'), href: '/#services' },
-    { text: t('howItWorks'), onClick: navigateToFAQ },
-    { text: t('pricing'), href: '/#pricing' },
-    { text: t('partner'), onClick: navigateToPartner },
-  ];
+  const handleHamburgerToggle = () => {
+    setHamburgerMenuOpen(!hamburgerMenuOpen);
+  };
 
-  const partnerSubMenuItems = [
-    { text: t('storageService'), onClick: navigateToStoragePartnership },
-    { text: t('eventStorage'), onClick: navigateToEventStorage },
-    { text: '1:1 문의', onClick: navigateToInquiry },
-  ];
+  const handleMenuItemClick = (href?: string, onClick?: () => void) => {
+    if (onClick) {
+      onClick();
+    } else if (href) {
+      if (href.startsWith('/#')) {
+        window.location.href = href;
+      } else {
+        navigate(href);
+      }
+    }
+    setHamburgerMenuOpen(false);
+  };
 
   const isMenuOpen = Boolean(anchorEl);
   const menuId = 'primary-search-account-menu';
@@ -231,18 +260,22 @@ const Navbar: React.FC = () => {
 
   const isLangMenuOpen = Boolean(langMenuAnchorEl);
 
-  const handleOverlayOpen = () => setOverlayOpen(true);
-  const handleOverlayClose = () => setOverlayOpen(false);
+  const menuItems: MenuItem[] = [
+    { text: t('home'), href: '/' },
+    { text: t('about'), href: '/about' },
+    { text: t('services'), href: '/services' },
+    { text: t('contact'), href: '/contact' },
+  ];
 
   return (
     <>
-      <AppBar 
-        position="fixed" 
-        color="default" 
-        elevation={0} 
-        sx={{ 
-          background: isPartnerPage 
-            ? '#2E7DF1' 
+      <AppBar
+        position="fixed"
+        color="default"
+        elevation={0}
+        sx={{
+          background: isPartnerPage
+            ? '#2E7DF1'
             : 'white',
           transition: 'background 0.3s ease',
           borderRadius: 0,
@@ -282,8 +315,12 @@ const Navbar: React.FC = () => {
                 aria-expanded={isLangMenuOpen ? 'true' : undefined}
                 onClick={handleLangMenuOpen}
                 size="small"
-                sx={{ 
+                sx={{
                   mx: 1,
+                    fontSize: '1.5rem',
+                    '&:hover': {
+                        backgroundColor: 'rgba(37, 99, 235, 0.04)'  // 호버 효과
+                    },
                   color: isPartnerPage ? 'white' : 'primary.main',
                   transition: 'color 0.3s ease'
                 }}
@@ -316,7 +353,7 @@ const Navbar: React.FC = () => {
                   aria-label="user menu"
                   onClick={handleProfileMenuOpen}
                   size="small"
-                  sx={{ 
+                  sx={{
                     mx: 1,
                     color: isPartnerPage ? 'white' : 'primary.main',
                     transition: 'color 0.3s ease'
@@ -326,16 +363,18 @@ const Navbar: React.FC = () => {
                 </IconButton>
               )}
               
-              {/* 햄버거 버튼 */}
+              {/* 햄버거 메뉴 버튼 */}
               <IconButton
-                aria-label="open overlay menu"
-                edge="end"
-                onClick={handleOverlayOpen}
-                sx={{ 
-                  display: 'flex', 
-                  ml: 1,
-                  color: isPartnerPage ? 'white' : 'inherit',
-                  transition: 'color 0.3s ease'
+                aria-label="menu"
+                onClick={handleHamburgerToggle}
+                size="small"
+                sx={{
+                  mx: 1,
+                  color: isPartnerPage ? 'white' : 'primary.main',
+                  transition: 'color 0.3s ease',
+                  '&:hover': {
+                    backgroundColor: isPartnerPage ? 'rgba(255, 255, 255, 0.1)' : 'rgba(46, 125, 241, 0.1)'
+                  }
                 }}
               >
                 <MenuIcon />
@@ -386,179 +425,146 @@ const Navbar: React.FC = () => {
           </MenuItem>
         </Menu>
       </AppBar>
-      {/* 오버레이 메뉴: 항상 DOM에 렌더링, 스타일로만 제어 */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          zIndex: 3000,
-          display: 'flex',
-          flexDirection: 'row',
-          pointerEvents: overlayOpen ? 'auto' : 'none',
-        }}
-      >
-        {/* 블러+반투명 배경 (메뉴 패널 제외 전체) */}
-        <div
-          onClick={overlayOpen ? handleOverlayClose : undefined}
-          style={{
-            flex: 1,
-            height: '100vh',
-            background: 'rgba(0,0,0,0.10)',
-            backdropFilter: overlayOpen ? 'blur(8px)' : 'none',
-            cursor: overlayOpen ? 'pointer' : 'default',
-            transition: 'backdrop-filter 0.4s, background 0.4s',
-            opacity: overlayOpen ? 1 : 0,
-            pointerEvents: overlayOpen ? 'auto' : 'none',
-          }}
-        />
-        {/* 오른쪽 메뉴 패널 */}
-        <div
-          style={{
-            width: 400,
-            maxWidth: '90vw',
-            height: '100vh',
-            background: 'rgba(255,255,255,1)',
-            boxShadow: '-2px 0 16px rgba(0,0,0,0.08)',
-            position: 'relative',
-            zIndex: 2,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            justifyContent: 'flex-start',
-            padding: '48px 40px',
-            transform: overlayOpen ? 'translateX(0)' : 'translateX(100%)',
-            transition: 'transform 0.4s cubic-bezier(.77,0,.18,1), opacity 0.3s',
-            opacity: overlayOpen ? 1 : 0,
-            pointerEvents: overlayOpen ? 'auto' : 'none',
-            flexShrink: 0,
-            overflowY: 'auto',
-            overflowX: 'hidden',
+
+      {/* 햄버거 드롭다운 메뉴 */}
+      <Collapse in={hamburgerMenuOpen}>
+        <Box
+          sx={{
+            position: 'fixed',
+            top: '64px', // AppBar 높이
+            left: 0,
+            right: 0,
+            backgroundColor: 'white',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+            zIndex: 1300,
+            borderBottom: '1px solid #e0e0e0'
           }}
         >
-          {/* 나가기 버튼 */}
-          <IconButton
-            onClick={handleOverlayClose}
-            sx={{
-              position: 'sticky',
-              top: 24,
-              right: 24,
-              width: 48,
-              height: 48,
-              zIndex: 10,
-              background: '#fff',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              '&:hover': { background: '#f5f5f5' },
-            }}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="11" fill="#f5f5f5" />
-              <line x1="8" y1="8" x2="16" y2="16" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
-              <line x1="16" y1="8" x2="8" y2="16" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </IconButton>
-          {/* 애니메이션 효과 유지 */}
-          <div style={{ marginTop: 40, width: '100%', maxWidth: 400, textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
-            {menuItems.map((item, idx) => (
-              <div
-                key={item.text}
-                style={{
-                  display: 'inline-block',
-                  fontSize: 28,
-                  fontWeight: 600,
-                  margin: '28px 0',
-                  opacity: overlayOpen ? 1 : 0,
-                  transform: overlayOpen ? 'translateY(0)' : 'translateY(30px)',
-                  transition: `opacity 0.4s ${idx * 0.05}s, transform 0.4s ${idx * 0.05}s`,
-                  cursor: 'pointer',
-                  position: 'relative',
-                  width: 'fit-content',
-                }}
-                onClick={() => {
-                  setOverlayOpen(false);
-                  if (item.onClick) {
-                    item.onClick();
-                  } else if (item.href) {
-                    window.location.href = item.href;
-                  }
-                }}
-                onMouseEnter={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(1)';
-                }}
-                onMouseLeave={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(0)';
-                }}
-              >
-                {item.text}
-                <div 
-                  className="menu-underline"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    bottom: 0,
-                    width: '100%',
-                    height: 2,
-                    background: '#222',
-                    transform: 'scaleX(0)',
-                    transformOrigin: 'left',
-                    transition: 'transform 0.3s'
-                  }}
-                />
-              </div>
-            ))}
-            <div style={{ height: 32 }} />
-            {partnerSubMenuItems.map((item, idx) => (
-              <div
-                key={item.text}
-                style={{
-                  display: 'inline-block',
-                  fontSize: 20,
-                  fontWeight: 400,
-                  margin: '16px 0',
-                  opacity: overlayOpen ? 1 : 0,
-                  transform: overlayOpen ? 'translateY(0)' : 'translateY(30px)',
-                  transition: `opacity 0.4s ${(menuItems.length + idx) * 0.05}s, transform 0.4s ${(menuItems.length + idx) * 0.05}s`,
-                  cursor: 'pointer',
-                  position: 'relative',
-                  width: 'fit-content'
-                }}
-                onClick={() => {
-                  setOverlayOpen(false);
-                  item.onClick();
-                }}
-                onMouseEnter={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(1)';
-                }}
-                onMouseLeave={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(0)';
-                }}
-              >
-                {item.text}
-                <div 
-                  className="menu-underline"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    bottom: 0,
-                    width: '100%',
-                    height: 2,
-                    background: '#222',
-                    transform: 'scaleX(0)',
-                    transformOrigin: 'left',
-                    transition: 'transform 0.3s'
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+          <Container maxWidth="lg">
+                         <List sx={{ py: 2 }}>
+               {/* 메인 메뉴 아이템들 */}
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick('/#home')}
+                   sx={{ 
+                     borderRadius: '8px',
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><HomeIcon color="primary" /></ListItemIcon>
+                   <ListItemText primary={t('home')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick('/#services')}
+                   sx={{ 
+                     borderRadius: '8px',
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><InfoIcon color="primary" /></ListItemIcon>
+                   <ListItemText primary={t('services')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick(undefined, navigateToFAQ)}
+                   sx={{ 
+                     borderRadius: '8px',
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><HelpIcon color="primary" /></ListItemIcon>
+                   <ListItemText primary={t('howItWorks')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick('/#pricing')}
+                   sx={{ 
+                     borderRadius: '8px',
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><AttachMoneyIcon color="primary" /></ListItemIcon>
+                   <ListItemText primary={t('pricing')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 2 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick(undefined, navigateToPartner)}
+                   sx={{ 
+                     borderRadius: '8px',
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><BusinessIcon color="primary" /></ListItemIcon>
+                   <ListItemText primary={t('partner')} />
+                 </ListItemButton>
+               </ListItem>
+
+               <Divider sx={{ my: 1 }} />
+               
+               {/* 파트너 서브메뉴 */}
+               <Typography 
+                 variant="body2" 
+                 color="text.secondary" 
+                 sx={{ px: 2, py: 1, fontWeight: 600 }}
+               >
+                 파트너 서비스
+               </Typography>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick(undefined, navigateToStoragePartnership)}
+                   sx={{ 
+                     borderRadius: '8px',
+                     pl: 4,
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><StorageIcon color="secondary" /></ListItemIcon>
+                   <ListItemText primary={t('storageService')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick(undefined, navigateToEventStorage)}
+                   sx={{ 
+                     borderRadius: '8px',
+                     pl: 4,
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><EventIcon color="secondary" /></ListItemIcon>
+                   <ListItemText primary={t('eventStorage')} />
+                 </ListItemButton>
+               </ListItem>
+               
+               <ListItem disablePadding sx={{ mb: 1 }}>
+                 <ListItemButton 
+                   onClick={() => handleMenuItemClick(undefined, navigateToInquiry)}
+                   sx={{ 
+                     borderRadius: '8px',
+                     pl: 4,
+                     '&:hover': { backgroundColor: '#f5f5f5' }
+                   }}
+                 >
+                   <ListItemIcon><ContactSupportIcon color="secondary" /></ListItemIcon>
+                   <ListItemText primary="1:1 문의" />
+                 </ListItemButton>
+               </ListItem>
+             </List>
+          </Container>
+        </Box>
+      </Collapse>
+
       <Box sx={{ height: '64px' }} /> {/* AppBar 높이만큼의 여백 추가 */}
     </>
   );
