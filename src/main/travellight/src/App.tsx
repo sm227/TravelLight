@@ -31,6 +31,7 @@ import Partner from './pages/Partner';
 import PartnerSignup from './pages/PartnerSignup';
 import PartnerDashboard from './pages/PartnerDashboard';
 import NotFound from './pages/NotFound';
+import PaymentComplete from './pages/PaymentComplete';
 
 // 네이버 맵 상태를 위한 전역 타입 확장
 declare global {
@@ -290,6 +291,7 @@ function App() {
             <Route path="/carry" element={<Carry />}/>
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/Eventstorage" element={<EventStorage />} />
+            <Route path="/payment-complete" element={<PaymentComplete />} />
 
             {/* 관리자 라우트 */}
             <Route path="/admin/login" element={<AdminLogin />} />

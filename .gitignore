@@ -39,3 +39,5 @@ out/
 
 src/main/travellight/node_modules
 /node_modules
+.mcp.json
+CLAUDE.md

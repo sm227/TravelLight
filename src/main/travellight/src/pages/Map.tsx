@@ -3454,6 +3454,11 @@ const Map = () => {
         totalAmount: totalPrice,
         currency: "KRW" as any, // 타입 오류 임시 해결
         payMethod: "CARD",
+        windowType: {
+          pc: "IFRAME",
+          mobile: "REDIRECTION"
+        },
+        redirectUrl: `${window.location.origin}/payment-complete`,
         customer: {
           fullName: user?.name || "고객",
           email: user?.email || "",
