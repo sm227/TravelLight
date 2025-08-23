@@ -32,10 +32,10 @@ const Footer: React.FC = () => {
   ];
   
   const companyLinks = [
-    { name: t('aboutUs'), href: '#' },
+    { name: t('aboutUs'), href: '/about' },
     { name: t('notice'), href: '#' },
     { name: t('pressRelease'), href: '#' },
-    { name: t('careers'), href: '#' },
+    { name: '채용', href: '/careers' },
     { name: t('partnership2'), href: '#' }
   ];
   

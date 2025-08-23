@@ -264,6 +264,7 @@ const Navbar: React.FC = () => {
         { text: t('home'), href: '/' },
         { text: t('about'), href: '/about' },
         { text: t('services'), href: '/services' },
+        { text: '채용', href: '/careers' },
         { text: t('contact'), href: '/contact' },
     ];
 
