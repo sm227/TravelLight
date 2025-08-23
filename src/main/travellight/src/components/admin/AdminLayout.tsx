@@ -22,6 +22,7 @@ import {
   Store as StoreIcon,
   Analytics as AnalyticsIcon,
   People as PeopleIcon,
+  Work as WorkIcon,
   Settings as SettingsIcon,
   ChevronLeft as ChevronLeftIcon,
   Menu as MenuIcon,
@@ -82,6 +83,7 @@ const AdminLayout = () => {
       title: '시스템',
       items: [
         { text: '사용자 관리', icon: <PeopleIcon />, path: '/admin/users' },
+        { text: 'HR 관리', icon: <WorkIcon />, path: '/admin/hr' },
         { text: '로그 분석', icon: <AnalyticsIcon />, path: '/admin/logs' },
         { text: '시스템 설정', icon: <SettingsIcon />, path: '/admin/settings' },
       ]

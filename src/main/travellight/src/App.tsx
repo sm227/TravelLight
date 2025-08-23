@@ -17,6 +17,7 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminEventStorage from './pages/admin/AdminEventStorage';
+import AdminHR from './pages/admin/AdminHR';
 import AdminLayout from './components/admin/AdminLayout';
 import ProtectedAdminRoute from './components/admin/ProtectedAdminRoute';
 import MyPage from './pages/MyPage';
@@ -311,6 +312,7 @@ function App() {
               <Route path="event-storage" element={<AdminEventStorage />} />
               <Route path="partnerships" element={<AdminPartnerships />} />
               <Route path="services" element={<AdminServices />} />
+              <Route path="hr" element={<AdminHR />} />
             </Route>
 
             {/* Catch-all route for 404 Not Found */}

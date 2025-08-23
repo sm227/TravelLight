@@ -124,31 +124,31 @@ const Careers: React.FC = () => {
   const jobPositions: JobPosition[] = [
     {
       id: 1,
-      title: "마케팅 팀원",
-      department: "Marketing",
+      title: "경영관리 팀원",
+      department: "Business",
       location: "재택근무",
       type: "정규직",
       icon: <TrendingUp sx={{ fontSize: 40, color: "#2E7DF1" }} />,
       description:
-        "우리와 함께 성장할 마케팅 팀원을 찾습니다. 스타트업의 초기 단계부터 브랜드를 구축하고 시장을 개척해나갈 열정적인 분을 기다립니다.",
+        "스타트업의 전반적인 경영 업무를 담당할 경영관리 팀원을 찾습니다. 사업 전략 수립, 운영 관리, 파트너십 등 다양한 경영 업무를 경험할 수 있습니다.",
       requirements: [
-        "마케팅 관련 경험 또는 강한 학습 의지",
-        "디지털 마케팅 기초 지식",
+        "경영학, 경제학 전공 또는 관련 업무 경험",
+        "사업 계획서 작성 및 전략 수립 능력",
         "스타트업 환경에 대한 이해와 적응력",
-        "도전적이고 능동적인 업무 태도",
-        "팀워크와 소통을 중시하는 성향",
+        "데이터 분석 및 보고서 작성 능력",
+        "원활한 커뮤니케이션 및 협상 능력",
       ],
       responsibilities: [
-        "브랜드 아이덴티티 구축 참여",
-        "고객 발굴 및 관계 구축",
-        "마케팅 전략 실행",
-        "시장 조사 및 데이터 분석",
-        "마케팅 캠페인 기획 및 운영",
+        "사업 전략 및 계획 수립 참여",
+        "운영 프로세스 개선 및 관리",
+        "파트너십 발굴 및 관리",
+        "재무 관리 및 투자 유치 지원",
+        "법무 업무 및 컴플라이언스 관리",
       ],
       benefits: [
         "사업 성과에 따른 보상 시스템",
-        "스타트업 환경에서의 빠른 성장",
-        "다양한 업무 경험 기회",
+        "스타트업 경영 전반의 경험",
+        "창업과 사업 운영의 실무 학습",
         "수평적 조직문화",
         "성공 시 보상 논의 가능",
       ],
@@ -227,11 +227,44 @@ const Careers: React.FC = () => {
     setShowApplicationForm(true);
   };
 
-  const handleSubmitApplication = () => {
-    setSubmitted(true);
-    setTimeout(() => {
-      handleCloseDialog();
-    }, 3000);
+  const handleSubmitApplication = async () => {
+    if (!selectedJob) return;
+    
+    try {
+      const applicationData = {
+        positionTitle: selectedJob.title,
+        department: selectedJob.department,
+        applicantName: applicationForm.name,
+        email: applicationForm.email,
+        phone: applicationForm.phone,
+        coverLetter: applicationForm.coverLetter
+      };
+
+      const response = await fetch('/api/hr/applications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(applicationData)
+      });
+
+      if (response.ok) {
+        setSubmitted(true);
+        setTimeout(() => {
+          handleCloseDialog();
+          setApplicationForm({
+            name: "",
+            email: "",
+            phone: "",
+            coverLetter: "",
+          });
+        }, 3000);
+      } else {
+        console.error('지원서 제출 실패');
+      }
+    } catch (error) {
+      console.error('지원서 제출 중 오류:', error);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -257,11 +290,35 @@ const Careers: React.FC = () => {
     }));
   };
 
-  const handleSubmitTalentPool = () => {
-    setTalentPoolSubmitted(true);
-    setTimeout(() => {
-      handleCloseTalentPoolForm();
-    }, 3000);
+  const handleSubmitTalentPool = async () => {
+    try {
+      const response = await fetch('/api/hr/talent-pool', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(talentPoolForm)
+      });
+
+      if (response.ok) {
+        setTalentPoolSubmitted(true);
+        setTimeout(() => {
+          handleCloseTalentPoolForm();
+          setTalentPoolForm({
+            name: "",
+            email: "",
+            phone: "",
+            field: "",
+            experience: "",
+            introduction: "",
+          });
+        }, 3000);
+      } else {
+        console.error('인재풀 등록 실패');
+      }
+    } catch (error) {
+      console.error('인재풀 등록 중 오류:', error);
+    }
   };
 
   return (
