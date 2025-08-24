@@ -581,58 +581,71 @@ const Hero: React.FC = () => {
                                 </Typography>
                             )}
 
-                            <Box
-                                sx={{
-                                    display: 'flex',
-                                    gap: 2,
-                                    justifyContent: { xs: 'center', md: 'flex-start' },
-                                    flexWrap: 'wrap'
-                                }}
-                            >
-                                <Button
-                                    variant="contained"
-                                    size="large"
-                                    component={Link}
-                                    to="/map"
+                            <Box>
+                                <Box
                                     sx={{
-                                        backgroundColor: '#3B82F6',
-                                        color: 'white',
-                                        px: 4,
-                                        py: 1.5,
-                                        borderRadius: '10px',
-                                        fontSize: '1rem',
-                                        fontWeight: 600,
-                                        textTransform: 'none',
-                                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
-                                        '&:hover': {
-                                            backgroundColor: '#2563EB',
-                                            boxShadow: '0 6px 16px rgba(37, 99, 235, 0.4)',
-                                            transform: 'translateY(-1px)'
-                                        }
+                                        display: 'flex',
+                                        gap: 2,
+                                        justifyContent: { xs: 'center', md: 'flex-start' },
+                                        flexWrap: 'wrap'
                                     }}
                                 >
-                                    가까운 위치 찾기
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    size="large"
+                                    <Button
+                                        variant="contained"
+                                        size="large"
+                                        disabled
+                                        sx={{
+                                            backgroundColor: '#CBD5E1',
+                                            color: '#94A3B8',
+                                            px: 4,
+                                            py: 1.5,
+                                            borderRadius: '10px',
+                                            fontSize: '1rem',
+                                            fontWeight: 600,
+                                            textTransform: 'none',
+                                            cursor: 'not-allowed',
+                                            '&:hover': {
+                                                backgroundColor: '#CBD5E1'
+                                            }
+                                        }}
+                                    >
+                                        가까운 위치 찾기
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        size="large"
+                                        sx={{
+                                            borderColor: '#E2E8F0',
+                                            color: '#475569',
+                                            px: 4,
+                                            py: 1.5,
+                                            borderRadius: '10px',
+                                            fontSize: '1rem',
+                                            fontWeight: 600,
+                                            textTransform: 'none',
+                                            '&:hover': {
+                                                backgroundColor: '#F8FAFC',
+                                                borderColor: '#CBD5E1'
+                                            }
+                                        }}
+                                    >
+                                        더 알아보기
+                                    </Button>
+                                </Box>
+                                
+                                <Typography
+                                    variant="caption"
                                     sx={{
-                                        borderColor: '#E2E8F0',
-                                        color: '#475569',
-                                        px: 4,
-                                        py: 1.5,
-                                        borderRadius: '10px',
-                                        fontSize: '1rem',
-                                        fontWeight: 600,
-                                        textTransform: 'none',
-                                        '&:hover': {
-                                            backgroundColor: '#F8FAFC',
-                                            borderColor: '#CBD5E1'
-                                        }
+                                        display: 'block',
+                                        textAlign: { xs: 'center', md: 'left' },
+                                        color: '#94A3B8',
+                                        fontSize: '0.875rem',
+                                        mt: 1,
+                                        fontWeight: 400
                                     }}
                                 >
-                                    더 알아보기
-                                </Button>
+                                    * 현재 위치 기반 검색은 브라우저 위치 권한 문제로 추후 예정
+                                </Typography>
                             </Box>
                         </Box>
                     </Grid>
