@@ -723,7 +723,7 @@ const Map = () => {
       addMapStyles();
 
       const options = {
-        center: new window.naver.maps.LatLng(37.7454814, 127.0233146),
+        center: new window.naver.maps.LatLng(37.555946, 126.972317),
         zoom: 15,
         zoomControl: false,
         disableKineticPan: false,
