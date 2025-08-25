@@ -593,19 +593,17 @@ const Hero: React.FC = () => {
                                     <Button
                                         variant="contained"
                                         size="large"
-                                        disabled
                                         sx={{
-                                            backgroundColor: '#CBD5E1',
-                                            color: '#94A3B8',
+                                            backgroundColor: '#3B82F6',
+                                            color: 'white',
                                             px: 4,
                                             py: 1.5,
                                             borderRadius: '10px',
                                             fontSize: '1rem',
                                             fontWeight: 600,
                                             textTransform: 'none',
-                                            cursor: 'not-allowed',
                                             '&:hover': {
-                                                backgroundColor: '#CBD5E1'
+                                                backgroundColor: '#2563EB'
                                             }
                                         }}
                                     >
@@ -632,20 +630,6 @@ const Hero: React.FC = () => {
                                         더 알아보기
                                     </Button>
                                 </Box>
-                                
-                                <Typography
-                                    variant="caption"
-                                    sx={{
-                                        display: 'block',
-                                        textAlign: { xs: 'center', md: 'left' },
-                                        color: '#94A3B8',
-                                        fontSize: '0.875rem',
-                                        mt: 1,
-                                        fontWeight: 400
-                                    }}
-                                >
-                                    * 현재 위치 기반 검색은 브라우저 위치 권한 문제로 추후 예정
-                                </Typography>
                             </Box>
                         </Box>
                     </Grid>
