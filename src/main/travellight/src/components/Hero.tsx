@@ -606,6 +606,7 @@ const Hero: React.FC = () => {
                                                 backgroundColor: '#2563EB'
                                             }
                                         }}
+                                        onClick={() => navigate('/map')}
                                     >
                                         가까운 위치 찾기
                                     </Button>
