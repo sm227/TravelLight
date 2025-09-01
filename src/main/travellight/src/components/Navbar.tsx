@@ -614,6 +614,7 @@ const Navbar: React.FC = () => {
                   title: "서비스 이용",
                   items: [
                     { text: t("services"), href: "/#services" },
+                    { text: "티스푼 맛집", href: "/spoons" },
                     { text: t("pricing"), href: "/#pricing" },
                   ],
                 },
@@ -805,6 +806,7 @@ const Navbar: React.FC = () => {
                         title: "서비스 이용",
                         items: [
                           { text: t("services"), href: "/#services" },
+                          { text: "티스푼 맛집", href: "/spoons" },
                           { text: t("pricing"), href: "/#pricing" },
                         ],
                       },

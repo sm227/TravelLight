@@ -59,6 +59,20 @@ const resources = {
       feature13: 'Safe packaging service',
       feature14: 'Insurance service provided',
       feature15: 'Delivery available nationwide',
+      
+      // TravelLight Spoons translations
+      spoonsServiceTitle: 'TravelLight Spoons',
+      spoonsServiceDesc: 'TravelLight-certified restaurant system',
+      feature16: 'TravelLight team evaluation',
+      feature17: 'Nearby luggage storage guaranteed',
+      feature18: '1-3 spoon rating system',
+      feature19: 'Carefully curated restaurants',
+      feature20: 'Quality and convenience focused',
+      useSpoonsService: 'View Spoon Restaurants',
+      
+      // Navigation
+      spoonsNavigation: 'Spoon Restaurants',
+      
       footerDescription: 'We provide the best luggage storage and delivery services for travel freedom. Use it conveniently anytime, anywhere.',
       footerServices: 'Services',
       attendedStorage2: 'Attended Storage',
@@ -256,6 +270,20 @@ const resources = {
       feature13: '안전한 포장 서비스',
       feature14: '보험 서비스 제공',
       feature15: '국내 전 지역 배송 가능',
+      
+      // TravelLight Spoons translations
+      spoonsServiceTitle: '트래블라이트 티스푼',
+      spoonsServiceDesc: '트래블라이트가 직접 인증한 맛집 시스템',
+      feature16: '트래블라이트 팀 직접 평가',
+      feature17: '근처 짐보관소 보장',
+      feature18: '1-3 티스푼 등급제',
+      feature19: '엄선된 맛집만 선별',
+      feature20: '품질과 편의성 중심',
+      useSpoonsService: '티스푼 맛집 보기',
+      
+      // Navigation
+      spoonsNavigation: '티스푼 맛집',
+      
       footerDescription: '여행의 자유를 위한 최고의 짐 보관 및 배송 서비스를 제공합니다. 언제 어디서나 편리하게 이용하세요.',
       footerServices: '서비스',
       attendedStorage2: '유인보관',

@@ -35,6 +35,7 @@ import NotFound from './pages/NotFound';
 import PaymentComplete from './pages/PaymentComplete';
 import About from './pages/About';
 import Careers from './pages/Careers';
+import TravelLightSpoons from './pages/TravelLightSpoons';
 
 // 네이버 맵 상태를 위한 전역 타입 확장
 declare global {
@@ -297,6 +298,7 @@ function App() {
             <Route path="/payment-complete" element={<PaymentComplete />} />
             <Route path="/about" element={<About />} />
             <Route path="/careers" element={<Careers />} />
+            <Route path="/spoons" element={<TravelLightSpoons />} />
 
             {/* 관리자 라우트 */}
             <Route path="/admin/login" element={<AdminLogin />} />

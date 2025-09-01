@@ -20,6 +20,7 @@ import StorefrontIcon from '@mui/icons-material/Storefront';
 import LuggageIcon from '@mui/icons-material/Luggage';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import { useTranslation } from 'react-i18next';
 
 // 애니메이션 정의
@@ -173,6 +174,22 @@ const Services: React.FC = () => {
       color: 'info',
       buttonText: t('useDeliveryService'),
       path:'/carry'
+    },
+    {
+      id: 'spoons',
+      title: t('spoonsServiceTitle'),
+      icon: <LocalFireDepartmentIcon sx={{ fontSize: 36, color: '#2E7DF1' }} />,
+      description: t('spoonsServiceDesc'),
+      features: [
+        t('feature16'),
+        t('feature17'), 
+        t('feature18'),
+        t('feature19'),
+        t('feature20')
+      ],
+      color: 'primary',
+      buttonText: t('useSpoonsService'),
+      path: '/spoons'
     }
   ];
 
@@ -239,7 +256,7 @@ const Services: React.FC = () => {
         {/* 서비스 카드들 */}
         <Grid container spacing={3}>
           {serviceData.map((service, index) => (
-            <Grid item xs={12} md={4} key={service.id}>
+            <Grid item xs={12} sm={6} lg={3} key={service.id}>
               <StyledCard
                 sx={{
                   p: 3,
