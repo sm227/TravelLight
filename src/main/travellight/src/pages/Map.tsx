@@ -153,7 +153,7 @@ const Map = () => {
 
   // 포트원 결제 관련 상태
   const [portonePaymentId, setPortonePaymentId] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "portone">(
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "portone" | "paypal">(
     "portone"
   ); // 기본값을 포트원으로 설정
   const [storageDuration, setStorageDuration] = useState("day");
@@ -3445,19 +3445,49 @@ const Map = () => {
       console.log("결제 금액:", totalPrice);
       console.log("========================");
 
+      // 결제 수단에 따른 설정
+      let payMethodConfig: any = {};
+      let payMethodType: string = "CARD";
+      let channelKey: string = "channel-key-7ecba580-a8c1-4834-904f-fdc9150a0ce4"; // 기본 토스페이먼츠 채널
+      let currency: string = "KRW";
+      let windowType: any = {
+        pc: "IFRAME",
+        mobile: "REDIRECTION"
+      };
+      
+      if (paymentMethod === "paypal") {
+        // PayPal은 직접 결제 방식 사용
+        payMethodType = "PAYPAL";
+        payMethodConfig = {}; // PayPal 직접 결제는 추가 설정 불필요
+        // 실제 PayPal 채널 키
+        channelKey = "channel-key-4ac60642-8459-4dc7-9c88-0b674246cd2b";
+        // PayPal은 USD 통화만 지원
+        currency = "USD";
+        // PayPal은 POPUP 방식 사용
+        windowType = {
+          pc: "POPUP",
+          mobile: "REDIRECTION"
+        };
+      }
+
+      console.log("=== 결제 설정 ===");
+      console.log("결제 수단:", paymentMethod);
+      console.log("PayMethod 타입:", payMethodType);
+      console.log("채널 키:", channelKey);
+      console.log("PayMethod Config:", payMethodConfig);
+      console.log("================");
+
       // 포트원 결제 요청
       const payment = await PortOne.requestPayment({
         storeId: "store-ef16a71d-87cc-4e73-a6b8-448a8b07840d", // 환경변수 또는 기본값
-        channelKey: "channel-key-7ecba580-a8c1-4834-904f-fdc9150a0ce4",
+        channelKey,
         paymentId,
         orderName: `${selectedPlace.place_name} 짐보관 서비스`,
-        totalAmount: totalPrice,
-        currency: "KRW" as any, // 타입 오류 임시 해결
-        payMethod: "CARD",
-        windowType: {
-          pc: "IFRAME",
-          mobile: "REDIRECTION"
-        },
+        totalAmount: paymentMethod === "paypal" ? Math.ceil(totalPrice / 1300) : totalPrice, // USD 환산 (대략 1300원 = 1달러)
+        currency: currency as any,
+        payMethod: payMethodType as any,
+        ...payMethodConfig,
+        windowType,
         redirectUrl: `${window.location.origin}/payment-complete`,
         customer: {
           fullName: user?.name || "고객",
@@ -3504,6 +3534,7 @@ const Map = () => {
         },
         body: JSON.stringify({
           paymentId: payment.paymentId,
+          payMethod: paymentMethod === "paypal" ? "paypal" : "card",
         }),
       });
 
@@ -4925,6 +4956,61 @@ const Map = () => {
                       카드, 계좌이체, 간편결제 등<br />
                       다양한 결제 수단을 지원합니다
                     </Typography>
+                  </Box>
+
+                  {/* 결제 수단 선택 */}
+                  <Box
+                    sx={{
+                      mb: 3,
+                      p: 2,
+                      border: "1px solid rgba(0, 0, 0, 0.1)",
+                      borderRadius: "12px",
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        mb: 2,
+                        color: "#333",
+                      }}
+                    >
+                      결제 수단 선택
+                    </Typography>
+                    
+                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                      <Button
+                        variant={paymentMethod === "card" ? "contained" : "outlined"}
+                        size="small"
+                        onClick={() => setPaymentMethod("card")}
+                        sx={{
+                          minHeight: "40px",
+                          fontSize: "13px",
+                          borderRadius: "8px",
+                        }}
+                      >
+                        💳 카드
+                      </Button>
+                      
+                      <Button
+                        variant={paymentMethod === "paypal" ? "contained" : "outlined"}
+                        size="small"
+                        onClick={() => setPaymentMethod("paypal")}
+                        sx={{
+                          minHeight: "40px",
+                          fontSize: "13px",
+                          borderRadius: "8px",
+                          backgroundColor: paymentMethod === "paypal" ? "#0070ba" : "transparent",
+                          borderColor: paymentMethod === "paypal" ? "#0070ba" : "#0070ba",
+                          color: paymentMethod === "paypal" ? "white" : "#0070ba",
+                          "&:hover": {
+                            backgroundColor: paymentMethod === "paypal" ? "#005ea6" : "rgba(0, 112, 186, 0.1)",
+                          }
+                        }}
+                      >
+                        💙 PayPal
+                      </Button>
+                    </Box>
                   </Box>
 
                   {/* 결제 정보 요약 */}
