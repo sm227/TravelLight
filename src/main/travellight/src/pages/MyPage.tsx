@@ -170,7 +170,9 @@ const MyPage = () => {
         try {
           const reservations = await getMyReservations(user.id);
           const updatedReservations = checkAndUpdateReservationStatus(reservations);
-          setMyTrips(updatedReservations);
+          // 최신 예약을 맨 위로 정렬 (ID 기준 내림차순 - 더 높은 ID가 최신)
+          const sortedReservations = updatedReservations.sort((a, b) => b.id - a.id);
+          setMyTrips(sortedReservations);
 
           // 각 예약에 대한 배달 정보 조회
           const deliveryPromises = updatedReservations.map(reservation => 
@@ -891,8 +893,29 @@ const MyPage = () => {
                                   ))}
                                 </DeliveryStatusContainer>
                               ) : (
-                                <div className="button-container" style={{ display: 'flex', gap: '10px' }}>
+                                <div className="button-container" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                                   <button className="detail-button">{t('viewDetails')}</button>
+                                  {trip.status === 'RESERVED' && (
+                                    <a 
+                                      href={`https://map.naver.com/p/directions/-1,,,,/-2,${encodeURIComponent(trip.placeAddress)},${encodeURIComponent(trip.placeName)},PLACE/car`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ textDecoration: 'none' }}
+                                    >
+                                      <button className="navigation-button" style={{
+                                        backgroundColor: '#03C75A',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '8px 16px',
+                                        fontSize: '14px',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold'
+                                      }}>
+                                        네이버맵 길찾기
+                                      </button>
+                                    </a>
+                                  )}
                                   <button 
                                     className="delivery-button" 
                                     onClick={() => handleStartDelivery(trip)}
