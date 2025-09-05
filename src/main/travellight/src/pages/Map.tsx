@@ -240,7 +240,9 @@ const Map = () => {
       const reservations = await getMyReservations(user.id);
       // 예약 상태를 체크하고 업데이트
       const updatedReservations = checkAndUpdateReservationStatus(reservations);
-      setMyReservations(updatedReservations);
+      // 최신 예약을 맨 위로 정렬 (ID 기준 내림차순 - 더 높은 ID가 최신)
+      const sortedReservations = updatedReservations.sort((a, b) => b.id - a.id);
+      setMyReservations(sortedReservations);
     } catch (error) {
       console.error('예약 목록을 불러오는데 실패했습니다:', error);
     } finally {
@@ -4370,6 +4372,40 @@ const Map = () => {
                             {reservation.totalPrice.toLocaleString()}원
                           </Typography>
                         </Box>
+
+                        {/* 예약 중인 경우 네이버맵 길찾기 버튼 추가 */}
+                        {reservation.status === 'RESERVED' && (
+                          <Box sx={{ 
+                            pt: 1.5,
+                            borderTop: "1px solid #e0e0e0",
+                            mt: 1
+                          }}>
+                            <a 
+                              href={`https://map.naver.com/p/directions/-1,,,,/-2,${encodeURIComponent(reservation.placeAddress)},${encodeURIComponent(reservation.placeName)},PLACE/car`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ textDecoration: 'none' }}
+                            >
+                              <Button
+                                fullWidth
+                                variant="contained"
+                                sx={{
+                                  backgroundColor: '#03C75A',
+                                  color: 'white',
+                                  fontWeight: 600,
+                                  fontSize: '12px',
+                                  py: 1,
+                                  borderRadius: '6px',
+                                  '&:hover': {
+                                    backgroundColor: '#029B4A'
+                                  }
+                                }}
+                              >
+                                🗺️ 네이버맵 길찾기
+                              </Button>
+                            </a>
+                          </Box>
+                        )}
                       </Box>
                     </Box>
                   ))}
