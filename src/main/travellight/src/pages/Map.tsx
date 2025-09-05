@@ -3450,7 +3450,7 @@ const Map = () => {
       // 결제 수단에 따른 설정
       let payMethodConfig: any = {};
       let payMethodType: string = "CARD";
-      let channelKey: string = "channel-key-7ecba580-a8c1-4834-904f-fdc9150a0ce4"; // 기본 토스페이먼츠 채널
+      let channelKey: string = "channel-key-befdbab3-c826-4515-8652-f0dcfb7a9eee"; // 기본 토스페이먼츠 채널
       let currency: string = "KRW";
       let windowType: any = {
         pc: "IFRAME",
