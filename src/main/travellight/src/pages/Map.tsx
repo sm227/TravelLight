@@ -291,6 +291,118 @@ const Map = () => {
     return timeString.slice(0, 5); // HH:MM 형식으로 변환
   };
 
+  // 네이버맵 길찾기 함수
+  const openNaverMap = (reservation: ReservationDto) => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const placeName = reservation.placeName;
+    const placeAddress = reservation.placeAddress;
+    
+    // 현재 위치 가져오기
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const currentLat = position.coords.latitude;
+          const currentLng = position.coords.longitude;
+          
+          if (isMobile) {
+            // 모바일에서는 네이버맵 앱을 실행 (출발지: 현재위치, 도착지: 매장)
+            const naverMapUrl = `nmap://route/car?slat=${currentLat}&slng=${currentLng}&sname=현재위치&dlat=${reservation.placeLatitude}&dlng=${reservation.placeLongitude}&dname=${encodeURIComponent(placeName)}&appname=TravelLight`;
+            
+            // 네이버맵 앱이 설치되어 있으면 실행, 없으면 웹으로 이동
+            const timeout = setTimeout(() => {
+              // 앱 실행 실패시 웹 페이지로 이동 (모바일도 간단한 검색)
+              const searchQuery = encodeURIComponent(`${placeName} ${placeAddress}`);
+              const naverMobileWebUrl = `https://map.naver.com/p/search/${searchQuery}`;
+              window.open(naverMobileWebUrl, '_blank');
+            }, 1000);
+            
+            // 앱이 성공적으로 실행되면 timeout 취소
+            const beforeUnload = () => {
+              clearTimeout(timeout);
+            };
+            
+            window.addEventListener('beforeunload', beforeUnload);
+            window.location.href = naverMapUrl;
+            
+            // 3초 후 이벤트 리스너 제거
+            setTimeout(() => {
+              window.removeEventListener('beforeunload', beforeUnload);
+            }, 3000);
+            
+          } else {
+            // PC에서는 네이버맵 웹 페이지로 이동 (간단한 주소 검색)
+            const searchQuery = encodeURIComponent(`${placeName} ${placeAddress}`);
+            const naverWebUrl = `https://map.naver.com/p/search/${searchQuery}`;
+            window.open(naverWebUrl, '_blank');
+          }
+        },
+        (error) => {
+          console.error('현재 위치를 가져올 수 없습니다:', error);
+          // 위치 정보를 가져올 수 없는 경우 기존 방식으로 동작 (도착지만 설정)
+          if (isMobile) {
+            const naverMapUrl = `nmap://route/car?dlat=${reservation.placeLatitude}&dlng=${reservation.placeLongitude}&dname=${encodeURIComponent(placeName)}&appname=TravelLight`;
+            
+            const timeout = setTimeout(() => {
+              window.open(`https://map.naver.com/p/directions/-1,,,,/-2,${encodeURIComponent(placeAddress)},${encodeURIComponent(placeName)},PLACE/car`, '_blank');
+            }, 1000);
+            
+            const beforeUnload = () => {
+              clearTimeout(timeout);
+            };
+            
+            window.addEventListener('beforeunload', beforeUnload);
+            window.location.href = naverMapUrl;
+            
+            setTimeout(() => {
+              window.removeEventListener('beforeunload', beforeUnload);
+            }, 3000);
+            
+          } else {
+            // 위치 정보를 가져올 수 없는 경우 PC웹용 (간단한 주소 검색)
+            const searchQuery = encodeURIComponent(`${placeName} ${placeAddress}`);
+            const naverWebUrl = `https://map.naver.com/p/search/${searchQuery}`;
+            window.open(naverWebUrl, '_blank');
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000
+        }
+      );
+    } else {
+      console.error('브라우저에서 위치 정보를 지원하지 않습니다.');
+      // Geolocation을 지원하지 않는 경우 기존 방식으로 동작
+      if (isMobile) {
+        const naverMapUrl = `nmap://route/car?dlat=${reservation.placeLatitude}&dlng=${reservation.placeLongitude}&dname=${encodeURIComponent(placeName)}&appname=TravelLight`;
+        
+        const timeout = setTimeout(() => {
+          // 앱 실행 실패시 모바일 웹으로 이동 (간단한 검색)
+          const searchQuery = encodeURIComponent(`${placeName} ${placeAddress}`);
+          const naverMobileWebUrl = `https://map.naver.com/p/search/${searchQuery}`;
+          window.open(naverMobileWebUrl, '_blank');
+        }, 1000);
+        
+        const beforeUnload = () => {
+          clearTimeout(timeout);
+        };
+        
+        window.addEventListener('beforeunload', beforeUnload);
+        window.location.href = naverMapUrl;
+        
+        setTimeout(() => {
+          window.removeEventListener('beforeunload', beforeUnload);
+        }, 3000);
+        
+      } else {
+        // Geolocation을 지원하지 않는 경우 PC웹용 (간단한 주소 검색)
+        const searchQuery = encodeURIComponent(`${placeName} ${placeAddress}`);
+        const naverWebUrl = `https://map.naver.com/p/search/${searchQuery}`;
+        window.open(naverWebUrl, '_blank');
+      }
+    }
+  };
+
   const handleReservationsClick = () => {
     setShowReservations(true);
     setSelectedPlace(null);
@@ -4380,30 +4492,24 @@ const Map = () => {
                             borderTop: "1px solid #e0e0e0",
                             mt: 1
                           }}>
-                            <a 
-                              href={`https://map.naver.com/p/directions/-1,,,,/-2,${encodeURIComponent(reservation.placeAddress)},${encodeURIComponent(reservation.placeName)},PLACE/car`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ textDecoration: 'none' }}
+                            <Button
+                              fullWidth
+                              variant="contained"
+                              onClick={() => openNaverMap(reservation)}
+                              sx={{
+                                backgroundColor: '#03C75A',
+                                color: 'white',
+                                fontWeight: 600,
+                                fontSize: '12px',
+                                py: 1,
+                                borderRadius: '6px',
+                                '&:hover': {
+                                  backgroundColor: '#029B4A'
+                                }
+                              }}
                             >
-                              <Button
-                                fullWidth
-                                variant="contained"
-                                sx={{
-                                  backgroundColor: '#03C75A',
-                                  color: 'white',
-                                  fontWeight: 600,
-                                  fontSize: '12px',
-                                  py: 1,
-                                  borderRadius: '6px',
-                                  '&:hover': {
-                                    backgroundColor: '#029B4A'
-                                  }
-                                }}
-                              >
-                                🗺️ 네이버맵 길찾기
-                              </Button>
-                            </a>
+                              🗺️ 네이버맵 길찾기
+                            </Button>
                           </Box>
                         )}
                       </Box>
