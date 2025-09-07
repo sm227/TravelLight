@@ -25,6 +25,10 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .headers(headers -> headers
+                .frameOptions().disable() // iframe 허용 (포트원 결제창용)
+                .contentTypeOptions().disable()
+            )
             .authorizeHttpRequests(auth -> auth
                 .anyRequest().permitAll() // 모든 요청을 인증 없이 허용
             );

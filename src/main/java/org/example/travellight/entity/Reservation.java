@@ -66,6 +66,9 @@ public class Reservation {
     @Column(name = "status", nullable = false)
     private String status = "RESERVED"; // RESERVED, COMPLETED, CANCELLED
     
+    @Column(name = "payment_id")
+    private String paymentId; // 포트원 결제 ID
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     

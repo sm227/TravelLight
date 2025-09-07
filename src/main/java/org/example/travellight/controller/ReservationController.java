@@ -1,6 +1,7 @@
 package org.example.travellight.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.travellight.dto.ApiResponse;
 import org.example.travellight.dto.ReservationDto;
 import org.example.travellight.service.ReservationService;
 import org.slf4j.Logger;
@@ -55,6 +56,19 @@ public class ReservationController {
     public ResponseEntity<Void> cancelReservation(@PathVariable Long id) {
         reservationService.cancelReservation(id);
         return ResponseEntity.noContent().build();
+    }
+    
+    @PutMapping("/{reservationNumber}/cancel")
+    public ResponseEntity<ApiResponse> cancelReservationByNumber(@PathVariable String reservationNumber) {
+        logger.info("예약 취소 요청: {}", reservationNumber);
+        try {
+            reservationService.cancelReservationByNumber(reservationNumber);
+            logger.info("예약 취소 성공: {}", reservationNumber);
+            return ResponseEntity.ok(ApiResponse.success("예약이 성공적으로 취소되었습니다.", null));
+        } catch (Exception e) {
+            logger.error("예약 취소 중 오류 발생: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
     
     // 파트너 대시보드를 위한 매장명별 예약 조회

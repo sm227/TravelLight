@@ -62,7 +62,7 @@ import LanguageIcon from "@mui/icons-material/Language";
 import MenuIcon from "@mui/icons-material/Menu";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { getMyReservations } from '../services/reservationService';
+import { getMyReservations, cancelReservation, cancelPayment } from '../services/reservationService';
 import { ReservationDto } from '../types/reservation';
 
 declare global {
@@ -201,6 +201,11 @@ const Map = () => {
   const [showReservations, setShowReservations] = useState(false);
   const [myReservations, setMyReservations] = useState<ReservationDto[]>([]);
   const [loadingReservations, setLoadingReservations] = useState(false);
+  
+  // 예약 취소 관련 상태
+  const [cancellingReservation, setCancellingReservation] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string>('');
+  const [cancelSuccess, setCancelSuccess] = useState<string>('');
 
   // 사용자 메뉴 및 언어 메뉴 상태
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -415,6 +420,55 @@ const Map = () => {
 
   const handleBackToSearch = () => {
     setShowReservations(false);
+  };
+
+  // 예약 취소 처리 함수
+  const handleCancelReservation = async (reservation: ReservationDto) => {
+    if (!window.confirm('정말로 예약을 취소하시겠습니까?')) {
+      return;
+    }
+
+    const reservationNumber = reservation.reservationNumber;
+    if (!reservationNumber) {
+      setCancelError('예약 번호를 찾을 수 없습니다.');
+      return;
+    }
+
+    setCancellingReservation(reservationNumber);
+    setCancelError('');
+    setCancelSuccess('');
+
+    try {
+      // 1. 먼저 예약 취소
+      await cancelReservation(reservationNumber);
+      
+      // 2. 포트원 결제 취소 (paymentId가 있는 경우)
+      if (reservation.paymentId) {
+        try {
+          await cancelPayment(reservation.paymentId, '고객 요청에 의한 취소');
+        } catch (paymentError) {
+          console.error('결제 취소 실패:', paymentError);
+          // 예약은 취소되었지만 결제 취소가 실패한 경우
+          setCancelError('예약은 취소되었으나 결제 취소에 실패했습니다. 고객센터에 문의해주세요.');
+        }
+      }
+
+      setCancelSuccess('예약이 성공적으로 취소되었습니다.');
+      
+      // 예약 목록 새로고침
+      await fetchMyReservations();
+      
+      // 성공 메시지 3초 후 자동 제거
+      setTimeout(() => {
+        setCancelSuccess('');
+      }, 3000);
+
+    } catch (error: any) {
+      console.error('예약 취소 실패:', error);
+      setCancelError(error.message || '예약 취소에 실패했습니다.');
+    } finally {
+      setCancellingReservation(null);
+    }
   };
 
   // 공통 스크롤바 스타일 정의
@@ -3157,6 +3211,7 @@ const Map = () => {
         totalPrice: totalPrice || 0,
         storageType: storageDuration || "daily",
         status: "RESERVED",
+        paymentId: portonePaymentId,
       };
 
       // 데이터 검증 로그
@@ -4485,13 +4540,43 @@ const Map = () => {
                           </Typography>
                         </Box>
 
-                        {/* 예약 중인 경우 네이버맵 길찾기 버튼 추가 */}
+                        {/* 예약 중인 경우 버튼들 추가 */}
                         {reservation.status === 'RESERVED' && (
                           <Box sx={{ 
                             pt: 1.5,
                             borderTop: "1px solid #e0e0e0",
-                            mt: 1
+                            mt: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 1
                           }}>
+                            {/* 예약 취소 버튼 */}
+                            <Button
+                              fullWidth
+                              variant="outlined"
+                              onClick={() => handleCancelReservation(reservation)}
+                              disabled={cancellingReservation === reservation.reservationNumber}
+                              sx={{
+                                borderColor: '#f44336',
+                                color: '#f44336',
+                                fontWeight: 600,
+                                fontSize: '12px',
+                                py: 1,
+                                borderRadius: '6px',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(244, 67, 54, 0.04)',
+                                  borderColor: '#d32f2f'
+                                },
+                                '&:disabled': {
+                                  borderColor: '#ccc',
+                                  color: '#999'
+                                }
+                              }}
+                            >
+                              {cancellingReservation === reservation.reservationNumber ? '취소 중...' : '예약 취소'}
+                            </Button>
+                            
+                            {/* 네이버맵 길찾기 버튼 */}
                             <Button
                               fullWidth
                               variant="contained"
@@ -6797,6 +6882,38 @@ const Map = () => {
           sx={{ width: "100%" }}
         >
           {reservationError}
+        </Alert>
+      </Snackbar>
+
+      {/* 예약 취소 에러 메시지 스낵바 */}
+      <Snackbar
+        open={!!cancelError}
+        autoHideDuration={6000}
+        onClose={() => setCancelError("")}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setCancelError("")}
+          severity="error"
+          sx={{ width: "100%" }}
+        >
+          {cancelError}
+        </Alert>
+      </Snackbar>
+
+      {/* 예약 취소 성공 메시지 스낵바 */}
+      <Snackbar
+        open={!!cancelSuccess}
+        autoHideDuration={3000}
+        onClose={() => setCancelSuccess("")}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setCancelSuccess("")}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          {cancelSuccess}
         </Alert>
       </Snackbar>
 

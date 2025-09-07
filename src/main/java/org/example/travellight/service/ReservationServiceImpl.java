@@ -130,6 +130,7 @@ public class ReservationServiceImpl implements ReservationService {
                     .totalPrice(reservationDto.getTotalPrice())
                     .storageType(reservationDto.getStorageType())
                     .status(reservationDto.getStatus() != null ? reservationDto.getStatus() : "RESERVED")
+                    .paymentId(reservationDto.getPaymentId())
                     .build();
             
             // 저장
@@ -194,7 +195,68 @@ public class ReservationServiceImpl implements ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("예약을 찾을 수 없습니다."));
         
-        reservationRepository.delete(reservation);
+        // 예약 상태 확인
+        if (!"RESERVED".equals(reservation.getStatus())) {
+            throw new RuntimeException("취소할 수 있는 예약이 아닙니다.");
+        }
+        
+        // 예약 상태를 CANCELLED로 변경
+        reservation.setStatus("CANCELLED");
+        reservationRepository.save(reservation);
+        
+        logger.info("예약 취소 완료: ID={}, 예약번호={}", reservation.getId(), reservation.getReservationNumber());
+        
+        // 취소 확인 이메일 전송 (선택사항)
+        // TODO: EmailService에 sendReservationCancellationEmail 메서드 추가 필요
+        /*
+        try {
+            ReservationDto cancelledReservation = mapToDto(reservation);
+            boolean emailSent = emailService.sendReservationCancellationEmail(cancelledReservation);
+            if (emailSent) {
+                logger.info("예약 취소 확인 이메일이 {}에게 성공적으로 전송되었습니다.", cancelledReservation.getUserEmail());
+            } else {
+                logger.warn("예약 취소 확인 이메일 전송이 실패했습니다. 사용자 이메일: {}", cancelledReservation.getUserEmail());
+            }
+        } catch (Exception e) {
+            logger.error("예약 취소 확인 이메일 전송 중 오류 발생: {}", e.getMessage(), e);
+        }
+        */
+    }
+    
+    @Override
+    @Transactional
+    public void cancelReservationByNumber(String reservationNumber) {
+        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber);
+        if (reservation == null) {
+            throw new RuntimeException("예약을 찾을 수 없습니다.");
+        }
+        
+        // 예약 상태 확인
+        if (!"RESERVED".equals(reservation.getStatus())) {
+            throw new RuntimeException("취소할 수 있는 예약이 아닙니다.");
+        }
+        
+        // 예약 상태를 CANCELLED로 변경
+        reservation.setStatus("CANCELLED");
+        reservationRepository.save(reservation);
+        
+        logger.info("예약 취소 완료: 예약번호={}", reservationNumber);
+        
+        // 취소 확인 이메일 전송 (선택사항)
+        // TODO: EmailService에 sendReservationCancellationEmail 메서드 추가 필요
+        /*
+        try {
+            ReservationDto cancelledReservation = mapToDto(reservation);
+            boolean emailSent = emailService.sendReservationCancellationEmail(cancelledReservation);
+            if (emailSent) {
+                logger.info("예약 취소 확인 이메일이 {}에게 성공적으로 전송되었습니다.", cancelledReservation.getUserEmail());
+            } else {
+                logger.warn("예약 취소 확인 이메일 전송이 실패했습니다. 사용자 이메일: {}", cancelledReservation.getUserEmail());
+            }
+        } catch (Exception e) {
+            logger.error("예약 취소 확인 이메일 전송 중 오류 발생: {}", e.getMessage(), e);
+        }
+        */
     }
     
     @Override
@@ -237,6 +299,7 @@ public class ReservationServiceImpl implements ReservationService {
                 .totalPrice(reservation.getTotalPrice())
                 .storageType(reservation.getStorageType())
                 .status(reservation.getStatus())
+                .paymentId(reservation.getPaymentId())
                 .build();
     }
 } 

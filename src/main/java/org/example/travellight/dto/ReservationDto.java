@@ -34,4 +34,5 @@ public class ReservationDto {
     
     private String storageType; // "day" 또는 "period"
     private String status = "RESERVED"; // RESERVED, COMPLETED, CANCELLED
+    private String paymentId; // 포트원 결제 ID
 } 

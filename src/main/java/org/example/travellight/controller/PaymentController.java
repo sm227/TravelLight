@@ -1,5 +1,8 @@
 package org.example.travellight.controller;
 
+import org.example.travellight.dto.ApiResponse;
+import org.example.travellight.service.PortOnePaymentService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +15,9 @@ import java.util.HashMap;
 @CrossOrigin(origins = "*")
 @Slf4j
 public class PaymentController {
+    
+    @Autowired
+    private PortOnePaymentService portOnePaymentService;
 
     @PostMapping("/portone/complete")
     public ResponseEntity<?> completePortonePayment(@RequestBody Map<String, String> request) {
@@ -60,6 +66,28 @@ public class PaymentController {
         }
     }
     
+    @PostMapping("/{paymentId}/cancel")
+    public ResponseEntity<ApiResponse> cancelPayment(@PathVariable String paymentId, 
+                                                    @RequestBody Map<String, String> request) {
+        try {
+            String reason = request.getOrDefault("reason", "고객 요청");
+            
+            log.info("결제 취소 요청: paymentId = {}, reason = {}", paymentId, reason);
+            
+            // 실제 포트원 API를 통한 결제 취소
+            portOnePaymentService.cancelPayment(paymentId, reason);
+            
+            log.info("결제 취소 완료: paymentId = {}", paymentId);
+            
+            return ResponseEntity.ok(ApiResponse.success("결제가 성공적으로 취소되었습니다.", null));
+            
+        } catch (Exception e) {
+            log.error("결제 취소 처리 중 오류 발생: paymentId = {}", paymentId, e);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("결제 취소 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+    
     @PostMapping("/portone/webhook")
     public ResponseEntity<?> handlePortoneWebhook(@RequestBody String payload, 
                                                   @RequestHeader Map<String, String> headers) {
@@ -71,7 +99,7 @@ public class PaymentController {
             return ResponseEntity.ok().build();
             
         } catch (Exception e) {
-            log.error("포트원 웹훅 처리 중 오류 발생", e);
+            log.error("포트원 웹훅 처리 중 오료 발생", e);
             return ResponseEntity.internalServerError().build();
         }
     }
