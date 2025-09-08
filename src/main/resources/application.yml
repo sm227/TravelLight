@@ -8,4 +8,10 @@ springdoc:
   paths-to-match: /**
 
 spring:
-  # 기존 설정들... 
+  # 기존 설정들...
+
+# 포트원 V2 설정
+portone:
+  secret:
+    api: ${PORTONE_API_SECRET:EUna17acg6mJXjs30Jw8wthqoPd73ZKBkOqfnVGcIgrjOu5LeXvDqo91ltKHB0jBcqE7Ap2hdq8vSddZ}
+    # webhook: ${PORTONE_WEBHOOK_SECRET:your_webhook_secret_here}  # 웹훅 비활성화 

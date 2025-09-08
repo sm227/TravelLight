@@ -5,6 +5,8 @@ export interface ReservationDto {
     userName: string;
     placeName: string;
     placeAddress: string;
+    placeLatitude?: number;
+    placeLongitude?: number;
     reservationNumber: string;
     storageDate: string;
     storageEndDate: string;
@@ -16,4 +18,5 @@ export interface ReservationDto {
     totalPrice: number;
     storageType: 'day' | 'period';
     status: 'RESERVED' | 'COMPLETED' | 'CANCELLED';
+    paymentId?: string;
 } 

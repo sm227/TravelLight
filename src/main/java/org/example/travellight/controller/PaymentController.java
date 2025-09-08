@@ -1,5 +1,8 @@
 package org.example.travellight.controller;
 
+import org.example.travellight.dto.ApiResponse;
+import org.example.travellight.service.PortOnePaymentService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +15,9 @@ import java.util.HashMap;
 @CrossOrigin(origins = "*")
 @Slf4j
 public class PaymentController {
+    
+    @Autowired
+    private PortOnePaymentService portOnePaymentService;
 
     @PostMapping("/portone/complete")
     public ResponseEntity<?> completePortonePayment(@RequestBody Map<String, String> request) {
@@ -31,22 +37,37 @@ public class PaymentController {
                 log.info("PayPal 결제 완료: paymentId = {}", paymentId);
             }
             
-            // TODO: 실제 포트원 API를 통한 결제 검증 로직 구현
-            // PayPal의 경우 포트원 V2 API로 결제 상태 확인 필요
-            // 현재는 테스트를 위해 항상 성공으로 처리
+            // 포트원 API를 통한 실제 결제 검증
+            Map<String, Object> paymentInfo = portOnePaymentService.verifyPayment(paymentId);
+            
+            if (paymentInfo == null) {
+                log.error("결제 검증 실패: paymentId = {}", paymentId);
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "결제 검증에 실패했습니다."));
+            }
+            
+            String paymentStatus = (String) paymentInfo.get("status");
+            if (!"PAID".equals(paymentStatus)) {
+                log.error("결제가 완료되지 않음: paymentId = {}, status = {}", paymentId, paymentStatus);
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "결제가 완료되지 않았습니다. 상태: " + paymentStatus));
+            }
+            
+            log.info("포트원 결제 검증 성공: paymentId = {}", paymentId);
             
             Map<String, Object> response = new HashMap<>();
             response.put("status", "PAID");
             response.put("paymentId", paymentId);
             response.put("payMethod", payMethod);
             response.put("message", getSuccessMessage(payMethod));
+            response.put("amount", paymentInfo.get("amount"));
             
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             log.error("포트원 결제 완료 처리 중 오류 발생", e);
             return ResponseEntity.internalServerError()
-                .body(Map.of("error", "결제 처리 중 오류가 발생했습니다."));
+                .body(Map.of("error", "결제 처리 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
     
@@ -60,6 +81,30 @@ public class PaymentController {
         }
     }
     
+    @PostMapping("/{paymentId}/cancel")
+    public ResponseEntity<ApiResponse> cancelPayment(@PathVariable String paymentId, 
+                                                    @RequestBody Map<String, String> request) {
+        try {
+            String reason = request.getOrDefault("reason", "고객 요청");
+            
+            log.info("결제 취소 요청: paymentId = {}, reason = {}", paymentId, reason);
+            
+            // 실제 포트원 API를 통한 결제 취소
+            portOnePaymentService.cancelPayment(paymentId, reason);
+            
+            log.info("결제 취소 완료: paymentId = {}", paymentId);
+            
+            return ResponseEntity.ok(ApiResponse.success("결제가 성공적으로 취소되었습니다.", null));
+            
+        } catch (Exception e) {
+            log.error("결제 취소 처리 중 오류 발생: paymentId = {}", paymentId, e);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("결제 취소 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+    
+    // 웹훅 엔드포인트 비활성화 (필요시 나중에 활성화)
+    /*
     @PostMapping("/portone/webhook")
     public ResponseEntity<?> handlePortoneWebhook(@RequestBody String payload, 
                                                   @RequestHeader Map<String, String> headers) {
@@ -75,4 +120,5 @@ public class PaymentController {
             return ResponseEntity.internalServerError().build();
         }
     }
+    */
 } 

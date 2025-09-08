@@ -27,4 +27,41 @@ export const getRecentReservations = async (limit: number = 10): Promise<Reserva
     throw new Error('최근 예약 정보를 불러오는데 실패했습니다.');
   }
   return response.json();
+};
+
+// 예약 취소 API
+export const cancelReservation = async (reservationNumber: string): Promise<{ success: boolean; message: string }> => {
+  const response = await fetch(`${API_BASE_URL}/reservations/${reservationNumber}/cancel`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: '예약 취소에 실패했습니다.' }));
+    throw new Error(errorData.message || '예약 취소에 실패했습니다.');
+  }
+  
+  return response.json();
+};
+
+// 포트원 결제 취소 API
+export const cancelPayment = async (paymentId: string, reason: string = '고객 요청'): Promise<{ success: boolean; message: string }> => {
+  const response = await fetch(`${API_BASE_URL}/payment/${paymentId}/cancel`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      reason: reason
+    }),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: '결제 취소에 실패했습니다.' }));
+    throw new Error(errorData.message || '결제 취소에 실패했습니다.');
+  }
+  
+  return response.json();
 }; 
