@@ -156,6 +156,7 @@ const Map = () => {
   const [paymentMethod, setPaymentMethod] = useState<"card" | "portone" | "paypal">(
     "portone"
   ); // 기본값을 포트원으로 설정
+  const [customerPhone, setCustomerPhone] = useState<string>(""); // 구매자 휴대폰 번호
   const [storageDuration, setStorageDuration] = useState("day");
   const [storageDate, setStorageDate] = useState("");
   const [storageStartTime, setStorageStartTime] = useState("");
@@ -3127,6 +3128,20 @@ const Map = () => {
       return false;
     }
 
+    // KG이니시스는 휴대폰 번호 필수
+    if (!customerPhone || customerPhone.trim() === "") {
+      setReservationError("결제를 위해 휴대폰 번호를 입력해주세요.");
+      return false;
+    }
+
+    // 휴대폰 번호 형식 검증 (간단한 검증)
+    const phoneRegex = /^[0-9]{10,11}$/;
+    const cleanPhone = customerPhone.replace(/[^0-9]/g, "");
+    if (!phoneRegex.test(cleanPhone)) {
+      setReservationError("올바른 휴대폰 번호를 입력해주세요. (숫자만 10-11자리)");
+      return false;
+    }
+
     return true;
   };
 
@@ -3651,7 +3666,7 @@ const Map = () => {
         storeId: "store-ef16a71d-87cc-4e73-a6b8-448a8b07840d", // 환경변수 또는 기본값
         channelKey,
         paymentId,
-        orderName: `${selectedPlace.place_name} 짐보관 서비스`,
+        orderName: `Luggage Storage Service`,
         totalAmount: paymentMethod === "paypal" ? Math.ceil(totalPrice / 1300) : totalPrice, // USD 환산 (대략 1300원 = 1달러)
         currency: currency as any,
         payMethod: payMethodType as any,
@@ -3659,24 +3674,23 @@ const Map = () => {
         windowType,
         redirectUrl: `${window.location.origin}/payment-complete`,
         customer: {
-          fullName: user?.name || "고객",
+          fullName: "Customer",
           email: user?.email || "",
+          phoneNumber: customerPhone.replace(/[^0-9]/g, ""), // 숫자만 추출
         },
         customData: {
-          reservationData: {
+          reservation: {
             userId: user?.id,
-            placeName: selectedPlace.place_name,
-            placeAddress: selectedPlace.address_name,
-            storageDate: storageDate,
-            storageEndDate:
-              storageDuration === "period" ? storageEndDate : storageDate,
-            storageStartTime: storageStartTime,
-            storageEndTime: storageEndTime,
-            smallBags: bagSizes.small,
-            mediumBags: bagSizes.medium,
-            largeBags: bagSizes.large,
-            totalPrice: totalPrice,
-            storageType: storageDuration,
+            placeId: selectedPlace.id || "unknown",
+            date: storageDate,
+            endDate: storageDuration === "period" ? storageEndDate : storageDate,
+            startTime: storageStartTime,
+            endTime: storageEndTime,
+            small: bagSizes.small,
+            medium: bagSizes.medium,
+            large: bagSizes.large,
+            price: totalPrice,
+            type: storageDuration,
           },
         } as any, // 타입 오류 임시 해결
       });
@@ -3726,11 +3740,20 @@ const Map = () => {
             console.log("=== 예약 저장 성공, PaymentId 업데이트 시작 ===");
 
             // 예약 저장 성공 후 paymentId 업데이트
-            if (submittedReservation?.reservationNumber && payment.paymentId) {
+            console.log("=== PaymentId 확인 ===");
+            console.log("submittedReservation:", submittedReservation);
+            console.log("payment 객체:", payment);
+            console.log("payment.paymentId:", payment.paymentId);
+            console.log("portonePaymentId 상태:", portonePaymentId);
+            console.log("=====================");
+            
+            const actualPaymentId = payment.paymentId || portonePaymentId;
+            
+            if (submittedReservation?.reservationNumber && actualPaymentId) {
               try {
                 console.log("PaymentId 업데이트 요청:", {
                   reservationNumber: submittedReservation.reservationNumber,
-                  paymentId: payment.paymentId
+                  paymentId: actualPaymentId
                 });
                 
                 const updateResponse = await fetch(`/api/reservations/${submittedReservation.reservationNumber}/payment-id`, {
@@ -3739,7 +3762,7 @@ const Map = () => {
                     'Content-Type': 'application/json',
                   },
                   body: JSON.stringify({
-                    paymentId: payment.paymentId
+                    paymentId: actualPaymentId
                   }),
                 });
 
@@ -3751,6 +3774,12 @@ const Map = () => {
               } catch (updateError) {
                 console.error("PaymentId 업데이트 중 오류:", updateError);
               }
+            } else {
+              console.warn("PaymentId 업데이트 불가:", {
+                reservationNumber: submittedReservation?.reservationNumber,
+                actualPaymentId: actualPaymentId,
+                reason: !submittedReservation?.reservationNumber ? "예약번호 없음" : "PaymentId 없음"
+              });
             }
 
             setIsPaymentComplete(true);
@@ -5270,6 +5299,45 @@ const Map = () => {
                         💙 PayPal
                       </Button>
                     </Box>
+                  </Box>
+
+                  {/* 휴대폰 번호 입력 */}
+                  <Box
+                    sx={{
+                      mb: 3,
+                      p: 2,
+                      border: "1px solid rgba(0, 0, 0, 0.1)",
+                      borderRadius: "12px",
+                      backgroundColor: "rgba(0, 0, 0, 0.02)",
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        mb: 2,
+                        color: "#333",
+                      }}
+                    >
+                      구매자 정보 입력 (필수)
+                    </Typography>
+                    
+                    <TextField
+                      fullWidth
+                      label="휴대폰 번호"
+                      placeholder="01012345678"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      variant="outlined"
+                      size="medium"
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: "8px",
+                          backgroundColor: "white",
+                        },
+                      }}
+                      helperText="KG이니시스 결제를 위해 휴대폰 번호가 필요합니다."
+                    />
                   </Box>
 
                   {/* 결제 정보 요약 */}
