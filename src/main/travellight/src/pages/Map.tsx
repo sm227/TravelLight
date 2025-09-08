@@ -3131,7 +3131,7 @@ const Map = () => {
   };
 
   // 예약 정보를 서버로 전송하는 함수
-  const submitReservation = async () => {
+  const submitReservation = async (paymentId?: string) => {
     if (!isAuthenticated || !user) {
       console.error(t("loginRequired"));
       setReservationError(t("loginRequiredMessage"));
@@ -3211,7 +3211,7 @@ const Map = () => {
         totalPrice: totalPrice || 0,
         storageType: storageDuration || "daily",
         status: "RESERVED",
-        paymentId: portonePaymentId,
+        paymentId: paymentId || portonePaymentId,
       };
 
       // 데이터 검증 로그
@@ -3617,7 +3617,7 @@ const Map = () => {
       // 결제 수단에 따른 설정
       let payMethodConfig: any = {};
       let payMethodType: string = "CARD";
-      let channelKey: string = "channel-key-7ac28db2-dea2-47ae-97b2-937040ada497"; // KG 이니시스 채널
+      let channelKey: string = "channel-key-1841d885-af90-429d-a2d7-d0e6698bb23a"; // KG 이니시스 채널
       let currency: string = "KRW";
       let windowType: any = {
         pc: "IFRAME",
@@ -3720,7 +3720,7 @@ const Map = () => {
 
           // 결제 검증 성공 후에만 예약 정보 저장
           console.log("=== 예약 정보 저장 시작 ===");
-          const reservationResult = await submitReservation();
+          const reservationResult = await submitReservation(payment.paymentId);
           console.log("예약 저장 결과:", reservationResult);
           if (reservationResult) {
             console.log("=== 예약 저장 성공, PaymentId 업데이트 시작 ===");
