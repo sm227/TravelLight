@@ -9,5 +9,5 @@ import lombok.Data;
 @ConfigurationProperties(prefix = "portone.secret")
 public class PortOneProperties {
     private String api;
-    private String webhook;
+    // private String webhook;  // 웹훅 비활성화
 }

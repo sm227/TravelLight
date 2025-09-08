@@ -21,6 +21,43 @@ public class PortOnePaymentService {
     private static final String PORTONE_API_BASE_URL = "https://api.portone.io";
     
     /**
+     * 포트원 결제 검증 (REST API)
+     * @param paymentId 결제 ID
+     * @return 결제 정보
+     */
+    public Map<String, Object> verifyPayment(String paymentId) {
+        try {
+            String url = PORTONE_API_BASE_URL + "/payments/" + paymentId;
+            
+            // 헤더 설정 - PortOne 인증 스킴 사용
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "PortOne " + portOneProperties.getApi());
+            
+            HttpEntity<String> requestEntity = new HttpEntity<>(headers);
+            
+            log.info("포트원 결제 검증 요청: paymentId={}, url={}", paymentId, url);
+            
+            // API 호출
+            ResponseEntity<Map> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                requestEntity,
+                Map.class
+            );
+            
+            Map<String, Object> responseBody = response.getBody();
+            
+            log.info("포트원 결제 검증 성공: paymentId={}, response={}", paymentId, responseBody);
+            
+            return responseBody;
+            
+        } catch (Exception e) {
+            log.error("포트원 결제 검증 실패: paymentId={}, error={}", paymentId, e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    /**
      * 포트원 결제 취소 (REST API)
      * @param paymentId 결제 ID
      * @param reason 취소 사유

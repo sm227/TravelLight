@@ -28,4 +28,7 @@ public interface ReservationService {
     
     // 최근 예약 조회 (관리자 대시보드용)
     List<ReservationDto> getRecentReservations(int limit);
+    
+    // 예약의 결제 ID 업데이트
+    void updatePaymentId(String reservationNumber, String paymentId);
 } 

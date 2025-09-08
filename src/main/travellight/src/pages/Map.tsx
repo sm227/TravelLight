@@ -3617,7 +3617,7 @@ const Map = () => {
       // 결제 수단에 따른 설정
       let payMethodConfig: any = {};
       let payMethodType: string = "CARD";
-      let channelKey: string = "channel-key-befdbab3-c826-4515-8652-f0dcfb7a9eee"; // 기본 토스페이먼츠 채널
+      let channelKey: string = "channel-key-7ac28db2-dea2-47ae-97b2-937040ada497"; // KG 이니시스 채널
       let currency: string = "KRW";
       let windowType: any = {
         pc: "IFRAME",
@@ -3694,6 +3694,10 @@ const Map = () => {
       }
 
       console.log("=== 결제 성공, 검증 시작 ===");
+      
+      // 결제 성공 시 paymentId 상태에 저장
+      setPortonePaymentId(payment.paymentId);
+      console.log("PaymentId 상태 저장:", payment.paymentId);
 
       // 결제 성공 시 백엔드에 결제 완료 요청
       const completeResponse = await fetch("/api/payment/portone/complete", {
@@ -3719,7 +3723,35 @@ const Map = () => {
           const reservationResult = await submitReservation();
           console.log("예약 저장 결과:", reservationResult);
           if (reservationResult) {
-            console.log("=== 예약 저장 성공, 결제 완료 ===");
+            console.log("=== 예약 저장 성공, PaymentId 업데이트 시작 ===");
+
+            // 예약 저장 성공 후 paymentId 업데이트
+            if (submittedReservation?.reservationNumber && payment.paymentId) {
+              try {
+                console.log("PaymentId 업데이트 요청:", {
+                  reservationNumber: submittedReservation.reservationNumber,
+                  paymentId: payment.paymentId
+                });
+                
+                const updateResponse = await fetch(`/api/reservations/${submittedReservation.reservationNumber}/payment-id`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    paymentId: payment.paymentId
+                  }),
+                });
+
+                if (updateResponse.ok) {
+                  console.log("PaymentId 업데이트 성공");
+                } else {
+                  console.error("PaymentId 업데이트 실패:", await updateResponse.text());
+                }
+              } catch (updateError) {
+                console.error("PaymentId 업데이트 중 오류:", updateError);
+              }
+            }
 
             setIsPaymentComplete(true);
             setIsPaymentOpen(false);

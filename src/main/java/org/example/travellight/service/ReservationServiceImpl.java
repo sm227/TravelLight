@@ -279,6 +279,22 @@ public class ReservationServiceImpl implements ReservationService {
             .collect(Collectors.toList());
     }
     
+    @Override
+    @Transactional
+    public void updatePaymentId(String reservationNumber, String paymentId) {
+        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber);
+        if (reservation == null) {
+            throw new RuntimeException("예약을 찾을 수 없습니다: " + reservationNumber);
+        }
+        
+        // 결제 ID 업데이트
+        reservation.setPaymentId(paymentId);
+        reservationRepository.save(reservation);
+        
+        logger.info("예약 결제 ID 업데이트 완료: reservationNumber={}, paymentId={}", 
+                   reservationNumber, paymentId);
+    }
+    
     // 엔티티를 DTO로 변환하는 헬퍼 메소드
     private ReservationDto mapToDto(Reservation reservation) {
         return ReservationDto.builder()
