@@ -15,10 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +32,9 @@ public class ReservationServiceImpl implements ReservationService {
     private final UserRepository userRepository;
     private final EmailService emailService;
     private final PartnershipService partnershipService;
+    
+    // 매장별 마지막 처리 시간을 저장하는 캐시 (중복 처리 방지)
+    private final Map<String, LocalDateTime> lastProcessedTimeCache = new ConcurrentHashMap<>();
     
     @Autowired
     public ReservationServiceImpl(ReservationRepository reservationRepository,
@@ -293,6 +298,125 @@ public class ReservationServiceImpl implements ReservationService {
         
         logger.info("예약 결제 ID 업데이트 완료: reservationNumber={}, paymentId={}", 
                    reservationNumber, paymentId);
+    }
+    
+    @Override
+    @Transactional
+    public void updateReservationStatusToCompleted(String reservationNumber) {
+        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber);
+        if (reservation == null) {
+            throw new RuntimeException("예약을 찾을 수 없습니다: " + reservationNumber);
+        }
+        
+        // 이미 COMPLETED 상태인 경우 중복 처리 방지
+        if ("COMPLETED".equals(reservation.getStatus())) {
+            logger.info("예약이 이미 완료 상태입니다: reservationNumber={}", reservationNumber);
+            return;
+        }
+        
+        // RESERVED 상태인 예약만 COMPLETED로 변경
+        if (!"RESERVED".equals(reservation.getStatus())) {
+            logger.warn("완료 처리할 수 없는 예약 상태입니다: reservationNumber={}, status={}", 
+                       reservationNumber, reservation.getStatus());
+            return;
+        }
+        
+        // 예약 상태를 COMPLETED로 변경
+        reservation.setStatus("COMPLETED");
+        reservationRepository.save(reservation);
+        
+        // 매장의 보관 용량 복원
+        try {
+            Partnership partnership = partnershipService.findByBusinessNameAndAddress(
+                reservation.getPlaceName(), 
+                reservation.getPlaceAddress()
+            );
+            
+            if (partnership != null) {
+                logger.info("매장 보관 용량 복원 시작: businessName={}, address={}, 복원량(소형:{}, 중형:{}, 대형:{})", 
+                           partnership.getBusinessName(), partnership.getAddress(),
+                           reservation.getSmallBags(), reservation.getMediumBags(), reservation.getLargeBags());
+                
+                // Partnership 엔티티의 용량은 최대 보관 가능 수량을 의미하므로 
+                // 실제로는 현재 사용량만 감소시키면 됩니다.
+                // PartnershipService의 getCurrentUsedCapacity 메서드에서 
+                // RESERVED 상태의 예약만 계산하도록 되어있다면 자동으로 용량이 복원됩니다.
+                
+                logger.info("매장 보관 용량 복원 완료: reservationNumber={}", reservationNumber);
+            } else {
+                logger.warn("매장 정보를 찾을 수 없습니다: placeName={}, address={}", 
+                           reservation.getPlaceName(), reservation.getPlaceAddress());
+            }
+        } catch (Exception e) {
+            logger.error("매장 보관 용량 복원 중 오류 발생: reservationNumber={}", reservationNumber, e);
+            // 용량 복원 실패해도 예약 상태 변경은 유지
+        }
+        
+        logger.info("예약 상태 완료 처리 완료: reservationNumber={}", reservationNumber);
+    }
+    
+    @Override
+    @Transactional
+    public void processExpiredReservationsForStore(String businessName, String address) {
+        // 캐시 키 생성 (매장명 + 주소)
+        String cacheKey = businessName + "|" + address;
+        
+        // 중복 처리 방지: 2분 이내에 같은 매장에 대해 처리했다면 스킵
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime lastProcessed = lastProcessedTimeCache.get(cacheKey);
+        
+        if (lastProcessed != null && now.minusMinutes(2).isBefore(lastProcessed)) {
+            logger.info("매장 만료 예약 처리 스킵 (최근 처리됨): businessName={}, address={}, 마지막처리={}", 
+                       businessName, address, lastProcessed);
+            return;
+        }
+        
+        logger.info("매장별 만료 예약 처리 시작: businessName={}, address={}", businessName, address);
+        
+        try {
+            // 1. 먼저 만료된 예약들 조회 (처리 전 로깅용)
+            List<Reservation> expiredReservations = reservationRepository.findExpiredReservationsForStore(businessName, address);
+            
+            if (expiredReservations.isEmpty()) {
+                logger.info("처리할 만료 예약 없음: businessName={}, address={}", businessName, address);
+                // 캐시 업데이트
+                lastProcessedTimeCache.put(cacheKey, now);
+                return;
+            }
+            
+            // 2. 만료된 예약 정보 로깅
+            logger.info("처리 대상 만료 예약 수: {} 건, businessName={}, address={}", 
+                       expiredReservations.size(), businessName, address);
+            
+            int totalSmallBags = 0, totalMediumBags = 0, totalLargeBags = 0;
+            for (Reservation reservation : expiredReservations) {
+                totalSmallBags += (reservation.getSmallBags() != null ? reservation.getSmallBags() : 0);
+                totalMediumBags += (reservation.getMediumBags() != null ? reservation.getMediumBags() : 0);
+                totalLargeBags += (reservation.getLargeBags() != null ? reservation.getLargeBags() : 0);
+                
+                logger.debug("만료 예약 처리 대상: 예약번호={}, 종료일={}, 종료시간={}, 가방수(소/중/대)={}/{}/{}", 
+                           reservation.getReservationNumber(), 
+                           reservation.getStorageEndDate(), 
+                           reservation.getStorageEndTime(),
+                           reservation.getSmallBags(), 
+                           reservation.getMediumBags(), 
+                           reservation.getLargeBags());
+            }
+            
+            // 3. 배치로 상태 업데이트
+            int updatedCount = reservationRepository.updateExpiredReservationsForStoreToCompleted(businessName, address);
+            
+            logger.info("매장별 만료 예약 처리 완료: businessName={}, address={}, 처리된예약수={}, 복원용량(소/중/대)={}/{}/{}", 
+                       businessName, address, updatedCount, totalSmallBags, totalMediumBags, totalLargeBags);
+            
+            // 4. 캐시 업데이트
+            lastProcessedTimeCache.put(cacheKey, now);
+            
+        } catch (Exception e) {
+            logger.error("매장별 만료 예약 처리 중 오류 발생: businessName={}, address={}", 
+                        businessName, address, e);
+            throw new RuntimeException("만료 예약 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
     }
     
     // 엔티티를 DTO로 변환하는 헬퍼 메소드

@@ -114,4 +114,18 @@ public class ReservationController {
         List<ReservationDto> reservations = reservationService.getRecentReservations(limit);
         return ResponseEntity.ok(reservations);
     }
+    
+    // 예약 상태를 COMPLETED로 업데이트 (매장 용량 복원)
+    @PutMapping("/{reservationNumber}/complete")
+    public ResponseEntity<ApiResponse> completeReservation(@PathVariable String reservationNumber) {
+        logger.info("예약 완료 처리 요청: {}", reservationNumber);
+        try {
+            reservationService.updateReservationStatusToCompleted(reservationNumber);
+            logger.info("예약 완료 처리 성공: {}", reservationNumber);
+            return ResponseEntity.ok(ApiResponse.success("예약이 성공적으로 완료되었습니다.", null));
+        } catch (Exception e) {
+            logger.error("예약 완료 처리 중 오류 발생: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
 } 
