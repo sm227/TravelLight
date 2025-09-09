@@ -31,4 +31,10 @@ public interface ReservationService {
     
     // 예약의 결제 ID 업데이트
     void updatePaymentId(String reservationNumber, String paymentId);
+    
+    // 예약 상태를 COMPLETED로 업데이트 (매장 용량 복원)
+    void updateReservationStatusToCompleted(String reservationNumber);
+    
+    // 특정 매장의 만료된 예약들을 실시간으로 COMPLETED 상태로 변경
+    void processExpiredReservationsForStore(String businessName, String address);
 } 

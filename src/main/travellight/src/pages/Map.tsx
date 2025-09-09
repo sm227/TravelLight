@@ -243,8 +243,8 @@ const Map = () => {
     setLoadingReservations(true);
     try {
       const reservations = await getMyReservations(user.id);
-      // 예약 상태를 체크하고 업데이트
-      const updatedReservations = checkAndUpdateReservationStatus(reservations);
+      // 예약 상태를 체크하고 업데이트 (백엔드 API 호출)
+      const updatedReservations = await checkAndUpdateReservationStatus(reservations);
       // 최신 예약을 맨 위로 정렬 (ID 기준 내림차순 - 더 높은 ID가 최신)
       const sortedReservations = updatedReservations.sort((a, b) => b.id - a.id);
       setMyReservations(sortedReservations);
@@ -255,19 +255,66 @@ const Map = () => {
     }
   };
 
-  const checkAndUpdateReservationStatus = (reservations: ReservationDto[]): ReservationDto[] => {
+  const checkAndUpdateReservationStatus = async (reservations: ReservationDto[]): Promise<ReservationDto[]> => {
     const now = new Date();
-    return reservations.map(reservation => {
+    const updatedReservations = [];
+    
+    for (const reservation of reservations) {
       const endDateTime = new Date(`${reservation.storageEndDate}T${reservation.storageEndTime}`);
 
       if (reservation.status === 'RESERVED' && now > endDateTime) {
-        return {
-          ...reservation,
-          status: 'COMPLETED' as const
-        };
+        try {
+          // 백엔드 API 호출하여 예약 상태를 COMPLETED로 업데이트
+          const response = await axios.put(
+            `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/reservations/${reservation.reservationNumber}/complete`,
+            {},
+            {
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            }
+          );
+          
+          if (response.status === 200) {
+            console.log(`예약 완료 처리 성공: ${reservation.reservationNumber}`);
+            updatedReservations.push({
+              ...reservation,
+              status: 'COMPLETED' as const
+            });
+            
+            // 매장 용량 정보 실시간 업데이트
+            if (selectedPlace && 
+                selectedPlace.place_name === reservation.placeName && 
+                selectedPlace.address_name === reservation.placeAddress) {
+              const updatedCapacity = await fetchRealTimeCapacity(
+                reservation.placeName,
+                reservation.placeAddress
+              );
+              setRealTimeCapacity({
+                small: updatedCapacity.smallBags || 0,
+                medium: updatedCapacity.mediumBags || 0,
+                large: updatedCapacity.largeBags || 0,
+              });
+              console.log(`매장 용량 정보 업데이트 완료: ${reservation.placeName}`);
+            }
+          } else {
+            console.error(`예약 완료 처리 실패: ${reservation.reservationNumber}`);
+            updatedReservations.push(reservation);
+          }
+        } catch (error) {
+          console.error(`예약 완료 처리 API 호출 실패: ${reservation.reservationNumber}`, error);
+          // API 호출 실패 시에도 프론트엔드 상태는 업데이트
+          updatedReservations.push({
+            ...reservation,
+            status: 'COMPLETED' as const
+          });
+        }
+      } else {
+        updatedReservations.push(reservation);
       }
-      return reservation;
-    });
+    }
+    
+    return updatedReservations;
   };
 
   const getStatusText = (status: string) => {

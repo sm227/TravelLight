@@ -10,6 +10,7 @@ import org.example.travellight.dto.ApiResponse;
 import org.example.travellight.dto.PartnershipDto;
 import org.example.travellight.entity.Partnership;
 import org.example.travellight.service.PartnershipService;
+import org.example.travellight.service.ReservationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +27,9 @@ public class PartnershipController {
 
     @Autowired
     private PartnershipService partnershipService;
+    
+    @Autowired
+    private ReservationService reservationService;
 
     @Operation(summary = "모든 제휴점 조회", description = "등록된 모든 제휴점의 정보를 조회합니다.")
     @ApiResponses(value = {
@@ -198,12 +202,16 @@ public class PartnershipController {
             @RequestParam("businessName") String businessName,
             @RequestParam("address") String address) {
         try {
+            // 1. 먼저 해당 매장의 만료된 예약들을 실시간으로 정리
+            reservationService.processExpiredReservationsForStore(businessName, address);
+            
             Partnership partnership = partnershipService.findByBusinessNameAndAddress(businessName, address);
             if (partnership == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("해당 매장을 찾을 수 없습니다."));
             }
             
+            // 2. 정리 후 정확한 용량 계산
             Map<String, Integer> currentUsage = partnershipService.getCurrentUsedCapacity(businessName, address);
             
             Map<String, Object> response = new HashMap<>();
