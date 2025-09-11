@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: travellight-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - SPRING_DATASOURCE_URL=${DB_URL:-jdbc:postgresql://travel-light.czgyiuy6s6zy.ap-northeast-2.rds.amazonaws.com:5432/travellight}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-TravelLight4-1}
+    volumes:
+      - ./logs:/app/logs
+
+  # Netdata - 실시간 성능 모니터링
+  netdata:
+    image: netdata/netdata
+    container_name: netdata
+    hostname: travellight-server # 서버 식별용
+    ports:
+      - "19999:19999"
+    restart: unless-stopped
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      # 호스트 시스템 정보 접근
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      # Docker 소켓 접근 (컨테이너 모니터링)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # 로그 파일 접근
+      - /var/log:/host/var/log:ro
+    environment:
+      - NETDATA_CLAIM_TOKEN=""
+      - NETDATA_CLAIM_URL=https://app.netdata.cloud
+      - NETDATA_CLAIM_ROOMS=""
+      - DOCKER_USR=root
