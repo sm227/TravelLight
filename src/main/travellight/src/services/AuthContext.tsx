@@ -120,6 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       id: userData.id,
     };
     localStorage.setItem("authData", JSON.stringify(authData));
+    
   };
 
   const logout = () => {

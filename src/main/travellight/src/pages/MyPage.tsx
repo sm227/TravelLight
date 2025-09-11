@@ -23,13 +23,14 @@ import {
   StepLabel
 } from '@mui/material';
 import Navbar from '../components/Navbar';
+import ReviewForm from '../components/reviews/ReviewForm';
 import { styled } from '@mui/material/styles';
 import './MyPage.css';
 import { useAuth } from '../services/AuthContext';
 import { getMyReservations } from '../services/reservationService';
 import { ReservationDto } from '../types/reservation';
 import { useTranslation } from 'react-i18next';
-import { userService, PasswordChangeRequest, Partnership, partnershipService, DeliveryRequest, DeliveryResponse } from '../services/api';
+import { userService, PasswordChangeRequest, Partnership, partnershipService, DeliveryRequest, DeliveryResponse, reviewService } from '../services/api';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StorefrontIcon from '@mui/icons-material/Storefront';
@@ -123,6 +124,12 @@ const MyPage = () => {
   const [searchResults, setSearchResults] = useState<Partnership[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // 리뷰 관련 상태
+  const [reviewFormOpen, setReviewFormOpen] = useState(false);
+  const [selectedReservation, setSelectedReservation] = useState<ReservationDto | null>(null);
+  const [reviewStatuses, setReviewStatuses] = useState<{[key: number]: boolean}>({});
+  const [editingReview, setEditingReview] = useState<any>(null);
+
   // 배달 상태 정보 추가
   const [deliveries, setDeliveries] = useState<DeliveryResponse[]>([]);
   const [loadingDeliveries, setLoadingDeliveries] = useState(false);
@@ -163,7 +170,18 @@ const MyPage = () => {
     return index >= 0 ? index : 0;
   };
 
-  // 예약 목록 조회 시 각 예약에 대한 배달 정보도 함께 조회
+  // 예약의 리뷰 상태 확인 함수
+  const checkReviewStatus = async (reservationId: number) => {
+    try {
+      const response = await reviewService.getReviewStatus(reservationId);
+      return response.data.hasReview;
+    } catch (error) {
+      console.error('리뷰 상태 확인 실패:', error);
+      return false;
+    }
+  };
+
+  // 예약 목록 조회 시 각 예약에 대한 배달 정보와 리뷰 상태도 함께 조회
   useEffect(() => {
     const fetchReservationsWithDeliveries = async () => {
       if (user?.id) {
@@ -181,6 +199,20 @@ const MyPage = () => {
           
           const deliveryResults = await Promise.all(deliveryPromises);
           setDeliveries(deliveryResults.flat());
+
+          // 각 예약의 리뷰 상태 확인
+          const reviewPromises = updatedReservations.map(async (reservation) => {
+            const hasReview = await checkReviewStatus(reservation.id);
+            return { reservationId: reservation.id, hasReview };
+          });
+          
+          const reviewResults = await Promise.all(reviewPromises);
+          const reviewStatusMap = reviewResults.reduce((acc, { reservationId, hasReview }) => {
+            acc[reservationId] = hasReview;
+            return acc;
+          }, {} as {[key: number]: boolean});
+          
+          setReviewStatuses(reviewStatusMap);
         } catch (error) {
           console.error('예약 정보를 불러오는데 실패했습니다:', error);
         } finally {
@@ -390,6 +422,136 @@ const MyPage = () => {
       setDeliveryStep(deliveryStep - 1);
     } else {
       handleBackToMyPage();
+    }
+  };
+
+  // 리뷰 작성 핸들러
+  const handleWriteReview = async (reservation: ReservationDto) => {
+    try {
+      // 예약 상태 먼저 확인
+      if (reservation.status !== 'COMPLETED') {
+        alert('완료된 예약에만 리뷰를 작성할 수 있습니다.');
+        return;
+      }
+
+
+      // 먼저 최신 리뷰 상태 확인 (실시간 체크)
+      console.log('리뷰 상태 재확인 중...');
+      const hasReview = await checkReviewStatus(reservation.id);
+      
+      // 상태 업데이트
+      setReviewStatuses(prev => ({
+        ...prev,
+        [reservation.id]: hasReview
+      }));
+
+      if (hasReview) {
+        alert('이미 리뷰를 작성한 예약입니다. 페이지를 새로고침하겠습니다.');
+        window.location.reload(); // 전체 상태 새로고침
+        return;
+      }
+
+      // 리뷰 작성 가능 여부 확인 (이중 체크)
+      const canWriteResponse = await reviewService.canWriteReview(reservation.id, user!.id);
+      
+      if (canWriteResponse.data) {
+        setSelectedReservation(reservation);
+        setReviewFormOpen(true);
+      } else {
+        alert('이미 리뷰를 작성했거나 리뷰 작성이 불가능한 예약입니다.');
+        // 상태 강제 업데이트
+        setReviewStatuses(prev => ({
+          ...prev,
+          [reservation.id]: true
+        }));
+      }
+    } catch (error: any) {
+      console.error('리뷰 작성 가능 여부 확인 실패:', error);
+      
+      // 상세한 오류 메시지 표시
+      if (error.response?.status === 401) {
+        alert('로그인이 필요합니다. 다시 로그인해주세요.');
+        // 로그인 페이지로 리다이렉트 또는 로그아웃 처리
+        window.location.href = '/login';
+      } else if (error.response?.status === 400) {
+        const errorMessage = error.response?.data?.message || '잘못된 요청입니다. 예약 정보를 확인해주세요.';
+        alert(errorMessage);
+      } else if (error.response?.status === 404) {
+        alert('예약 정보를 찾을 수 없습니다.');
+      } else {
+        alert('리뷰 작성 준비 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
+  const handleReviewSubmit = async (review: any) => {
+    setReviewFormOpen(false);
+    
+    // 리뷰 상태 업데이트
+    if (selectedReservation) {
+      setReviewStatuses(prev => ({
+        ...prev,
+        [selectedReservation.id]: true
+      }));
+    }
+    
+    setSelectedReservation(null);
+    setEditingReview(null); // 편집 상태 리셋
+    
+    const message = editingReview ? '리뷰가 성공적으로 수정되었습니다!' : '리뷰가 성공적으로 작성되었습니다!';
+    alert(message);
+  };
+
+  // 리뷰 수정 핸들러
+  const handleEditReview = async (reservation: ReservationDto) => {
+    try {
+      console.log('리뷰 조회 시작 - 예약 ID:', reservation.id);
+      const response = await reviewService.getReviewByReservation(reservation.id);
+      console.log('리뷰 조회 응답:', response);
+      
+      if (response.data) {
+        setEditingReview(response.data);
+        setSelectedReservation(reservation);
+        setReviewFormOpen(true);
+      } else {
+        alert('수정할 리뷰가 없습니다.');
+      }
+    } catch (error: any) {
+      console.error('리뷰 조회 실패:', error);
+      console.error('응답 데이터:', error.response?.data);
+      console.error('응답 상태:', error.response?.status);
+      alert(`리뷰 정보를 불러오는 중 오류가 발생했습니다. (${error.response?.status})`);
+    }
+  };
+
+  // 테스트용: 리뷰 삭제 핸들러
+  const handleDeleteReview = async (reservation: ReservationDto) => {
+    if (!confirm('이 예약의 리뷰를 삭제하시겠습니까? (테스트용)')) {
+      return;
+    }
+
+    try {
+      console.log('리뷰 삭제 시작 - 예약 ID:', reservation.id);
+      const response = await reviewService.deleteReviewByReservation(reservation.id);
+      console.log('리뷰 삭제 응답:', response);
+      
+      if (response.data === 'deleted') {
+        alert('리뷰가 성공적으로 삭제되었습니다!');
+        
+        // 상태 업데이트
+        setReviewStatuses(prev => ({
+          ...prev,
+          [reservation.id]: false
+        }));
+      } else {
+        alert('삭제할 리뷰가 없습니다.');
+      }
+    } catch (error: any) {
+      console.error('리뷰 삭제 실패:', error);
+      console.error('응답 데이터:', error.response?.data);
+      console.error('응답 상태:', error.response?.status);
+      console.error('전체 응답:', error.response);
+      alert(`리뷰 삭제 중 오류가 발생했습니다. (${error.response?.status}): ${error.response?.data?.message || error.message}`);
     }
   };
 
@@ -923,6 +1085,108 @@ const MyPage = () => {
                                   >
                                     배달 신청하기
                                   </button>
+                                  {trip.status === 'COMPLETED' && (
+                                    reviewStatuses[trip.id] ? (
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button 
+                                          className="review-completed-button"
+                                          style={{
+                                            backgroundColor: '#4CAF50',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            padding: '10px 20px',
+                                            fontSize: '14px',
+                                            cursor: 'default',
+                                            fontWeight: 'bold',
+                                            boxShadow: '0 2px 4px rgba(76, 175, 80, 0.3)',
+                                            opacity: 0.8
+                                          }}
+                                          disabled
+                                        >
+                                          ✅ 리뷰 완료
+                                        </button>
+                                        <button 
+                                          className="review-edit-button"
+                                          onClick={() => handleEditReview(trip)}
+                                          style={{
+                                            backgroundColor: '#2196F3',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            padding: '8px 12px',
+                                            fontSize: '12px',
+                                            cursor: 'pointer',
+                                            fontWeight: 'bold',
+                                            boxShadow: '0 2px 4px rgba(33, 150, 243, 0.3)',
+                                            transition: 'all 0.2s ease'
+                                          }}
+                                          onMouseOver={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#1976D2';
+                                          }}
+                                          onMouseOut={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#2196F3';
+                                          }}
+                                        >
+                                          ✏️ 수정
+                                        </button>
+                                        <button 
+                                          className="review-delete-button"
+                                          onClick={() => handleDeleteReview(trip)}
+                                          style={{
+                                            backgroundColor: '#f44336',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            padding: '8px 12px',
+                                            fontSize: '12px',
+                                            cursor: 'pointer',
+                                            fontWeight: 'bold',
+                                            boxShadow: '0 2px 4px rgba(244, 67, 54, 0.3)',
+                                            transition: 'all 0.2s ease'
+                                          }}
+                                          onMouseOver={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#d32f2f';
+                                          }}
+                                          onMouseOut={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#f44336';
+                                          }}
+                                        >
+                                          🗑️ 삭제
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button 
+                                        className="review-button" 
+                                        onClick={() => handleWriteReview(trip)}
+                                        style={{
+                                          backgroundColor: '#FF5722',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          padding: '10px 20px',
+                                          fontSize: '14px',
+                                          cursor: 'pointer',
+                                          fontWeight: 'bold',
+                                          marginLeft: '8px',
+                                          boxShadow: '0 2px 4px rgba(255, 87, 34, 0.3)',
+                                          transition: 'all 0.2s ease'
+                                        }}
+                                        onMouseOver={(e) => {
+                                          e.currentTarget.style.backgroundColor = '#E64A19';
+                                          e.currentTarget.style.transform = 'translateY(-1px)';
+                                          e.currentTarget.style.boxShadow = '0 4px 8px rgba(255, 87, 34, 0.4)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                          e.currentTarget.style.backgroundColor = '#FF5722';
+                                          e.currentTarget.style.transform = 'translateY(0)';
+                                          e.currentTarget.style.boxShadow = '0 2px 4px rgba(255, 87, 34, 0.3)';
+                                        }}
+                                      >
+                                        ⭐ 리뷰 작성하기
+                                      </button>
+                                    )
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1024,6 +1288,24 @@ const MyPage = () => {
             )}
           </div>
         </Container>
+
+        {/* 리뷰 작성 폼 */}
+        {selectedReservation && (
+          <ReviewForm
+            open={reviewFormOpen}
+            onClose={() => {
+              setReviewFormOpen(false);
+              setSelectedReservation(null);
+              setEditingReview(null);
+            }}
+            onSubmit={handleReviewSubmit}
+            reservationId={selectedReservation.id}
+            placeName={selectedReservation.placeName}
+            placeAddress={selectedReservation.placeAddress}
+            userId={user?.id}
+            editingReview={editingReview}
+          />
+        )}
       </>
     );
   };

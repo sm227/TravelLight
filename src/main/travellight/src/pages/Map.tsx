@@ -64,6 +64,8 @@ import BookmarkIcon from "@mui/icons-material/Bookmark";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { getMyReservations, cancelReservation, cancelPayment } from '../services/reservationService';
 import { ReservationDto } from '../types/reservation';
+import ReviewsList from '../components/reviews/ReviewsList';
+import { reviewService } from '../services/api';
 
 declare global {
   interface Window {
@@ -164,6 +166,9 @@ const Map = () => {
   const [isTimeValid, setIsTimeValid] = useState(true);
   // 종료 날짜 상태 추가
   const [storageEndDate, setStorageEndDate] = useState("");
+
+  // 리뷰 탭 상태
+  const [selectedTab, setSelectedTab] = useState<'info' | 'reviews'>('info');
 
   // 예약 관련 상태
   const [reservationError, setReservationError] = useState("");
@@ -4925,105 +4930,158 @@ const Map = () => {
                       </Box>
                     </Box>
 
-                    {/* 매장 정보 */}
+                    {/* 탭 네비게이션 */}
                     <Box sx={{ mb: 2 }}>
-                      <Typography variant="h6" sx={{ 
-                        fontWeight: 600, 
-                        mb: 1.5,
-                        fontSize: "16px"
+                      <Box sx={{ 
+                        display: "flex", 
+                        borderBottom: 1, 
+                        borderColor: 'divider',
+                        mb: 2
                       }}>
-                        매장 정보
-                      </Typography>
-                      
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                          <AccessTimeIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                              영업시간
-                            </Typography>
-                            <Box>
-                              {(() => {
-                                // 영업시간 배열 생성
-                                let hoursArray: string[] = [];
-                                
-                                if (selectedPlace.opening_hours) {
-                                  // 제휴점인 경우 businessHours에서 배열로 가져오기
-                                  const partnership = partnerships.find(p => 
-                                    p.businessName === selectedPlace.place_name &&
-                                    p.address === selectedPlace.address_name
-                                  );
-                                  
-                                  if (partnership && partnership.businessHours) {
-                                    hoursArray = formatBusinessHoursArray(partnership.businessHours);
-                                  } else {
-                                    hoursArray = [selectedPlace.opening_hours];
-                                  }
-                                } else {
-                                  // 기본값
-                                  hoursArray = selectedPlace.category_group_code === "BK9"
-                                    ? ["평일 09:00-16:00"]
-                                    : ["매일 09:00-22:00"];
-                                }
-                                
-                                return hoursArray.map((hour, index) => (
-                                  <Typography 
-                                    key={index} 
-                                    variant="body2" 
-                                    sx={{ color: "#666", lineHeight: 1.4 }}
-                                  >
-                                    {hour}
+                        <Button
+                          onClick={() => setSelectedTab('info')}
+                          sx={{
+                            flex: 1,
+                            py: 1,
+                            px: 2,
+                            borderRadius: 0,
+                            color: selectedTab === 'info' ? 'primary.main' : 'text.secondary',
+                            borderBottom: selectedTab === 'info' ? 2 : 0,
+                            borderColor: selectedTab === 'info' ? 'primary.main' : 'transparent',
+                            fontWeight: selectedTab === 'info' ? 600 : 400,
+                            '&:hover': {
+                              backgroundColor: 'action.hover'
+                            }
+                          }}
+                        >
+                          매장 정보
+                        </Button>
+                        <Button
+                          onClick={() => setSelectedTab('reviews')}
+                          sx={{
+                            flex: 1,
+                            py: 1,
+                            px: 2,
+                            borderRadius: 0,
+                            color: selectedTab === 'reviews' ? 'primary.main' : 'text.secondary',
+                            borderBottom: selectedTab === 'reviews' ? 2 : 0,
+                            borderColor: selectedTab === 'reviews' ? 'primary.main' : 'transparent',
+                            fontWeight: selectedTab === 'reviews' ? 600 : 400,
+                            '&:hover': {
+                              backgroundColor: 'action.hover'
+                            }
+                          }}
+                        >
+                          리뷰
+                        </Button>
+                      </Box>
+
+                      {/* 매장 정보 탭 */}
+                      {selectedTab === 'info' && (
+                        <Box>
+                          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                              <AccessTimeIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                                  영업시간
+                                </Typography>
+                                <Box>
+                                  {(() => {
+                                    // 영업시간 배열 생성
+                                    let hoursArray: string[] = [];
+                                    
+                                    if (selectedPlace.opening_hours) {
+                                      // 제휴점인 경우 businessHours에서 배열로 가져오기
+                                      const partnership = partnerships.find(p => 
+                                        p.businessName === selectedPlace.place_name &&
+                                        p.address === selectedPlace.address_name
+                                      );
+                                      
+                                      if (partnership && partnership.businessHours) {
+                                        hoursArray = formatBusinessHoursArray(partnership.businessHours);
+                                      } else {
+                                        hoursArray = [selectedPlace.opening_hours];
+                                      }
+                                    } else {
+                                      // 기본값
+                                      hoursArray = selectedPlace.category_group_code === "BK9"
+                                        ? ["평일 09:00-16:00"]
+                                        : ["매일 09:00-22:00"];
+                                    }
+                                    
+                                    return hoursArray.map((hour, index) => (
+                                      <Typography 
+                                        key={index} 
+                                        variant="body2" 
+                                        sx={{ color: "#666", lineHeight: 1.4 }}
+                                      >
+                                        {hour}
+                                      </Typography>
+                                    ));
+                                  })()}
+                                </Box>
+                              </Box>
+                            </Box>
+
+                            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                              <LocationOnIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                                  위치
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: "#666" }}>
+                                  {selectedPlace.address_name}
+                                </Typography>
+                              </Box>
+                            </Box>
+
+                            {selectedPlace.phone && (
+                              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                                <PhoneIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
+                                <Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                                    연락처
                                   </Typography>
-                                ));
-                              })()}
-                            </Box>
+                                  <Typography variant="body2" sx={{ color: "#666" }}>
+                                    {selectedPlace.phone}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            )}
                           </Box>
-                        </Box>
 
-                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                          <LocationOnIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                              위치
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: "#666" }}>
-                              {selectedPlace.address_name}
-                            </Typography>
-                          </Box>
-                        </Box>
-
-                        {selectedPlace.phone && (
-                          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                            <PhoneIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                                연락처
-                              </Typography>
-                              <Typography variant="body2" sx={{ color: "#666" }}>
-                                {selectedPlace.phone}
+                          {/* 안전 보장 */}
+                          <Box sx={{
+                            backgroundColor: "#e8f5e8",
+                            borderRadius: "8px",
+                            p: 2,
+                            mt: 2
+                          }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                              <CheckCircleIcon sx={{ color: "#4caf50", fontSize: 18 }} />
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: "#2e7d32" }}>
+                                안전 보장
                               </Typography>
                             </Box>
+                            <Typography variant="body2" sx={{ color: "#388e3c", fontSize: "13px" }}>
+                              모든 짐은 보안이 유지되며 손해배상보험에 의해 보호됩니다.
+                            </Typography>
                           </Box>
-                        )}
-                      </Box>
-                    </Box>
+                        </Box>
+                      )}
 
-                    {/* 안전 보장 */}
-                    <Box sx={{ 
-                      backgroundColor: "#e8f5e8",
-                      borderRadius: "8px",
-                      p: 2,
-                      mb: 2
-                    }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                        <CheckCircleIcon sx={{ color: "#4caf50", fontSize: 18 }} />
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: "#2e7d32" }}>
-                          안전 보장
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" sx={{ color: "#388e3c", fontSize: "13px" }}>
-                        모든 짐은 보안이 유지되며 손해배상보험에 의해 보호됩니다.
-                      </Typography>
+                      {/* 리뷰 탭 */}
+                      {selectedTab === 'reviews' && (
+                        <Box sx={{ maxHeight: '400px', overflow: 'auto' }}>
+                          <ReviewsList
+                            placeName={selectedPlace.place_name}
+                            placeAddress={selectedPlace.address_name}
+                            currentUserId={user?.id}
+                            canWriteReview={false}
+                          />
+                        </Box>
+                      )}
                     </Box>
                   </Box>
                 </Box>

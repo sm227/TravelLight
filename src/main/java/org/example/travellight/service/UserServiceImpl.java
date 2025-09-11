@@ -128,4 +128,18 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("유효하지 않은 역할입니다: " + roleName);
         }
     }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public User getUserByIdEntity(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+    }
 } 

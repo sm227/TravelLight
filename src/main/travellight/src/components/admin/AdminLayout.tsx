@@ -28,7 +28,8 @@ import {
   Menu as MenuIcon,
   Notifications as NotificationsIcon,
   History as HistoryIcon,
-  Timeline as TimelineIcon
+  Timeline as TimelineIcon,
+  RateReview as RateReviewIcon
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
@@ -77,6 +78,12 @@ const AdminLayout = () => {
       items: [
         { text: '제휴점 관리', icon: <HandshakeIcon />, path: '/admin/partnerships' },
         { text: '매장 현황', icon: <StoreIcon />, path: '/admin/stores' },
+      ]
+    },
+    {
+      title: '고객 서비스',
+      items: [
+        { text: '리뷰 관리', icon: <RateReviewIcon />, path: '/admin/reviews' },
       ]
     },
     {
