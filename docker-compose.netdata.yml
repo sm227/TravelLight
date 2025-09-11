@@ -21,8 +21,7 @@ services:
     image: netdata/netdata
     container_name: netdata
     hostname: travellight-server # 서버 식별용
-    ports:
-      - "19999:19999"
+    network_mode: host
     restart: unless-stopped
     cap_add:
       - SYS_PTRACE
