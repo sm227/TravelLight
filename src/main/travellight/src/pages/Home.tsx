@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import Services from "../components/Services";
 import Footer from "../components/Footer";
+import TopRatedPlaces from "../components/reviews/TopRatedPlaces";
 
 const Home: React.FC = () => {
   useEffect(() => {
@@ -213,6 +214,13 @@ const Home: React.FC = () => {
         {/* Services section - 서비스 상세 설명 */}
         <Box component="section" aria-label="서비스 상세 정보" itemProp="about">
           <Services />
+        </Box>
+
+        {/* Top Rated Places section - 상위 평점 제휴점 */}
+        <Box component="section" aria-label="추천 제휴점" sx={{ py: 8, bgcolor: 'grey.50' }}>
+          <Container maxWidth="lg">
+            <TopRatedPlaces limit={6} title="믿을 수 있는 제휴점" />
+          </Container>
         </Box>
       </Box>
 

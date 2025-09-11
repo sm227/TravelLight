@@ -27,6 +27,7 @@ import FAQ from './pages/FAQ';
 import Inquiry from './pages/Inquiry';
 import AdminPartnerships from './pages/admin/AdminPartnerships';
 import AdminServices from './pages/admin/AdminServices';
+import AdminReviews from './pages/admin/AdminReviews';
 import { useTranslation } from 'react-i18next';
 import Partner from './pages/Partner';
 import PartnerSignup from './pages/PartnerSignup';
@@ -313,6 +314,7 @@ function App() {
               <Route path="partnerships" element={<AdminPartnerships />} />
               <Route path="services" element={<AdminServices />} />
               <Route path="hr" element={<AdminHR />} />
+              <Route path="reviews" element={<AdminReviews />} />
             </Route>
 
             {/* Catch-all route for 404 Not Found */}
