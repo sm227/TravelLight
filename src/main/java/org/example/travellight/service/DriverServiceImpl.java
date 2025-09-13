@@ -84,7 +84,9 @@ public class DriverServiceImpl implements DriverService {
         Driver driver = getDriverById(driverId);
 
         Long totalDeliveries = deliveryRepository.countByDriverIdAndStatus(driverId, DeliveryStatus.DELIVERED);
-        Long todayDeliveries = deliveryRepository.countTodayDeliveriesByDriverId(driverId);
+        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+        Long todayDeliveries = deliveryRepository.countTodayDeliveriesByDriverId(driverId, startOfDay, endOfDay);
 
         DriverDto.DriverStatsResponse stats = new DriverDto.DriverStatsResponse();
         stats.setDriverId(driverId);
