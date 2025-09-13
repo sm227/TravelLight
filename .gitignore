@@ -42,3 +42,4 @@ src/main/travellight/node_modules
 .mcp.json
 
 .claude/settings.local.json
+uploads/

@@ -66,6 +66,8 @@ import { getMyReservations, cancelReservation, cancelPayment } from '../services
 import { ReservationDto } from '../types/reservation';
 import ReviewsList from '../components/reviews/ReviewsList';
 import { reviewService } from '../services/api';
+import QrCodeIcon from '@mui/icons-material/QrCode';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 
 declare global {
   interface Window {
@@ -206,6 +208,9 @@ const Map = () => {
   const [showReservations, setShowReservations] = useState(false);
   const [myReservations, setMyReservations] = useState<ReservationDto[]>([]);
   const [loadingReservations, setLoadingReservations] = useState(false);
+
+  // 보관 상태 관련 상태
+  const [storageStatuses, setStorageStatuses] = useState<{[key: string]: any}>({});
   
   // 예약 취소 관련 상태
   const [cancellingReservation, setCancellingReservation] = useState<string | null>(null);
@@ -241,6 +246,112 @@ const Map = () => {
     }, 100);
   };
 
+  // 보관 상태 렌더링 함수
+  const renderStorageStatus = (reservation: ReservationDto) => {
+    const storageStatus = storageStatuses[reservation.reservationNumber];
+
+    if (!storageStatus) {
+      return null; // 로딩 중이거나 보관 정보가 없음
+    }
+
+    if (!storageStatus.hasStorage) {
+      return (
+        <Box sx={{
+          px: 1.5,
+          py: 1,
+          backgroundColor: '#f8f9fa',
+          borderTop: '1px solid #e9ecef'
+        }}>
+          <Typography variant="body2" color="textSecondary">
+            💼 매장 방문 후 짐 보관 처리
+          </Typography>
+        </Box>
+      );
+    }
+
+    const status = storageStatus.status;
+    const checkInTime = storageStatus.checkInTime;
+    const storageCode = storageStatus.storageCode;
+
+    if (status === 'STORED') {
+      return (
+        <Box sx={{
+          px: 1.5,
+          py: 1,
+          backgroundColor: '#e8f5e8',
+          borderTop: '1px solid #c8e6c9'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#2e7d32' }}>
+                🟢 짐 보관 중
+              </Typography>
+              <Typography variant="caption" color="textSecondary">
+                입고: {new Date(checkInTime).toLocaleString('ko-KR')}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Chip
+                icon={<QrCodeIcon />}
+                label="QR코드"
+                size="small"
+                color="primary"
+                variant="outlined"
+              />
+              <Chip
+                icon={<PhotoCameraIcon />}
+                label="사진"
+                size="small"
+                color="secondary"
+                variant="outlined"
+              />
+            </Box>
+          </Box>
+          <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#666' }}>
+            출고 시 QR코드: {storageCode}
+          </Typography>
+        </Box>
+      );
+    }
+
+    if (status === 'RETRIEVED') {
+      return (
+        <Box sx={{
+          px: 1.5,
+          py: 1,
+          backgroundColor: '#f3e5f5',
+          borderTop: '1px solid #ce93d8'
+        }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: '#7b1fa2' }}>
+            <CheckCircleIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
+            이용 완료
+          </Typography>
+          <Typography variant="caption" color="textSecondary">
+            출고: {storageStatus.checkOutTime ? new Date(storageStatus.checkOutTime).toLocaleString('ko-KR') : '처리됨'}
+          </Typography>
+        </Box>
+      );
+    }
+
+    return null;
+  };
+
+  // 보관 상태 조회 함수
+  const fetchStorageStatus = async (reservationNumber: string) => {
+    try {
+      const response = await axios.get(`/api/reservations/${reservationNumber}/storage-status`);
+      if (response.data?.success && response.data?.data) {
+        setStorageStatuses(prev => ({
+          ...prev,
+          [reservationNumber]: response.data.data
+        }));
+      }
+    } catch (error) {
+      console.error('보관 상태 조회 실패:', error);
+      // 실패해도 에러를 표시하지 않고 조용히 처리
+    }
+  };
+
   // 예약 목록 관련 함수들
   const fetchMyReservations = async () => {
     if (!user?.id) return;
@@ -253,6 +364,13 @@ const Map = () => {
       // 최신 예약을 맨 위로 정렬 (ID 기준 내림차순 - 더 높은 ID가 최신)
       const sortedReservations = updatedReservations.sort((a, b) => b.id - a.id);
       setMyReservations(sortedReservations);
+
+      // 각 예약의 보관 상태 조회
+      sortedReservations.forEach(reservation => {
+        if (reservation.reservationNumber) {
+          fetchStorageStatus(reservation.reservationNumber);
+        }
+      });
     } catch (error) {
       console.error('예약 목록을 불러오는데 실패했습니다:', error);
     } finally {
@@ -4623,6 +4741,9 @@ const Map = () => {
                             {reservation.totalPrice.toLocaleString()}원
                           </Typography>
                         </Box>
+
+                        {/* 보관 상태 표시 */}
+                        {renderStorageStatus(reservation)}
 
                         {/* 예약 중인 경우 버튼들 추가 */}
                         {reservation.status === 'RESERVED' && (

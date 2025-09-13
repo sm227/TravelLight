@@ -6,6 +6,8 @@ import org.example.travellight.dto.ReservationDto;
 import org.example.travellight.service.ReservationService;
 import org.example.travellight.service.ReviewService;
 import org.example.travellight.service.UserService;
+import org.example.travellight.service.StorageItemService;
+import org.example.travellight.dto.StorageItemDto;
 import org.example.travellight.entity.User;
 import org.example.travellight.dto.ReviewDto;
 import jakarta.validation.Valid;
@@ -29,6 +31,7 @@ public class ReservationController {
     private final ReservationService reservationService;
     private final ReviewService reviewService;
     private final UserService userService;
+    private final StorageItemService storageItemService;
     
     @PostMapping
     public ResponseEntity<ReservationDto> createReservation(@RequestBody ReservationDto reservationDto) {
@@ -318,6 +321,72 @@ public class ReservationController {
             }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("리뷰 삭제 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+
+    // 예약의 보관 정보 조회 API
+    @GetMapping("/{reservationNumber}/storage")
+    public ResponseEntity<ApiResponse<StorageItemDto.StorageItemResponse>> getStorageInfoByReservation(
+            @PathVariable String reservationNumber) {
+
+        logger.info("=== 예약의 보관 정보 조회 API 호출 ===");
+        logger.info("예약번호: {}", reservationNumber);
+
+        try {
+            StorageItemDto.StorageItemResponse storageInfo =
+                    storageItemService.getByReservationNumber(reservationNumber);
+
+            if (storageInfo != null) {
+                logger.info("보관 정보 조회 성공 - 예약번호: {}, 스토리지 코드: {}",
+                           reservationNumber, storageInfo.getStorageCode());
+                return ResponseEntity.ok(ApiResponse.success("보관 정보를 조회했습니다.", storageInfo));
+            } else {
+                logger.info("보관 정보 없음 - 예약번호: {}", reservationNumber);
+                return ResponseEntity.ok(ApiResponse.success("보관 정보가 없습니다.", null));
+            }
+        } catch (Exception e) {
+            logger.error("=== 보관 정보 조회 중 오류 발생 ===", e);
+            logger.error("오류 메시지: {}", e.getMessage());
+            logger.error("오류 타입: {}", e.getClass().getSimpleName());
+            return ResponseEntity.ok(ApiResponse.success("보관 정보가 없습니다.", null));
+        }
+    }
+
+    // 예약의 보관 상태 확인 API (간단 버전)
+    @GetMapping("/{reservationNumber}/storage-status")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getStorageStatus(
+            @PathVariable String reservationNumber) {
+
+        logger.info("예약 보관 상태 확인 요청 - 예약번호: {}", reservationNumber);
+
+        try {
+            Map<String, Object> result = new HashMap<>();
+
+            try {
+                StorageItemDto.StorageItemResponse storageInfo =
+                        storageItemService.getByReservationNumber(reservationNumber);
+
+                result.put("hasStorage", true);
+                result.put("status", storageInfo.getStatus());
+                result.put("storageCode", storageInfo.getStorageCode());
+                result.put("checkInTime", storageInfo.getCheckInTime());
+                result.put("checkOutTime", storageInfo.getCheckOutTime());
+
+            } catch (Exception e) {
+                result.put("hasStorage", false);
+                result.put("status", "NOT_STORED");
+            }
+
+            logger.info("보관 상태 확인 결과 - 예약번호: {}, 보관 여부: {}",
+                       reservationNumber, result.get("hasStorage"));
+            return ResponseEntity.ok(ApiResponse.success("보관 상태를 확인했습니다.", result));
+
+        } catch (Exception e) {
+            logger.error("보관 상태 확인 중 오류 발생: {}", e.getMessage(), e);
+            Map<String, Object> result = new HashMap<>();
+            result.put("hasStorage", false);
+            result.put("status", "ERROR");
+            return ResponseEntity.ok(ApiResponse.success("보관 상태를 확인했습니다.", result));
         }
     }
 } 
