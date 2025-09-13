@@ -66,6 +66,8 @@ import { getMyReservations, cancelReservation, cancelPayment } from '../services
 import { ReservationDto } from '../types/reservation';
 import ReviewsList from '../components/reviews/ReviewsList';
 import { reviewService } from '../services/api';
+import QrCodeIcon from '@mui/icons-material/QrCode';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 
 declare global {
   interface Window {
@@ -150,7 +152,7 @@ const Map = () => {
 
   // 검색 결과 영역 표시 여부 결정
   const shouldShowResultArea = () => {
-    return selectedPlace !== null || searchResults.length > 0 || isReservationOpen || isPaymentOpen || isPaymentComplete || showReservations;
+    return selectedPlace !== null || searchResults.length > 0 || isReservationOpen || isPaymentOpen || isPaymentComplete || showReservations || selectedReservation;
   };
 
   // 포트원 결제 관련 상태
@@ -206,6 +208,11 @@ const Map = () => {
   const [showReservations, setShowReservations] = useState(false);
   const [myReservations, setMyReservations] = useState<ReservationDto[]>([]);
   const [loadingReservations, setLoadingReservations] = useState(false);
+  const [selectedReservation, setSelectedReservation] = useState<ReservationDto | null>(null);
+
+
+  // 보관 상태 관련 상태
+  const [storageStatuses, setStorageStatuses] = useState<{[key: string]: any}>({});
   
   // 예약 취소 관련 상태
   const [cancellingReservation, setCancellingReservation] = useState<string | null>(null);
@@ -241,6 +248,112 @@ const Map = () => {
     }, 100);
   };
 
+  // 보관 상태 렌더링 함수
+  const renderStorageStatus = (reservation: ReservationDto) => {
+    const storageStatus = storageStatuses[reservation.reservationNumber];
+
+    if (!storageStatus) {
+      return null; // 로딩 중이거나 보관 정보가 없음
+    }
+
+    if (!storageStatus.hasStorage) {
+      return (
+        <Box sx={{
+          px: 1.5,
+          py: 1,
+          backgroundColor: '#f8f9fa',
+          borderTop: '1px solid #e9ecef'
+        }}>
+          <Typography variant="body2" color="textSecondary">
+            💼 매장 방문 후 짐 보관 처리
+          </Typography>
+        </Box>
+      );
+    }
+
+    const status = storageStatus.status;
+    const checkInTime = storageStatus.checkInTime;
+    const storageCode = storageStatus.storageCode;
+
+    if (status === 'STORED') {
+      return (
+        <Box sx={{
+          px: 1.5,
+          py: 1,
+          backgroundColor: '#e8f5e8',
+          borderTop: '1px solid #c8e6c9'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#2e7d32' }}>
+                🟢 짐 보관 중
+              </Typography>
+              <Typography variant="caption" color="textSecondary">
+                입고: {new Date(checkInTime).toLocaleString('ko-KR')}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Chip
+                icon={<QrCodeIcon />}
+                label="QR코드"
+                size="small"
+                color="primary"
+                variant="outlined"
+              />
+              <Chip
+                icon={<PhotoCameraIcon />}
+                label="사진"
+                size="small"
+                color="secondary"
+                variant="outlined"
+              />
+            </Box>
+          </Box>
+          <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#666' }}>
+            출고 시 QR코드: {storageCode}
+          </Typography>
+        </Box>
+      );
+    }
+
+    if (status === 'RETRIEVED') {
+      return (
+        <Box sx={{
+          px: 1.5,
+          py: 1,
+          backgroundColor: '#f3e5f5',
+          borderTop: '1px solid #ce93d8'
+        }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: '#7b1fa2' }}>
+            <CheckCircleIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
+            이용 완료
+          </Typography>
+          <Typography variant="caption" color="textSecondary">
+            출고: {storageStatus.checkOutTime ? new Date(storageStatus.checkOutTime).toLocaleString('ko-KR') : '처리됨'}
+          </Typography>
+        </Box>
+      );
+    }
+
+    return null;
+  };
+
+  // 보관 상태 조회 함수
+  const fetchStorageStatus = async (reservationNumber: string) => {
+    try {
+      const response = await axios.get(`/api/reservations/${reservationNumber}/storage-status`);
+      if (response.data?.success && response.data?.data) {
+        setStorageStatuses(prev => ({
+          ...prev,
+          [reservationNumber]: response.data.data
+        }));
+      }
+    } catch (error) {
+      console.error('보관 상태 조회 실패:', error);
+      // 실패해도 에러를 표시하지 않고 조용히 처리
+    }
+  };
+
   // 예약 목록 관련 함수들
   const fetchMyReservations = async () => {
     if (!user?.id) return;
@@ -253,6 +366,13 @@ const Map = () => {
       // 최신 예약을 맨 위로 정렬 (ID 기준 내림차순 - 더 높은 ID가 최신)
       const sortedReservations = updatedReservations.sort((a, b) => b.id - a.id);
       setMyReservations(sortedReservations);
+
+      // 각 예약의 보관 상태 조회
+      sortedReservations.forEach(reservation => {
+        if (reservation.reservationNumber) {
+          fetchStorageStatus(reservation.reservationNumber);
+        }
+      });
     } catch (error) {
       console.error('예약 목록을 불러오는데 실패했습니다:', error);
     } finally {
@@ -463,6 +583,7 @@ const Map = () => {
   const handleReservationsClick = () => {
     setShowReservations(true);
     setSelectedPlace(null);
+    setSelectedReservation(null);
     setSearchResults([]);
     setIsReservationOpen(false);
     setIsPaymentOpen(false);
@@ -472,6 +593,7 @@ const Map = () => {
 
   const handleBackToSearch = () => {
     setShowReservations(false);
+    setSelectedReservation(null);
   };
 
   // 예약 취소 처리 함수
@@ -506,10 +628,15 @@ const Map = () => {
       }
 
       setCancelSuccess('예약이 성공적으로 취소되었습니다.');
-      
+
       // 예약 목록 새로고침
       await fetchMyReservations();
-      
+
+      // 상세보기에서 목록으로 돌아가기
+      if (selectedReservation) {
+        setSelectedReservation(null);
+      }
+
       // 성공 메시지 3초 후 자동 제거
       setTimeout(() => {
         setCancelSuccess('');
@@ -641,6 +768,7 @@ const Map = () => {
       console.log('Navbar에서 예약 목록 화면 요청됨');
       setShowReservations(true);
       setSelectedPlace(null);
+      setSelectedReservation(null);
       setSearchResults([]);
       setIsReservationOpen(false);
       setIsPaymentOpen(false);
@@ -1693,6 +1821,7 @@ const Map = () => {
 
         // 선택된 장소 초기화
         setSelectedPlace(null);
+        setSelectedReservation(null);
 
         // 현재 정보창 닫기
         if (currentInfoWindow) {
@@ -4024,8 +4153,8 @@ const Map = () => {
           </Box>
         </Box>
 
-        {/* 검색 영역 - 매장 선택 시나 예약 목록 화면에서 숨김 */}
-        {!selectedPlace && !showReservations && (
+        {/* 검색 영역 - 매장 선택 시나 예약 목록 화면, 예약 상세보기에서 숨김 */}
+        {!selectedPlace && !showReservations && !selectedReservation && (
           <Box
             sx={{
               px: 3,
@@ -4304,14 +4433,364 @@ const Map = () => {
               },
             }}
           >
-          {showReservations ? (
+          {selectedReservation ? (
+            // 선택된 예약의 상세 정보 - 영수증 스타일
+            <Box sx={{ px: 1, py: 0 }}>
+              {/* 헤더 */}
+              <Box sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                mb: 3,
+                pb: 1,
+                borderBottom: "1px solid #f0f0f0"
+              }}>
+                <IconButton
+                  onClick={() => setSelectedReservation(null)}
+                  size="small"
+                  sx={{
+                    p: 0.5,
+                    color: "#666",
+                    "&:hover": { backgroundColor: "#f5f5f5" }
+                  }}
+                >
+                  <ArrowBackIcon fontSize="small" />
+                </IconButton>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: "#1a1a1a" }}>
+                  예약 상세 정보
+                </Typography>
+              </Box>
+
+              {/* 영수증 스타일의 상세 정보 */}
+              <Box sx={{
+                backgroundColor: "#fafafa",
+                borderRadius: "8px",
+                overflow: "hidden",
+                border: "2px solid #e0e0e0"
+              }}>
+                {/* 티켓 상단 - 헤더 */}
+                <Box sx={{
+                  px: 1.5,
+                  py: 1,
+                  borderBottom: "1px solid #ddd",
+                  backgroundColor: "#f5f5f5"
+                }}>
+                  {/* 예약번호와 상태 */}
+                  <Box sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 1
+                  }}>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        fontWeight: 700,
+                        color: "#333",
+                        fontSize: "14px",
+                        fontFamily: "monospace",
+                        letterSpacing: "1px"
+                      }}
+                    >
+                      TRAVEL LIGHT
+                    </Typography>
+                    <Typography variant="caption" sx={{
+                      color: "#666",
+                      fontWeight: 500,
+                      fontSize: '11px',
+                      px: 1,
+                      py: 0.5,
+                      backgroundColor: "#eee",
+                      borderRadius: "4px",
+                      border: "1px solid #ddd"
+                    }}>
+                      {getStatusText(selectedReservation.status)}
+                    </Typography>
+                  </Box>
+
+                  {/* 예약번호 */}
+                  <Box sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1
+                  }}>
+                    <Typography variant="caption" sx={{
+                      color: "#888",
+                      fontSize: "9px",
+                      fontWeight: 600,
+                      letterSpacing: "0.5px",
+                      textTransform: "uppercase"
+                    }}>
+                      NO.
+                    </Typography>
+                    <Typography variant="body2" sx={{
+                      fontWeight: 700,
+                      color: "#333",
+                      fontFamily: "monospace",
+                      fontSize: "13px"
+                    }}>
+                      {selectedReservation.reservationNumber}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* 티켓 본문 */}
+                <Box sx={{ px: 1.5, py: 1 }}>
+                  {/* 매장 정보 */}
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body1" sx={{
+                      fontWeight: 600,
+                      mb: 0.5,
+                      color: "#333",
+                      fontSize: "14px"
+                    }}>
+                      {selectedReservation.placeName}
+                    </Typography>
+                    <Typography variant="body2" sx={{
+                      color: "#666",
+                      fontSize: "12px"
+                    }}>
+                      {selectedReservation.placeAddress}
+                    </Typography>
+                  </Box>
+
+                  {/* 예약 세부 정보 */}
+                  <Box sx={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 1,
+                    mb: 1.5,
+                    py: 0.5,
+                    px: 1,
+                    backgroundColor: "#f0f0f0",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd"
+                  }}>
+                    <Box>
+                      <Typography variant="caption" sx={{
+                        color: "#777",
+                        display: "block",
+                        fontSize: "9px",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        mb: 0.5
+                      }}>
+                        날짜
+                      </Typography>
+                      <Typography variant="body2" sx={{
+                        fontWeight: 600,
+                        color: "#333",
+                        fontSize: "12px"
+                      }}>
+                        {formatDate(selectedReservation.storageDate)}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" sx={{
+                        color: "#777",
+                        display: "block",
+                        fontSize: "9px",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        mb: 0.5
+                      }}>
+                        시간
+                      </Typography>
+                      <Typography variant="body2" sx={{
+                        fontWeight: 600,
+                        color: "#333",
+                        fontSize: "12px"
+                      }}>
+                        {formatTimeForReservation(selectedReservation.storageStartTime)} - {formatTimeForReservation(selectedReservation.storageEndTime)}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* 가방 정보 - 영수증 스타일 */}
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography variant="caption" sx={{
+                      color: "#777",
+                      fontSize: "9px",
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      mb: 0.5,
+                      display: "block"
+                    }}>
+                      품목
+                    </Typography>
+                    <Box sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0.5
+                    }}>
+                      {selectedReservation.smallBags > 0 && (
+                        <Box sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Typography variant="body2" sx={{
+                              color: "#555",
+                              fontSize: "11px"
+                            }}>
+                              • 소형 가방
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{
+                            fontWeight: 600,
+                            color: "#333",
+                            fontSize: "11px"
+                          }}>
+                            {selectedReservation.smallBags}개
+                          </Typography>
+                        </Box>
+                      )}
+                      {selectedReservation.mediumBags > 0 && (
+                        <Box sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Typography variant="body2" sx={{
+                              color: "#555",
+                              fontSize: "11px"
+                            }}>
+                              • 중형 가방
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{
+                            fontWeight: 600,
+                            color: "#333",
+                            fontSize: "11px"
+                          }}>
+                            {selectedReservation.mediumBags}개
+                          </Typography>
+                        </Box>
+                      )}
+                      {selectedReservation.largeBags > 0 && (
+                        <Box sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Typography variant="body2" sx={{
+                              color: "#555",
+                              fontSize: "11px"
+                            }}>
+                              • 대형 가방
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{
+                            fontWeight: 600,
+                            color: "#333",
+                            fontSize: "11px"
+                          }}>
+                            {selectedReservation.largeBags}개
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+
+                  {/* 총 금액 */}
+                  <Box sx={{
+                    pt: 1,
+                    borderTop: "1px dashed #ccc",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <Typography variant="body2" sx={{
+                      color: "#555",
+                      fontWeight: 600,
+                      fontSize: "12px"
+                    }}>
+                      합계
+                    </Typography>
+                    <Typography variant="h6" sx={{
+                      fontWeight: 700,
+                      color: "#333",
+                      fontSize: "16px",
+                      fontFamily: "monospace"
+                    }}>
+                      {selectedReservation.totalPrice.toLocaleString()}원
+                    </Typography>
+                  </Box>
+
+                  {/* 보관 상태 표시 */}
+                  {renderStorageStatus(selectedReservation)}
+
+                  {/* 예약 중인 경우 버튼들 추가 */}
+                  {selectedReservation.status === 'RESERVED' && (
+                    <Box sx={{
+                      pt: 1.5,
+                      borderTop: "1px solid #e0e0e0",
+                      mt: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 1
+                    }}>
+                      {/* 예약 취소 버튼 */}
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        onClick={() => handleCancelReservation(selectedReservation)}
+                        disabled={cancellingReservation === selectedReservation.reservationNumber}
+                        sx={{
+                          borderColor: '#f44336',
+                          color: '#f44336',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          py: 1,
+                          borderRadius: '6px',
+                          '&:hover': {
+                            backgroundColor: 'rgba(244, 67, 54, 0.04)',
+                            borderColor: '#d32f2f'
+                          },
+                          '&:disabled': {
+                            borderColor: '#ccc',
+                            color: '#999'
+                          }
+                        }}
+                      >
+                        {cancellingReservation === selectedReservation.reservationNumber ? '취소 중...' : '예약 취소'}
+                      </Button>
+
+                      {/* 네이버맵 길찾기 버튼 */}
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={() => openNaverMap(selectedReservation)}
+                        sx={{
+                          backgroundColor: '#03C75A',
+                          color: 'white',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          py: 1,
+                          borderRadius: '6px',
+                          '&:hover': {
+                            backgroundColor: '#029B4A'
+                          }
+                        }}
+                      >
+                        🗺️ 네이버맵 길찾기
+                      </Button>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          ) : showReservations ? (
             // 예약 목록 화면
             <Box sx={{ px: 1, py: 0 }}>
               {/* 헤더 */}
-              <Box sx={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: 1.5, 
+              <Box sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
                 mb: 3,
                 pb: 1,
                 borderBottom: "1px solid #f0f0f0"
@@ -4340,10 +4819,10 @@ const Map = () => {
                   </Typography>
                 </Box>
               ) : myReservations.length === 0 ? (
-                <Box sx={{ 
-                  display: "flex", 
-                  flexDirection: "column", 
-                  alignItems: "center", 
+                <Box sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
                   py: 6,
                   textAlign: "center"
                 }}>
@@ -4356,332 +4835,144 @@ const Map = () => {
                   </Typography>
                 </Box>
               ) : (
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                   {myReservations.map((reservation) => (
                     <Box
                       key={reservation.id}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedReservation(reservation);
+                      }}
                       sx={{
-                        position: "relative",
-                        backgroundColor: "#fafafa",
+                        p: 2,
+                        backgroundColor: "#fff",
                         borderRadius: "8px",
-                        overflow: "hidden",
-                        border: "2px solid #e0e0e0",
+                        border: "1px solid #e0e0e0",
+                        cursor: "pointer",
                         transition: "all 0.2s ease",
                         "&:hover": {
-                          borderColor: "#ccc"
+                          borderColor: "#1976d2",
+                          boxShadow: "0 2px 8px rgba(25, 118, 210, 0.1)"
                         }
                       }}
                     >
-                                              {/* 티켓 상단 - 헤더 */}
-                        <Box sx={{ 
-                          px: 1.5,
-                          py: 1,
-                          borderBottom: "1px solid #ddd",
-                          backgroundColor: "#f5f5f5"
-                        }}>
-                        {/* 예약번호와 상태 */}
-                        <Box sx={{ 
-                          display: "flex", 
-                          justifyContent: "space-between", 
-                          alignItems: "center",
-                          mb: 1
-                        }}>
-                          <Typography 
-                            variant="body1" 
-                            sx={{ 
-                              fontWeight: 700,
-                              color: "#333",
-                              fontSize: "14px",
-                              fontFamily: "monospace",
-                              letterSpacing: "1px"
-                            }}
-                          >
-                            TRAVEL LIGHT
-                          </Typography>
-                          <Typography variant="caption" sx={{
-                            color: "#666",
-                            fontWeight: 500,
-                            fontSize: '11px',
-                            px: 1,
-                            py: 0.5,
-                            backgroundColor: "#eee",
-                            borderRadius: "4px",
-                            border: "1px solid #ddd"
-                          }}>
-                            {getStatusText(reservation.status)}
-                          </Typography>
-                        </Box>
-
-                        {/* 예약번호 */}
-                        <Box sx={{ 
-                          display: "flex", 
-                          alignItems: "center",
-                          gap: 1
-                        }}>
-                          <Typography variant="caption" sx={{ 
-                            color: "#888", 
-                            fontSize: "9px",
+                      {/* 헤더 */}
+                      <Box sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        mb: 1.5
+                      }}>
+                        <Box>
+                          <Typography variant="h6" sx={{
                             fontWeight: 600,
-                            letterSpacing: "0.5px",
-                            textTransform: "uppercase"
-                          }}>
-                            NO.
-                          </Typography>
-                          <Typography variant="body2" sx={{ 
-                            fontWeight: 700,
+                            fontSize: "16px",
                             color: "#333",
-                            fontFamily: "monospace",
+                            mb: 0.5
+                          }}>
+                            {reservation.placeName}
+                          </Typography>
+                          <Typography variant="body2" sx={{
+                            color: "#666",
                             fontSize: "13px"
                           }}>
                             {reservation.reservationNumber}
                           </Typography>
                         </Box>
+                        <Chip
+                          label={getStatusText(reservation.status)}
+                          size="small"
+                          sx={{
+                            backgroundColor: reservation.status === 'RESERVED' ? '#e3f2fd' :
+                                           reservation.status === 'COMPLETED' ? '#f3e5f5' : '#fff3e0',
+                            color: reservation.status === 'RESERVED' ? '#1976d2' :
+                                   reservation.status === 'COMPLETED' ? '#7b1fa2' : '#ed6c02',
+                            fontWeight: 500,
+                            fontSize: '11px'
+                          }}
+                        />
                       </Box>
 
-                                              {/* 티켓 본문 */}
-                        <Box sx={{ px: 1.5, py: 1 }}>
-                        {/* 매장 정보 */}
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="body1" sx={{ 
-                            fontWeight: 600, 
-                            mb: 0.5,
-                            color: "#333",
-                            fontSize: "14px"
-                          }}>
-                            {reservation.placeName}
-                          </Typography>
-                          <Typography variant="body2" sx={{ 
-                            color: "#666", 
-                            fontSize: "12px"
-                          }}>
-                            {reservation.placeAddress}
+                      {/* 날짜와 시간 */}
+                      <Box sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        mb: 1
+                      }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <AccessTimeIcon sx={{ fontSize: 16, color: "#666" }} />
+                          <Typography variant="body2" sx={{ color: "#666" }}>
+                            {formatDate(reservation.storageDate)}
                           </Typography>
                         </Box>
+                        <Typography variant="body2" sx={{ color: "#999" }}>
+                          {formatTimeForReservation(reservation.storageStartTime)} - {formatTimeForReservation(reservation.storageEndTime)}
+                        </Typography>
+                      </Box>
 
-                        {/* 예약 세부 정보 */}
-                                                  <Box sx={{ 
-                            display: "grid", 
-                            gridTemplateColumns: "1fr 1fr", 
-                            gap: 1,
-                            mb: 1.5,
-                            py: 0.5,
-                            px: 1,
-                            backgroundColor: "#f0f0f0",
-                            borderRadius: "4px",
-                            border: "1px solid #ddd"
-                          }}>
-                          <Box>
-                            <Typography variant="caption" sx={{ 
-                              color: "#777", 
-                              display: "block",
-                              fontSize: "9px",
-                              fontWeight: 600,
-                              textTransform: "uppercase",
-                              mb: 0.5
-                            }}>
-                              날짜
-                            </Typography>
-                            <Typography variant="body2" sx={{ 
-                              fontWeight: 600,
-                              color: "#333",
-                              fontSize: "12px"
-                            }}>
-                              {formatDate(reservation.storageDate)}
-                            </Typography>
-                          </Box>
-                          <Box>
-                            <Typography variant="caption" sx={{ 
-                              color: "#777", 
-                              display: "block",
-                              fontSize: "9px",
-                              fontWeight: 600,
-                              textTransform: "uppercase",
-                              mb: 0.5
-                            }}>
-                              시간
-                            </Typography>
-                            <Typography variant="body2" sx={{ 
-                              fontWeight: 600,
-                              color: "#333",
-                              fontSize: "12px"
-                            }}>
-                              {formatTimeForReservation(reservation.storageStartTime)} - {formatTimeForReservation(reservation.storageEndTime)}
-                            </Typography>
-                          </Box>
-                        </Box>
-
-                        {/* 가방 정보 - 영수증 스타일 */}
-                        <Box sx={{ mb: 1.5 }}>
-                          <Typography variant="caption" sx={{ 
-                            color: "#777",
-                            fontSize: "9px",
-                            fontWeight: 600,
-                            textTransform: "uppercase",
-                            mb: 0.5,
-                            display: "block"
-                          }}>
-                            품목
+                      {/* 가방 요약 */}
+                      <Box sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between"
+                      }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <LuggageIcon sx={{ fontSize: 16, color: "#666" }} />
+                          <Typography variant="body2" sx={{ color: "#666" }}>
+                            {[
+                              reservation.smallBags > 0 && `소형 ${reservation.smallBags}개`,
+                              reservation.mediumBags > 0 && `중형 ${reservation.mediumBags}개`,
+                              reservation.largeBags > 0 && `대형 ${reservation.largeBags}개`
+                            ].filter(Boolean).join(', ')}
                           </Typography>
-                          <Box sx={{ 
-                            display: "flex", 
-                            flexDirection: "column",
-                            gap: 0.5
-                          }}>
-                            {reservation.smallBags > 0 && (
-                              <Box sx={{ 
-                                display: "flex", 
-                                justifyContent: "space-between", 
-                                alignItems: "center"
-                              }}>
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                  <Typography variant="body2" sx={{ 
-                                    color: "#555",
-                                    fontSize: "11px"
-                                  }}>
-                                    • 소형 가방
-                                  </Typography>
-                                </Box>
-                                <Typography variant="body2" sx={{ 
-                                  fontWeight: 600,
-                                  color: "#333",
-                                  fontSize: "11px"
-                                }}>
-                                  {reservation.smallBags}개
-                                </Typography>
-                              </Box>
-                            )}
-                            {reservation.mediumBags > 0 && (
-                              <Box sx={{ 
-                                display: "flex", 
-                                justifyContent: "space-between", 
-                                alignItems: "center"
-                              }}>
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                  <Typography variant="body2" sx={{ 
-                                    color: "#555",
-                                    fontSize: "11px"
-                                  }}>
-                                    • 중형 가방
-                                  </Typography>
-                                </Box>
-                                <Typography variant="body2" sx={{ 
-                                  fontWeight: 600,
-                                  color: "#333",
-                                  fontSize: "11px"
-                                }}>
-                                  {reservation.mediumBags}개
-                                </Typography>
-                              </Box>
-                            )}
-                            {reservation.largeBags > 0 && (
-                              <Box sx={{ 
-                                display: "flex", 
-                                justifyContent: "space-between", 
-                                alignItems: "center"
-                              }}>
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                  <Typography variant="body2" sx={{ 
-                                    color: "#555",
-                                    fontSize: "11px"
-                                  }}>
-                                    • 대형 가방
-                                  </Typography>
-                                </Box>
-                                <Typography variant="body2" sx={{ 
-                                  fontWeight: 600,
-                                  color: "#333",
-                                  fontSize: "11px"
-                                }}>
-                                  {reservation.largeBags}개
-                                </Typography>
-                              </Box>
-                            )}
-                          </Box>
                         </Box>
-
-                        {/* 총 금액 */}
-                        <Box sx={{ 
-                          pt: 1,
-                          borderTop: "1px dashed #ccc",
-                          display: "flex", 
-                          justifyContent: "space-between", 
-                          alignItems: "center"
+                        <Typography variant="body1" sx={{
+                          fontWeight: 600,
+                          color: "#333"
                         }}>
-                          <Typography variant="body2" sx={{ 
-                            color: "#555",
-                            fontWeight: 600,
-                            fontSize: "12px"
-                          }}>
-                            합계
-                          </Typography>
-                          <Typography variant="h6" sx={{ 
-                            fontWeight: 700, 
-                            color: "#333",
-                            fontSize: "16px",
-                            fontFamily: "monospace"
-                          }}>
-                            {reservation.totalPrice.toLocaleString()}원
-                          </Typography>
-                        </Box>
-
-                        {/* 예약 중인 경우 버튼들 추가 */}
-                        {reservation.status === 'RESERVED' && (
-                          <Box sx={{ 
-                            pt: 1.5,
-                            borderTop: "1px solid #e0e0e0",
-                            mt: 1,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 1
-                          }}>
-                            {/* 예약 취소 버튼 */}
-                            <Button
-                              fullWidth
-                              variant="outlined"
-                              onClick={() => handleCancelReservation(reservation)}
-                              disabled={cancellingReservation === reservation.reservationNumber}
-                              sx={{
-                                borderColor: '#f44336',
-                                color: '#f44336',
-                                fontWeight: 600,
-                                fontSize: '12px',
-                                py: 1,
-                                borderRadius: '6px',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(244, 67, 54, 0.04)',
-                                  borderColor: '#d32f2f'
-                                },
-                                '&:disabled': {
-                                  borderColor: '#ccc',
-                                  color: '#999'
-                                }
-                              }}
-                            >
-                              {cancellingReservation === reservation.reservationNumber ? '취소 중...' : '예약 취소'}
-                            </Button>
-                            
-                            {/* 네이버맵 길찾기 버튼 */}
-                            <Button
-                              fullWidth
-                              variant="contained"
-                              onClick={() => openNaverMap(reservation)}
-                              sx={{
-                                backgroundColor: '#03C75A',
-                                color: 'white',
-                                fontWeight: 600,
-                                fontSize: '12px',
-                                py: 1,
-                                borderRadius: '6px',
-                                '&:hover': {
-                                  backgroundColor: '#029B4A'
-                                }
-                              }}
-                            >
-                              🗺️ 네이버맵 길찾기
-                            </Button>
-                          </Box>
-                        )}
+                          {reservation.totalPrice.toLocaleString()}원
+                        </Typography>
                       </Box>
+
+                      {/* 보관 상태 인디케이터 */}
+                      {storageStatuses[reservation.reservationNumber] && (
+                        <Box sx={{ mt: 1 }}>
+                          {storageStatuses[reservation.reservationNumber].hasStorage ? (
+                            <Chip
+                              icon={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                    <CheckCircleIcon sx={{ fontSize: 14 }} /> :
+                                    <QrCodeIcon sx={{ fontSize: 14 }} />}
+                              label={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                     '보관 중' : '이용 완료'}
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                backgroundColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                                '#e8f5e8' : '#f3e5f5',
+                                borderColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                            '#4caf50' : '#9c27b0',
+                                color: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                       '#2e7d32' : '#7b1fa2',
+                                fontSize: '10px'
+                              }}
+                            />
+                          ) : (
+                            <Chip
+                              label="매장 방문 대기"
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                backgroundColor: '#fff3e0',
+                                borderColor: '#ff9800',
+                                color: '#e65100',
+                                fontSize: '10px'
+                              }}
+                            />
+                          )}
+                        </Box>
+                      )}
                     </Box>
                   ))}
                 </Box>

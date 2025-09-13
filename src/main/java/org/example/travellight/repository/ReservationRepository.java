@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
@@ -17,7 +18,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findByUser(User user);
     
     // 예약번호로 예약 조회
-    Reservation findByReservationNumber(String reservationNumber);
+    Optional<Reservation> findByReservationNumber(String reservationNumber);
     
     // 사용자 ID로 예약 조회
     List<Reservation> findByUserId(Long userId);

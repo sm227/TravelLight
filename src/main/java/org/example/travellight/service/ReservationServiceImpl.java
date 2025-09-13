@@ -178,10 +178,8 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     @Transactional(readOnly = true)
     public ReservationDto getReservationByNumber(String reservationNumber) {
-        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber);
-        if (reservation == null) {
-            throw new RuntimeException("예약을 찾을 수 없습니다.");
-        }
+        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber)
+                .orElseThrow(() -> new RuntimeException("예약을 찾을 수 없습니다."));
         return mapToDto(reservation);
     }
     
@@ -231,10 +229,8 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     @Transactional
     public void cancelReservationByNumber(String reservationNumber) {
-        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber);
-        if (reservation == null) {
-            throw new RuntimeException("예약을 찾을 수 없습니다.");
-        }
+        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber)
+                .orElseThrow(() -> new RuntimeException("예약을 찾을 수 없습니다."));
         
         // 예약 상태 확인
         if (!"RESERVED".equals(reservation.getStatus())) {
@@ -287,10 +283,8 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     @Transactional
     public void updatePaymentId(String reservationNumber, String paymentId) {
-        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber);
-        if (reservation == null) {
-            throw new RuntimeException("예약을 찾을 수 없습니다: " + reservationNumber);
-        }
+        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber)
+                .orElseThrow(() -> new RuntimeException("예약을 찾을 수 없습니다: " + reservationNumber));
         
         // 결제 ID 업데이트
         reservation.setPaymentId(paymentId);
@@ -303,10 +297,8 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     @Transactional
     public void updateReservationStatusToCompleted(String reservationNumber) {
-        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber);
-        if (reservation == null) {
-            throw new RuntimeException("예약을 찾을 수 없습니다: " + reservationNumber);
-        }
+        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber)
+                .orElseThrow(() -> new RuntimeException("예약을 찾을 수 없습니다: " + reservationNumber));
         
         // 이미 COMPLETED 상태인 경우 중복 처리 방지
         if ("COMPLETED".equals(reservation.getStatus())) {

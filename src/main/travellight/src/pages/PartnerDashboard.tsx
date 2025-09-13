@@ -41,6 +41,7 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BusinessIcon from '@mui/icons-material/Business';
+import LuggageIcon from '@mui/icons-material/Luggage';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -50,6 +51,9 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import { partnershipService } from '../services/api';
+import StorageCheckIn from '../components/storage/StorageCheckIn';
+import StorageCheckOut from '../components/storage/StorageCheckOut';
+import StorageStatusDashboard from '../components/storage/StorageStatusDashboard';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -896,6 +900,7 @@ const PartnerDashboard: React.FC = () => {
             >
               <Tab icon={<StoreIcon />} label="매장 현황" />
               <Tab icon={<EventNoteIcon />} label="예약 관리" />
+              <Tab icon={<LuggageIcon />} label="짐 보관 관리" />
               <Tab icon={<SettingsIcon />} label="설정" />
               <Tab icon={<ReceiptIcon />} label="정산 내역" />
             </Tabs>
@@ -1228,7 +1233,7 @@ const PartnerDashboard: React.FC = () => {
                       <Button
                           fullWidth
                           variant="outlined"
-                          onClick={() => setTabValue(3)}
+                          onClick={() => setTabValue(4)}
                       >
                         정산 내역으로 이동
                       </Button>
@@ -1293,6 +1298,54 @@ const PartnerDashboard: React.FC = () => {
           </TabPanel>
 
           <TabPanel value={tabValue} index={2}>
+            {/* 짐 보관 관리 탭 */}
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h5" gutterBottom>
+                짐 보관 관리
+              </Typography>
+              <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
+                고객의 짐 입고 및 출고를 처리하고 현재 보관 현황을 확인할 수 있습니다.
+              </Typography>
+
+              {selectedStore ? (
+                <Grid container spacing={3}>
+                  {/* 입고 처리 */}
+                  <Grid item xs={12} md={6}>
+                    <StorageCheckIn
+                      onCheckInComplete={(result) => {
+                        console.log('입고 완료:', result);
+                        // 필요시 추가 처리
+                      }}
+                    />
+                  </Grid>
+
+                  {/* 출고 처리 */}
+                  <Grid item xs={12} md={6}>
+                    <StorageCheckOut
+                      onCheckOutComplete={(result) => {
+                        console.log('출고 완료:', result);
+                        // 필요시 추가 처리
+                      }}
+                    />
+                  </Grid>
+
+                  {/* 보관 현황 대시보드 */}
+                  <Grid item xs={12}>
+                    <StorageStatusDashboard
+                      storeName={selectedStore.name}
+                      storeAddress={selectedStore.address}
+                    />
+                  </Grid>
+                </Grid>
+              ) : (
+                <Alert severity="info">
+                  짐 보관 관리를 위해 먼저 매장을 선택해주세요.
+                </Alert>
+              )}
+            </Box>
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={3}>
             <Box sx={{ mb: 4 }}>
               <Typography variant="h5" gutterBottom>
                 매장 설정
@@ -1428,7 +1481,7 @@ const PartnerDashboard: React.FC = () => {
             </Box>
           </TabPanel>
 
-          <TabPanel value={tabValue} index={3}>
+          <TabPanel value={tabValue} index={4}>
             <Box sx={{ mb: 4 }}>
               <Typography variant="h5" gutterBottom>
                 정산 내역

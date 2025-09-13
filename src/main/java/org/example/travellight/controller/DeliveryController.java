@@ -119,6 +119,73 @@ public class DeliveryController {
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
+    @Operation(summary = "배달 목록 조회", description = "모든 배달 목록을 조회합니다.")
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<DeliveryDto.DeliveryResponse>>> getAllDeliveries() {
+        log.info("배달 목록 조회 요청");
+
+        List<Delivery> deliveries = deliveryService.getAllDeliveries();
+        List<DeliveryDto.DeliveryResponse> responses = deliveries.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    @Operation(summary = "배달 상세 조회", description = "배달 ID로 상세 정보를 조회합니다.")
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<DeliveryDto.DeliveryResponse>> getDeliveryById(
+            @Parameter(description = "배달 ID", required = true)
+            @PathVariable Long id) {
+        log.info("배달 상세 조회 요청 - 배달 ID: {}", id);
+
+        Delivery delivery = deliveryService.getDeliveryById(id);
+        DeliveryDto.DeliveryResponse response = convertToResponse(delivery);
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(summary = "배달원 배정", description = "배달에 배달원을 배정합니다.")
+    @PutMapping("/{id}/assign")
+    public ResponseEntity<ApiResponse<String>> assignDriver(
+            @Parameter(description = "배달 ID", required = true)
+            @PathVariable Long id,
+            @RequestParam Long driverId) {
+        log.info("배달원 배정 요청 - 배달 ID: {}, 배달원 ID: {}", id, driverId);
+
+        deliveryService.assignDriver(id, driverId);
+
+        return ResponseEntity.ok(ApiResponse.success("배달원이 배정되었습니다."));
+    }
+
+    @Operation(summary = "배달 상태 변경", description = "배달 상태를 변경합니다.")
+    @PutMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<String>> updateDeliveryStatus(
+            @Parameter(description = "배달 ID", required = true)
+            @PathVariable Long id,
+            @RequestParam DeliveryStatus status) {
+        log.info("배달 상태 변경 요청 - 배달 ID: {}, 상태: {}", id, status);
+
+        deliveryService.updateDeliveryStatus(id, status);
+
+        return ResponseEntity.ok(ApiResponse.success("배달 상태가 변경되었습니다."));
+    }
+
+    @Operation(summary = "배달원별 배달 목록", description = "특정 배달원의 배달 목록을 조회합니다.")
+    @GetMapping("/driver/{driverId}")
+    public ResponseEntity<ApiResponse<List<DeliveryDto.DeliveryResponse>>> getDeliveriesByDriver(
+            @Parameter(description = "배달원 ID", required = true)
+            @PathVariable Long driverId) {
+        log.info("배달원별 배달 목록 조회 요청 - 배달원 ID: {}", driverId);
+
+        List<Delivery> deliveries = deliveryService.getDeliveriesByDriverId(driverId);
+        List<DeliveryDto.DeliveryResponse> responses = deliveries.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
     private DeliveryDto.DeliveryResponse convertToResponse(Delivery delivery) {
         DeliveryDto.DeliveryResponse response = new DeliveryDto.DeliveryResponse();
         response.setId(delivery.getId());
