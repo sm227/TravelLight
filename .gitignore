@@ -43,3 +43,5 @@ src/main/travellight/node_modules
 
 .claude/settings.local.json
 uploads/
+api-docs.json
+api-docs.yaml
