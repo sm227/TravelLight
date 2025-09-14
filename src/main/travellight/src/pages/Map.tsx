@@ -266,7 +266,7 @@ const Map = () => {
           borderTop: '1px solid #e9ecef'
         }}>
           <Typography variant="body2" color="textSecondary">
-            💼 매장 방문 후 짐 보관 처리
+            {t('visitStoreForStorage')}
           </Typography>
         </Box>
       );
@@ -287,23 +287,23 @@ const Map = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 600, color: '#2e7d32' }}>
-                🟢 짐 보관 중
+                {t('storingLuggage')}
               </Typography>
               <Typography variant="caption" color="textSecondary">
-                입고: {new Date(checkInTime).toLocaleString('ko-KR')}
+                {t('checkedIn')}: {new Date(checkInTime).toLocaleString('ko-KR')}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Chip
                 icon={<QrCodeIcon />}
-                label="QR코드"
+                label="QR Code"
                 size="small"
                 color="primary"
                 variant="outlined"
               />
               <Chip
                 icon={<PhotoCameraIcon />}
-                label="사진"
+                label={t('photo')}
                 size="small"
                 color="secondary"
                 variant="outlined"
@@ -311,7 +311,7 @@ const Map = () => {
             </Box>
           </Box>
           <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#666' }}>
-            출고 시 QR코드: {storageCode}
+            {t('checkOutCode')}: {storageCode}
           </Typography>
         </Box>
       );
@@ -327,10 +327,10 @@ const Map = () => {
         }}>
           <Typography variant="body2" sx={{ fontWeight: 600, color: '#7b1fa2' }}>
             <CheckCircleIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-            이용 완료
+            {t('utilizationComplete')}
           </Typography>
           <Typography variant="caption" color="textSecondary">
-            출고: {storageStatus.checkOutTime ? new Date(storageStatus.checkOutTime).toLocaleString('ko-KR') : '처리됨'}
+            {t('checkOut')}: {storageStatus.checkOutTime ? new Date(storageStatus.checkOutTime).toLocaleString('ko-KR') : t('processed')}
           </Typography>
         </Box>
       );
@@ -446,11 +446,11 @@ const Map = () => {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'RESERVED':
-        return '예약중';
+        return t('reserved');
       case 'COMPLETED':
-        return '완료';
+        return t('completed');
       case 'CANCELLED':
-        return '취소됨';
+        return t('cancelled');
       default:
         return status;
     }
@@ -484,7 +484,7 @@ const Map = () => {
           
           if (isMobile) {
             // 모바일에서는 네이버맵 앱을 실행 (출발지: 현재위치, 도착지: 매장)
-            const naverMapUrl = `nmap://route/car?slat=${currentLat}&slng=${currentLng}&sname=현재위치&dlat=${reservation.placeLatitude}&dlng=${reservation.placeLongitude}&dname=${encodeURIComponent(placeName)}&appname=TravelLight`;
+            const naverMapUrl = `nmap://route/car?slat=${currentLat}&slng=${currentLng}&sname=${t('currentLocationForNavigation')}&dlat=${reservation.placeLatitude}&dlng=${reservation.placeLongitude}&dname=${encodeURIComponent(placeName)}&appname=TravelLight`;
             
             // 네이버맵 앱이 설치되어 있으면 실행, 없으면 웹으로 이동
             const timeout = setTimeout(() => {
@@ -599,13 +599,13 @@ const Map = () => {
 
   // 예약 취소 처리 함수
   const handleCancelReservation = async (reservation: ReservationDto) => {
-    if (!window.confirm('정말로 예약을 취소하시겠습니까?')) {
+    if (!window.confirm(t('confirmCancelReservation'))) {
       return;
     }
 
     const reservationNumber = reservation.reservationNumber;
     if (!reservationNumber) {
-      setCancelError('예약 번호를 찾을 수 없습니다.');
+      setCancelError(t('reservationNumberNotFound'));
       return;
     }
 
@@ -620,15 +620,15 @@ const Map = () => {
       // 2. 포트원 결제 취소 (paymentId가 있는 경우)
       if (reservation.paymentId) {
         try {
-          await cancelPayment(reservation.paymentId, '고객 요청에 의한 취소');
+          await cancelPayment(reservation.paymentId, 'Customer requested cancellation');
         } catch (paymentError) {
           console.error('결제 취소 실패:', paymentError);
           // 예약은 취소되었지만 결제 취소가 실패한 경우
-          setCancelError('예약은 취소되었으나 결제 취소에 실패했습니다. 고객센터에 문의해주세요.');
+          setCancelError(t('paymentCancellationFailed'));
         }
       }
 
-      setCancelSuccess('예약이 성공적으로 취소되었습니다.');
+      setCancelSuccess(t('reservationCancelledSuccessfully'));
 
       // 예약 목록 새로고침
       await fetchMyReservations();
@@ -645,7 +645,7 @@ const Map = () => {
 
     } catch (error: any) {
       console.error('예약 취소 실패:', error);
-      setCancelError(error.message || '예약 취소에 실패했습니다.');
+      setCancelError(error.message || t('reservationCancellationFailed'));
     } finally {
       setCancellingReservation(null);
     }
@@ -833,7 +833,7 @@ const Map = () => {
         x: p.longitude.toString(),
         y: p.latitude.toString(),
         opening_hours: p.is24Hours
-          ? "24시간 영업"
+          ? t('open24Hours')
           : formatBusinessHours(p.businessHours),
       }));
 
@@ -1358,10 +1358,10 @@ const Map = () => {
 
           // 영업시간 정보 가져오기
           let hours = partnership.is24Hours
-            ? "24시간 영업"
+            ? t('open24Hours')
             : partnership.businessHours
             ? formatBusinessHours(partnership.businessHours)
-            : "영업시간 정보 없음";
+            : t('noOperatingHours');
 
           // 실시간 보관 가능한 개수를 가져오는 함수
           const createInfoWindowContent = async () => {
@@ -1454,27 +1454,27 @@ const Map = () => {
                                                 ? "#28a745"
                                                 : "#dc3545"
                                             };">
-                                                소형: ${
+                                                ${t('small')}: ${
                                                   availableCapacity.smallBags
-                                                }개
+                                                }${t('pieces')}
                                             </span>
                                             <span style="color: ${
                                               availableCapacity.mediumBags > 0
                                                 ? "#28a745"
                                                 : "#dc3545"
                                             };">
-                                                중형: ${
+                                                ${t('medium')}: ${
                                                   availableCapacity.mediumBags
-                                                }개
+                                                }${t('pieces')}
                                             </span>
                                             <span style="color: ${
                                               availableCapacity.largeBags > 0
                                                 ? "#28a745"
                                                 : "#dc3545"
                                             };">
-                                                대형: ${
+                                                ${t('large')}: ${
                                                   availableCapacity.largeBags
-                                                }개
+                                                }${t('pieces')}
                                             </span>
                                         </div>
                                     </div>
@@ -1491,7 +1491,7 @@ const Map = () => {
                                         </svg>
                                         ${
                                           partnership.phone ||
-                                          "전화번호 정보 없음"
+                                          t('noPhoneInfo')
                                         }
                                     </div>
                                     <div style="
@@ -1566,7 +1566,7 @@ const Map = () => {
               x: partnership.longitude.toString(),
               y: partnership.latitude.toString(),
               opening_hours: partnership.is24Hours
-                ? "24시간 영업"
+                ? t('open24Hours')
                 : formatBusinessHours(partnership.businessHours),
             };
 
@@ -1625,12 +1625,16 @@ const Map = () => {
       function getCategoryCodeFromBusinessType(businessType: string): string {
         switch (businessType) {
           case "카페":
+          case t('cafe'):
             return "CE7";
           case "편의점":
+          case t('convenienceStore'):
             return "CS2";
           case "숙박":
+          case t('accommodation'):
             return "AD5";
           case "식당":
+          case t('restaurant'):
             return "FD6";
           default:
             return "ETC";
@@ -1642,18 +1646,18 @@ const Map = () => {
         businessHours: Record<string, BusinessHourDto | string>
       ): string {
         if (!businessHours || Object.keys(businessHours).length === 0) {
-          return "영업시간 정보 없음";
+          return t('noOperatingHours');
         }
 
         const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
         const dayNames = {
-          'MONDAY': '월',
-          'TUESDAY': '화',
-          'WEDNESDAY': '수',
-          'THURSDAY': '목',
-          'FRIDAY': '금',
-          'SATURDAY': '토',
-          'SUNDAY': '일'
+          'MONDAY': t('monday'),
+          'TUESDAY': t('tuesday'),
+          'WEDNESDAY': t('wednesday'),
+          'THURSDAY': t('thursday'),
+          'FRIDAY': t('friday'),
+          'SATURDAY': t('saturday'),
+          'SUNDAY': t('sunday')
         };
 
         // 두 가지 데이터 형태 모두 처리
@@ -1663,7 +1667,7 @@ const Map = () => {
           
           // 문자열 형태인 경우 (예: "09:00-18:00")
           if (typeof dayData === 'string') {
-            return dayData.trim() !== '' && dayData !== '휴무';
+            return dayData.trim() !== '' && dayData !== t('closed_keyword');
           }
           
           // 객체 형태인 경우 (예: { enabled: true, open: "09:00", close: "18:00" })
@@ -1675,7 +1679,7 @@ const Map = () => {
         });
 
         if (enabledDays.length === 0) {
-          return "휴무일";
+          return t('closed');
         }
 
         // 연속된 요일과 같은 시간을 그룹화
@@ -1728,18 +1732,18 @@ const Map = () => {
         businessHours: Record<string, BusinessHourDto | string>
       ): string[] {
         if (!businessHours || Object.keys(businessHours).length === 0) {
-          return ["영업시간 정보 없음"];
+          return [t('noOperatingHours')];
         }
 
         const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
         const dayNames = {
-          'MONDAY': '월',
-          'TUESDAY': '화',
-          'WEDNESDAY': '수',
-          'THURSDAY': '목',
-          'FRIDAY': '금',
-          'SATURDAY': '토',
-          'SUNDAY': '일'
+          'MONDAY': t('monday'),
+          'TUESDAY': t('tuesday'),
+          'WEDNESDAY': t('wednesday'),
+          'THURSDAY': t('thursday'),
+          'FRIDAY': t('friday'),
+          'SATURDAY': t('saturday'),
+          'SUNDAY': t('sunday')
         };
 
         // 두 가지 데이터 형태 모두 처리
@@ -1749,7 +1753,7 @@ const Map = () => {
           
           // 문자열 형태인 경우 (예: "09:00-18:00")
           if (typeof dayData === 'string') {
-            return dayData.trim() !== '' && dayData !== '휴무';
+            return dayData.trim() !== '' && dayData !== t('closed_keyword');
           }
           
           // 객체 형태인 경우 (예: { enabled: true, open: "09:00", close: "18:00" })
@@ -1761,7 +1765,7 @@ const Map = () => {
         });
 
         if (enabledDays.length === 0) {
-          return ["휴무일"];
+          return [t('closed')];
         }
 
         // 연속된 요일과 같은 시간을 그룹화
@@ -2059,7 +2063,7 @@ const Map = () => {
         x: p.longitude.toString(),
         y: p.latitude.toString(),
         opening_hours: p.is24Hours
-          ? "24시간 영업"
+          ? t('open24Hours')
           : formatBusinessHours(p.businessHours),
       }));
 
@@ -2219,7 +2223,7 @@ const Map = () => {
         x: p.longitude.toString(),
         y: p.latitude.toString(),
         opening_hours: p.is24Hours
-          ? "24시간 영업"
+          ? t('open24Hours')
           : formatBusinessHours(p.businessHours),
       }));
 
@@ -2432,7 +2436,7 @@ const Map = () => {
           getCategoryFromKeyword(keyword, place.category_name),
         x: place.x,
         y: place.y,
-        opening_hours: "영업시간 정보 없음",
+        opening_hours: t('noOperatingHours'),
         place_url: place.place_url || "",
       }));
     } catch (error) {
@@ -2551,7 +2555,7 @@ const Map = () => {
         x: p.longitude.toString(),
         y: p.latitude.toString(),
         opening_hours: p.is24Hours
-          ? "24시간 영업"
+          ? t('open24Hours')
           : formatBusinessHours(p.businessHours),
       }));
 
@@ -2564,7 +2568,7 @@ const Map = () => {
       setSearchResults(timeFilteredPlaces);
       setSelectedPlace(null);
     } else {
-      alert("검색 결과가 없습니다. 다른 검색어를 시도해보세요.");
+      alert(t('noSearchResults'));
     }
   };
 
@@ -2572,12 +2576,16 @@ const Map = () => {
   const getCategoryCodeFromBusinessType = (businessType: string): string => {
     switch (businessType) {
       case "카페":
+      case t('cafe'):
         return "CE7";
       case "편의점":
+      case t('convenienceStore'):
         return "CS2";
       case "숙박":
+      case t('accommodation'):
         return "AD5";
       case "식당":
+      case t('restaurant'):
         return "FD6";
       default:
         return "ETC";
@@ -2589,7 +2597,7 @@ const Map = () => {
     businessHours: Record<string, BusinessHourDto | string> | undefined
   ): string => {
     if (!businessHours || Object.keys(businessHours).length === 0) {
-      return "영업시간 정보 없음";
+      return t('noOperatingHours');
     }
 
     const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
@@ -2622,7 +2630,7 @@ const Map = () => {
     });
 
     if (enabledDays.length === 0) {
-      return "휴무일";
+      return t('closed');
     }
 
     // 연속된 요일과 같은 시간을 그룹화
@@ -2675,7 +2683,7 @@ const Map = () => {
     businessHours: Record<string, BusinessHourDto | string> | undefined
   ): string[] => {
     if (!businessHours || Object.keys(businessHours).length === 0) {
-      return ["영업시간 정보 없음"];
+      return [t('noOperatingHours')];
     }
 
     const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
@@ -2708,7 +2716,7 @@ const Map = () => {
     });
 
     if (enabledDays.length === 0) {
-      return ["휴무일"];
+      return [t('closed')];
     }
 
     // 연속된 요일과 같은 시간을 그룹화
@@ -3270,42 +3278,42 @@ const Map = () => {
   // 결제 폼 유효성 검사 함수
   const isPaymentFormValid = () => {
     if (!selectedPlace) {
-      setReservationError("장소를 선택해주세요.");
+      setReservationError(t('selectPlease'));
       return false;
     }
 
     if (!storageDate) {
-      setReservationError("보관 날짜를 선택해주세요.");
+      setReservationError(t('selectStorageDate'));
       return false;
     }
 
     if (!storageStartTime) {
-      setReservationError("보관 시작 시간을 선택해주세요.");
+      setReservationError(t('selectStorageStartTime'));
       return false;
     }
 
     if (!storageEndTime) {
-      setReservationError("보관 종료 시간을 선택해주세요.");
+      setReservationError(t('selectStorageEndTime'));
       return false;
     }
 
     if (storageDuration === "period" && !storageEndDate) {
-      setReservationError("보관 종료 날짜를 선택해주세요.");
+      setReservationError(t('selectStorageEndDate'));
       return false;
     }
 
     if (bagSizes.small === 0 && bagSizes.medium === 0 && bagSizes.large === 0) {
-      setReservationError("최소 1개 이상의 가방을 선택해주세요.");
+      setReservationError(t('selectAtLeastOneBag'));
       return false;
     }
 
     if (totalPrice <= 0) {
-      setReservationError("결제 금액이 올바르지 않습니다.");
+      setReservationError(t('invalidPaymentAmount'));
       return false;
     }
 
     if (!user) {
-      setReservationError("로그인이 필요합니다.");
+      setReservationError(t('loginRequired'));
       return false;
     }
 
@@ -3340,12 +3348,12 @@ const Map = () => {
 
       // 필수 데이터 검증
       if (!selectedPlace) {
-        setReservationError("선택된 장소가 없습니다.");
+        setReservationError(t('noSelectedPlace'));
         return false;
       }
 
       if (!storageDate || !storageStartTime || !storageEndTime) {
-        setReservationError("보관 날짜와 시간을 모두 선택해주세요.");
+        setReservationError(t('selectDateAndTimeAll'));
         return false;
       }
 
@@ -3566,7 +3574,7 @@ const Map = () => {
   const getCapacityText = async (bagType: "small" | "medium" | "large") => {
     const capacity = await getRealTimeStoreCapacity();
     const available = capacity[bagType] - bagSizes[bagType];
-    return available > 0 ? `(${available}개 보관 가능)` : "(보관 불가)";
+    return available > 0 ? `(${available}${t('storageAvailable')})` : `(${t('storageUnavailable')})`;
   };
 
   // 선택된 매장이 변경될 때 실시간 용량 업데이트
@@ -3602,7 +3610,7 @@ const Map = () => {
   // 보관 가능한 개수 정보를 표시하는 함수 (동기적)
   const getCapacityTextSync = (bagType: "small" | "medium" | "large") => {
     const available = realTimeCapacity[bagType] - bagSizes[bagType];
-    return available > 0 ? `(${available}개 보관 가능)` : "(보관 불가)";
+    return available > 0 ? `(${available}${t('storageAvailable')})` : `(${t('storageUnavailable')})`;
   };
 
   // 장소 검색 함수 추가 (랜드마크, 지하철역 등을 검색하기 위함)
@@ -3755,7 +3763,7 @@ const Map = () => {
       x: p.longitude.toString(),
       y: p.latitude.toString(),
       opening_hours: p.is24Hours
-        ? "24시간 영업"
+            ? t('open24Hours')
         : formatBusinessHours(p.businessHours),
     }));
 
@@ -3841,7 +3849,7 @@ const Map = () => {
         windowType,
         redirectUrl: `${window.location.origin}/payment-complete`,
         customer: {
-          fullName: user?.name || "고객",
+          fullName: user?.name || t('customer'),
           email: user?.email || "",
         },
         customData: {
@@ -4635,7 +4643,7 @@ const Map = () => {
                               color: "#555",
                               fontSize: "11px"
                             }}>
-                              • 소형 가방
+                              • {t('small')} 가방
                             </Typography>
                           </Box>
                           <Typography variant="body2" sx={{
@@ -4717,7 +4725,7 @@ const Map = () => {
                       fontSize: "16px",
                       fontFamily: "monospace"
                     }}>
-                      {selectedReservation.totalPrice.toLocaleString()}원
+                      {selectedReservation.totalPrice.toLocaleString()}{t('won')}
                     </Typography>
                   </Box>
 
@@ -4923,9 +4931,9 @@ const Map = () => {
                           <LuggageIcon sx={{ fontSize: 16, color: "#666" }} />
                           <Typography variant="body2" sx={{ color: "#666" }}>
                             {[
-                              reservation.smallBags > 0 && `소형 ${reservation.smallBags}개`,
-                              reservation.mediumBags > 0 && `중형 ${reservation.mediumBags}개`,
-                              reservation.largeBags > 0 && `대형 ${reservation.largeBags}개`
+                              reservation.smallBags > 0 && `${t('small')} ${reservation.smallBags}${t('pieces')}`,
+                              reservation.mediumBags > 0 && `${t('medium')} ${reservation.mediumBags}${t('pieces')}`,
+                              reservation.largeBags > 0 && `${t('large')} ${reservation.largeBags}${t('pieces')}`
                             ].filter(Boolean).join(', ')}
                           </Typography>
                         </Box>
@@ -4933,7 +4941,7 @@ const Map = () => {
                           fontWeight: 600,
                           color: "#333"
                         }}>
-                          {reservation.totalPrice.toLocaleString()}원
+                          {reservation.totalPrice.toLocaleString()}{t('won')}
                         </Typography>
                       </Box>
 
@@ -4961,7 +4969,7 @@ const Map = () => {
                             />
                           ) : (
                             <Chip
-                              label="매장 방문 대기"
+                              label={t('waitingForStoreVisit')}
                               size="small"
                               variant="outlined"
                               sx={{
@@ -5015,7 +5023,7 @@ const Map = () => {
                       
                       <Chip
                         icon={<StorefrontIcon sx={{ fontSize: 14 }} />}
-                        label={selectedPlace.business_type || "보관소"}
+                        label={selectedPlace.business_type || t('storageLocation')}
                         size="small"
                         sx={{ 
                           backgroundColor: "#e3f2fd",
@@ -5114,11 +5122,11 @@ const Map = () => {
                           color: isCurrentlyOpen(selectedPlace) ? "#4caf50" : "#f44336", 
                           fontWeight: 600 
                         }}>
-                          {isCurrentlyOpen(selectedPlace) ? "영업중" : "휴무"}
+                          {isCurrentlyOpen(selectedPlace) ? t('operating') : t('closed')}
                         </Typography>
                         <Typography variant="body2" sx={{ color: "#666" }}>•</Typography>
                         <Typography variant="body2" sx={{ color: "#666" }}>
-                          도보 5분
+                          {t('walkMinutes')}
                         </Typography>
                       </Box>
 
@@ -5134,7 +5142,7 @@ const Map = () => {
                         mb: 1,
                         fontSize: "16px"
                       }}>
-                        보관 요금
+                        {t('availableStorage')}
                       </Typography>
                       
                       <Box sx={{ 
@@ -5144,15 +5152,15 @@ const Map = () => {
                         overflow: "hidden"
                       }}>
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1.5, borderBottom: "1px solid #f0f0f0" }}>
-                          <Typography variant="body2" sx={{ color: "#333" }}>소형</Typography>
+                          <Typography variant="body2" sx={{ color: "#333" }}>{t('small')}</Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>₩3,000</Typography>
                         </Box>
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1.5, borderBottom: "1px solid #f0f0f0" }}>
-                          <Typography variant="body2" sx={{ color: "#333" }}>중형</Typography>
+                          <Typography variant="body2" sx={{ color: "#333" }}>{t('medium')}</Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>₩5,000</Typography>
                         </Box>
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1.5 }}>
-                          <Typography variant="body2" sx={{ color: "#333" }}>대형</Typography>
+                          <Typography variant="body2" sx={{ color: "#333" }}>{t('large')}</Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>₩8,000</Typography>
                         </Box>
                       </Box>
@@ -5163,7 +5171,7 @@ const Map = () => {
                         display: "block",
                         fontSize: "11px"
                       }}>
-                        1일 기준 요금
+                        {t('dailyRate')}
                       </Typography>
                     </Box>
 
@@ -5174,12 +5182,12 @@ const Map = () => {
                         mb: 1.5,
                         fontSize: "16px"
                       }}>
-                        편의시설
+                        {t('facilities')}
                       </Typography>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                         <Chip
                           icon={<SecurityIcon sx={{ fontSize: 16 }} />}
-                          label="24시간 보안"
+                          label={t('security24Hours')}
                           size="small"
                           variant="outlined"
                           sx={{ 
@@ -5189,7 +5197,7 @@ const Map = () => {
                         />
                         <Chip
                           icon={<ShieldIcon sx={{ fontSize: 16 }} />}
-                          label="손해배상보험"
+                          label={t('damageInsurance')}
                           size="small"
                           variant="outlined"
                           sx={{ 
@@ -5199,7 +5207,7 @@ const Map = () => {
                         />
                         <Chip
                           icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
-                          label="즉시 이용"
+                          label={t('immediateUse')}
                           size="small"
                           variant="outlined"
                           sx={{ 
@@ -5210,7 +5218,7 @@ const Map = () => {
                         {selectedPlace.phone && (
                           <Chip
                             icon={<PhoneIcon sx={{ fontSize: 16 }} />}
-                            label="전화 가능"
+                            label={t('phoneAvailable')}
                             size="small"
                             variant="outlined"
                             sx={{ 
@@ -5246,7 +5254,7 @@ const Map = () => {
                             }
                           }}
                         >
-                          매장 정보
+                          {t('storeInfo')}
                         </Button>
                         <Button
                           onClick={() => setSelectedTab('reviews')}
@@ -5264,7 +5272,7 @@ const Map = () => {
                             }
                           }}
                         >
-                          리뷰
+                          {t('reviews')}
                         </Button>
                       </Box>
 
@@ -5276,7 +5284,7 @@ const Map = () => {
                               <AccessTimeIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
                               <Box>
                                 <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                                  영업시간
+                                  {t('operatingHours')}
                                 </Typography>
                                 <Box>
                                   {(() => {
@@ -5298,8 +5306,8 @@ const Map = () => {
                                     } else {
                                       // 기본값
                                       hoursArray = selectedPlace.category_group_code === "BK9"
-                                        ? ["평일 09:00-16:00"]
-                                        : ["매일 09:00-22:00"];
+                                        ? [t('weekdaysHours')]
+                                        : [t('dailyHours')];
                                     }
                                     
                                     return hoursArray.map((hour, index) => (
@@ -5320,7 +5328,7 @@ const Map = () => {
                               <LocationOnIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
                               <Box>
                                 <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                                  위치
+                                  {t('location')}
                                 </Typography>
                                 <Typography variant="body2" sx={{ color: "#666" }}>
                                   {selectedPlace.address_name}
@@ -5333,7 +5341,7 @@ const Map = () => {
                                 <PhoneIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
                                 <Box>
                                   <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                                    연락처
+                                    {t('contact')}
                                   </Typography>
                                   <Typography variant="body2" sx={{ color: "#666" }}>
                                     {selectedPlace.phone}
@@ -5353,11 +5361,11 @@ const Map = () => {
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
                               <CheckCircleIcon sx={{ color: "#4caf50", fontSize: 18 }} />
                               <Typography variant="body2" sx={{ fontWeight: 600, color: "#2e7d32" }}>
-                                안전 보장
+                                {t('safetyGuarantee')}
                               </Typography>
                             </Box>
                             <Typography variant="body2" sx={{ color: "#388e3c", fontSize: "13px" }}>
-                              모든 짐은 보안이 유지되며 손해배상보험에 의해 보호됩니다.
+                              {t('safetyGuaranteeDescription')}
                             </Typography>
                           </Box>
                         </Box>
@@ -5475,7 +5483,7 @@ const Map = () => {
                             mb: 2,
                           }}
                         >
-                          결제 처리 중입니다
+                          {t('processingPayment')}
                         </Typography>
 
                         {/* 보안 메시지 */}
@@ -5503,7 +5511,7 @@ const Map = () => {
                               <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z" />
                             </svg>
                           </Box>
-                          결제 정보는 암호화되어 안전하게 처리됩니다
+                          {t('paymentSecurityMessage')}
                         </Box>
 
                         {/* 애니메이션 키프레임 정의 */}
@@ -5600,7 +5608,7 @@ const Map = () => {
                         fontSize: "16px",
                       }}
                     >
-                      예약 내용을 다시 한번 확인해주세요
+                      {t('confirmReservationDetails')}
                     </Typography>
                     <Typography
                       sx={{
@@ -5609,8 +5617,7 @@ const Map = () => {
                         lineHeight: 1.5,
                       }}
                     >
-                      카드, 계좌이체, 간편결제 등<br />
-                      다양한 결제 수단을 지원합니다
+                      {t('paymentMethodsSupported')}
                     </Typography>
                   </Box>
 
@@ -5631,7 +5638,7 @@ const Map = () => {
                         color: "#333",
                       }}
                     >
-                      결제 수단 선택
+                      {t('selectPaymentMethod')}
                     </Typography>
                     
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
@@ -5645,7 +5652,7 @@ const Map = () => {
                           borderRadius: "8px",
                         }}
                       >
-                        💳 카드
+                        💳 {t('card')}
                       </Button>
                       
                       <Button
@@ -5686,7 +5693,7 @@ const Map = () => {
                         color: "#333",
                       }}
                     >
-                      예약 내용을 확인해주세요
+                      {t('confirmReservationContent')}
                     </Typography>
 
                     <Box
@@ -5699,7 +5706,7 @@ const Map = () => {
                       <Typography
                         sx={{ fontSize: "13px", color: "text.secondary" }}
                       >
-                        보관 장소
+                        {t('storageLocation')}
                       </Typography>
                       <Typography sx={{ fontSize: "13px", fontWeight: 500 }}>
                         {selectedPlace.place_name}
@@ -5716,7 +5723,7 @@ const Map = () => {
                       <Typography
                         sx={{ fontSize: "13px", color: "text.secondary" }}
                       >
-                        보관 기간
+                        {t('storageDuration')}
                       </Typography>
                       <Typography sx={{ fontSize: "13px", fontWeight: 500 }}>
                         {calculateStorageTimeText()}
@@ -5733,7 +5740,7 @@ const Map = () => {
                       <Typography
                         sx={{ fontSize: "13px", color: "text.secondary" }}
                       >
-                        보관 짐
+                        {t('storedItems')}
                       </Typography>
                       <Typography sx={{ fontSize: "13px", fontWeight: 500 }}>
                         {getBagSummary()}
@@ -5750,7 +5757,7 @@ const Map = () => {
                       }}
                     >
                       <Typography sx={{ fontSize: "14px", fontWeight: 600 }}>
-                        총 결제금액
+                        {t('totalPaymentAmount')}
                       </Typography>
                       <Typography
                         sx={{
@@ -5759,7 +5766,7 @@ const Map = () => {
                           color: "#1a73e8",
                         }}
                       >
-                        {totalPrice.toLocaleString()}원
+                        {totalPrice.toLocaleString()}{t('won')}
                       </Typography>
                     </Box>
                   </Box>
@@ -5824,7 +5831,7 @@ const Map = () => {
                         </Box>
                         
                         <Typography sx={{ fontWeight: 600, fontSize: "16px" }}>
-                          안전하게 결제 중입니다
+                          {t('processingPaymentSecurely')}
                         </Typography>
                         
                         {/* 점진적 점들 */}
@@ -5873,7 +5880,7 @@ const Map = () => {
                           <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
                         </svg>
                         <Typography sx={{ fontWeight: 500, fontSize: "16px" }}>
-                          {totalPrice.toLocaleString()}원 결제하기
+                          {t('payWithAmount', { amount: `${totalPrice.toLocaleString()}${t('won')}` })}
                         </Typography>
                       </Box>
                     )}
@@ -6134,7 +6141,7 @@ const Map = () => {
                     }}
                   >
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {reservationStep === 'bag-selection' ? '가방 선택' : '날짜 및 시간 선택'}
+                      {reservationStep === 'bag-selection' ? t('bagSelectionTitle') : t('dateTimeSelection')}
                     </Typography>
                     <Button
                       sx={{
@@ -6181,7 +6188,7 @@ const Map = () => {
                         fontWeight: reservationStep === 'bag-selection' ? 600 : 400,
                         color: reservationStep === 'bag-selection' ? "#1976d2" : "#4caf50"
                       }}>
-                        가방 선택
+                        {t('bagSelectionTitle')}
                       </Typography>
                       
                       <Box sx={{ width: "20px", height: "2px", backgroundColor: reservationStep === 'datetime-selection' ? "#4caf50" : "#e0e0e0", mx: 1 }} />
@@ -6205,7 +6212,7 @@ const Map = () => {
                         fontWeight: reservationStep === 'datetime-selection' ? 600 : 400,
                         color: reservationStep === 'datetime-selection' ? "#1976d2" : "#999"
                       }}>
-                        날짜·시간
+                         {t('dateTimeTitle')}
                       </Typography>
                     </Box>
                   </Box>
@@ -6226,7 +6233,7 @@ const Map = () => {
                         {t("selectLuggage")}
                       </Typography>
 
-                  {/* 소형 가방 */}
+                  {/* {t('small')} 가방 */}
                   <Box
                     sx={{
                       display: "flex",
@@ -6623,7 +6630,7 @@ const Map = () => {
                       border: "1px solid #e9ecef"
                     }}>
                       <Typography sx={{ fontWeight: 600, mb: 1, fontSize: "14px" }}>
-                        선택된 가방
+                        {t('selectedBags')}
                       </Typography>
                       <Typography sx={{ fontSize: "13px", color: "text.secondary" }}>
                         {getBagSummary()}
@@ -6634,7 +6641,7 @@ const Map = () => {
                         color: "#1976d2", 
                         mt: 1 
                       }}>
-                        예상 금액: {totalPrice.toLocaleString()}원
+                        {t('estimatedPrice')}: {totalPrice.toLocaleString()}{t('won')}
                       </Typography>
                     </Box>
                   )}
@@ -6645,7 +6652,7 @@ const Map = () => {
                   {reservationStep === 'datetime-selection' && (
                     <>
                       <Typography sx={{ fontWeight: 500, mb: 2 }}>
-                        날짜와 시간을 선택해주세요
+                        {t('selectDateAndTime')}
                       </Typography>
 
                       {/* 선택된 가방 요약 - 상단에 표시 */}
@@ -6657,7 +6664,7 @@ const Map = () => {
                         border: "1px solid #e9ecef"
                       }}>
                         <Typography sx={{ fontWeight: 600, mb: 1, fontSize: "14px" }}>
-                          선택된 가방
+                          {t('selectedBags')}
                         </Typography>
                         <Typography sx={{ fontSize: "13px", color: "text.secondary" }}>
                           {getBagSummary()}
@@ -6814,7 +6821,7 @@ const Map = () => {
                           >
                             <path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z" />
                           </svg>
-                          선택한 날짜는 매장 휴무일입니다
+                          {t('selectedDateClosed')}
                         </Typography>
                       )}
                     </Box>
@@ -6899,7 +6906,7 @@ const Map = () => {
                             >
                               <path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z" />
                             </svg>
-                            선택한 종료일은 매장 휴무일입니다
+                            {t('selectedEndDateClosed')}
                           </Typography>
                         )}
                       </Box>
@@ -7100,13 +7107,13 @@ const Map = () => {
                       }}
                     >
                       {selectedPlace
-                        ? `운영시간: ${getPlaceOperatingHours(selectedPlace).start} - ${getPlaceOperatingHours(selectedPlace).end}`
+                        ? t('operatingHoursFormat', { start: getPlaceOperatingHours(selectedPlace).start, end: getPlaceOperatingHours(selectedPlace).end })
                         : t("operatingHoursDefault")}
                       {!isTimeValid &&
                         (isClosedOnDate(storageDate) ||
                         (storageDuration === "period" &&
                           isClosedOnDate(storageEndDate))
-                          ? " (선택한 날짜는 휴무일입니다)"
+                          ? t('closedOnSelectedDateWarning')
                           : t("operatingHoursWarning"))}
                     </Typography>
                   </Box>
@@ -7316,7 +7323,7 @@ const Map = () => {
                 setTotalPrice(0);
               }}
             >
-              예약하기
+              {t('makeReservation')}
             </Button>
           </Box>
         )}
@@ -7354,7 +7361,7 @@ const Map = () => {
                 }}
                 onClick={() => setReservationStep('bag-selection')}
               >
-                이전
+                {t('previous')}
               </Button>
             )}
 
@@ -7423,15 +7430,15 @@ const Map = () => {
             >
               {reservationStep === 'bag-selection' 
                 ? (bagSizes.small === 0 && bagSizes.medium === 0 && bagSizes.large === 0)
-                  ? "가방을 선택해주세요"
-                  : "다음 단계"
+                  ? t('selectBagsPlease')
+                  : t('nextStep')
                 : !isAuthenticated
                   ? t("loginRequired")
                   : isClosedOnDate(storageDate) ||
                     (storageDuration === "period" &&
                       storageEndDate &&
                       isClosedOnDate(storageEndDate))
-                  ? "선택한 날짜는 휴무일입니다"
+                  ? t('closedOnSelectedDate')
                   : !isTimeValid
                   ? t("setWithinOperatingHours")
                   : !storageDate ||
@@ -7583,7 +7590,7 @@ const Map = () => {
                           key={index}
                           variant="body2"
                           sx={{
-                            color: hour.includes("24시간")
+                            color: hour.includes(t('open24Hours'))
                               ? "success.main"
                               : "text.secondary",
                             lineHeight: 1.4,

@@ -7,6 +7,7 @@ import {
   Chip,
   Grid
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { ReviewSummary as ReviewSummaryType } from '../../services/api';
 
 interface ReviewSummaryProps {
@@ -14,6 +15,7 @@ interface ReviewSummaryProps {
 }
 
 const ReviewSummary: React.FC<ReviewSummaryProps> = ({ summary }) => {
+  const { t } = useTranslation();
   const { averageRating, totalReviews, ratingDistribution } = summary;
 
   const getRatingPercentage = (count: number) => {
@@ -46,7 +48,7 @@ const ReviewSummary: React.FC<ReviewSummaryProps> = ({ summary }) => {
             </Typography>
             <Rating value={averageRating} readOnly precision={0.1} size="small" />
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: '0.9rem' }}>
-              {totalReviews}개의 리뷰
+              {t('reviewsCountSimple', { count: totalReviews })}
             </Typography>
           </Box>
         </Grid>
@@ -102,27 +104,27 @@ const ReviewSummary: React.FC<ReviewSummaryProps> = ({ summary }) => {
       {/* 평점 요약 태그 - 항상 표시 */}
       <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
         {totalReviews === 0 ? (
-          <Chip label="🌟 첫 리뷰를 기다리고 있어요" color="default" size="small" variant="outlined" />
+          <Chip label={t('waitingFirstReview')} color="default" size="small" variant="outlined" />
         ) : (
           <>
             {averageRating >= 4.5 && (
-              <Chip label="⭐ 매우 만족" color="success" size="small" />
+              <Chip label={t('verySatisfied')} color="success" size="small" />
             )}
             {averageRating >= 4.0 && averageRating < 4.5 && (
-              <Chip label="👍 만족" color="primary" size="small" />
+              <Chip label={t('satisfied')} color="primary" size="small" />
             )}
             {averageRating >= 3.0 && averageRating < 4.0 && (
-              <Chip label="😐 보통" color="default" size="small" />
+              <Chip label={t('average')} color="default" size="small" />
             )}
             {averageRating < 3.0 && (
-              <Chip label="🔧 개선 필요" color="warning" size="small" />
+              <Chip label={t('needsImprovement')} color="warning" size="small" />
             )}
             
             {totalReviews >= 10 && (
-              <Chip label={`📚 ${totalReviews}개 리뷰`} color="info" size="small" variant="outlined" />
+              <Chip label={t('reviewsCount', { count: totalReviews })} color="info" size="small" variant="outlined" />
             )}
             {totalReviews < 10 && totalReviews > 0 && (
-              <Chip label={`📝 ${totalReviews}개 리뷰`} color="default" size="small" variant="outlined" />
+              <Chip label={t('reviewsCountDefault', { count: totalReviews })} color="default" size="small" variant="outlined" />
             )}
           </>
         )}

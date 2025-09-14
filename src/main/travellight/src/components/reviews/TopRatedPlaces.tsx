@@ -11,6 +11,7 @@ import {
   Alert
 } from '@mui/material';
 import { Star } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import { PlaceReviewSummary, reviewService, partnershipService } from '../../services/api';
 
 interface TopRatedPlacesProps {
@@ -20,8 +21,9 @@ interface TopRatedPlacesProps {
 
 const TopRatedPlaces: React.FC<TopRatedPlacesProps> = ({ 
   limit = 6, 
-  title = "추천 제휴점" 
+  title 
 }) => {
+  const { t } = useTranslation();
   const [places, setPlaces] = useState<PlaceReviewSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -64,7 +66,7 @@ const TopRatedPlaces: React.FC<TopRatedPlacesProps> = ({
       setPlaces(fallbackPlaces);
     } catch (error) {
       console.error('제휴점 조회 실패:', error);
-      setError('추천 제휴점을 불러오는데 실패했습니다.');
+      setError(t('loadingPartnersFailed'));
     } finally {
       setLoading(false);
     }
@@ -90,7 +92,7 @@ const TopRatedPlaces: React.FC<TopRatedPlacesProps> = ({
     return (
       <Box sx={{ textAlign: 'center', py: 4 }}>
         <Typography variant="body1" color="text.secondary">
-          추천할 제휴점이 없습니다.
+          {t('noRecommendedPartners')}
         </Typography>
       </Box>
     );
@@ -100,7 +102,7 @@ const TopRatedPlaces: React.FC<TopRatedPlacesProps> = ({
     <Box>
       <Typography variant="h5" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
         <Star color="primary" />
-        {title}
+        {title || t('recommendedPartners')}
       </Typography>
 
       <Grid container spacing={2}>
@@ -166,10 +168,10 @@ const TopRatedPlaces: React.FC<TopRatedPlacesProps> = ({
 
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                       <Typography variant="body2" color="text.secondary">
-                        리뷰 {place.reviewCount}개
+                        {t('reviewText')} {place.reviewCount}{t('reviewCount')}
                       </Typography>
                       <Chip 
-                        label={`추천도 ${place.recommendationScore.toFixed(1)}`}
+                        label={`${t('recommendationScore')} ${place.recommendationScore.toFixed(1)}`}
                         size="small"
                         color="primary"
                         variant="outlined"
@@ -179,17 +181,17 @@ const TopRatedPlaces: React.FC<TopRatedPlacesProps> = ({
                     {/* 평점 범위별 라벨 */}
                     <Box sx={{ mt: 1 }}>
                       {place.averageRating >= 4.5 && (
-                        <Chip label="최고" color="success" size="small" />
+                        <Chip label={t('ratingExcellent')} color="success" size="small" />
                       )}
                       {place.averageRating >= 4.0 && place.averageRating < 4.5 && (
-                        <Chip label="우수" color="primary" size="small" />
+                        <Chip label={t('ratingGood')} color="primary" size="small" />
                       )}
                       {place.averageRating >= 3.5 && place.averageRating < 4.0 && (
-                        <Chip label="양호" color="default" size="small" />
+                        <Chip label={t('ratingFair')} color="default" size="small" />
                       )}
                       
                       {place.reviewCount >= 20 && (
-                        <Chip label="검증된" color="info" size="small" sx={{ ml: 0.5 }} />
+                        <Chip label={t('verified')} color="info" size="small" sx={{ ml: 0.5 }} />
                       )}
                     </Box>
                   </>
@@ -198,13 +200,13 @@ const TopRatedPlaces: React.FC<TopRatedPlacesProps> = ({
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <Rating value={0} readOnly size="small" />
                       <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                        아직 리뷰 없음
+                        {t('noReviewsYet')}
                       </Typography>
                     </Box>
                     
                     <Box sx={{ mb: 1 }}>
                       <Chip 
-                        label="신규 제휴점"
+                        label={t('newPartner')}
                         size="small"
                         color="secondary"
                         variant="outlined"
@@ -221,7 +223,7 @@ const TopRatedPlaces: React.FC<TopRatedPlacesProps> = ({
       {/* 더보기 안내 */}
       <Box sx={{ textAlign: 'center', mt: 3 }}>
         <Typography variant="body2" color="text.secondary">
-          평점과 리뷰 수를 종합하여 산출된 추천 순위입니다
+          {t('rankingDescription')}
         </Typography>
       </Box>
     </Box>
