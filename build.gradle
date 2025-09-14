@@ -54,7 +54,10 @@ dependencies {
     implementation 'software.amazon.awssdk:ec2'
     implementation 'software.amazon.awssdk:rds'
     implementation 'software.amazon.awssdk:s3'
-    
+
+    // Google Gemini API 의존성 추가
+    implementation 'com.google.genai:google-genai:1.16.0'
+
 }
 
 tasks.named('test') {

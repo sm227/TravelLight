@@ -29,7 +29,8 @@ import {
   Warning,
   CheckCircle,
   AccessTime,
-  EventNote
+  EventNote,
+  Chat as ChatIcon
 } from '@mui/icons-material';
 import { 
   AreaChart, 
@@ -48,6 +49,7 @@ import {
 import { getRecentReservations } from '../../services/reservationService';
 import { ReservationDto } from '../../types/reservation';
 import { partnershipService } from '../../services/api';
+import { AdminChatInterface } from '../../components/admin/AdminChatInterface';
 
 // 전문적이고 세련된 ERP 색상 정의
 const COLORS = {
@@ -120,6 +122,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [usageLoading, setUsageLoading] = useState(true);
   const [isHovering, setIsHovering] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   // 실제 예약 데이터 로드
@@ -394,7 +397,32 @@ const AdminDashboard = () => {
           </Typography>
         </Box>
         
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setIsChatOpen(true)}
+            startIcon={<ChatIcon />}
+            sx={{
+              fontSize: '0.75rem',
+              fontWeight: 500,
+              px: 2,
+              py: 0.75,
+              minWidth: 'auto',
+              color: COLORS.accentPrimary,
+              backgroundColor: 'transparent',
+              border: `1px solid ${COLORS.accentPrimary}`,
+              borderRadius: 1,
+              mr: 1,
+              '&:hover': {
+                backgroundColor: alpha(COLORS.accentPrimary, 0.1),
+              },
+              transition: 'all 0.15s ease'
+            }}
+          >
+            AI 분석
+          </Button>
+
           {['실시간', '오늘', '이번주', '이번달'].map((range) => (
             <Button
               key={range}
@@ -951,6 +979,11 @@ const AdminDashboard = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* AI 채팅 인터페이스 */}
+      {isChatOpen && (
+        <AdminChatInterface onClose={() => setIsChatOpen(false)} />
+      )}
     </Box>
   );
 };
