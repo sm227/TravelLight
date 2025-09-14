@@ -48,6 +48,8 @@ public interface CallLogRepository extends JpaRepository<CallLog, Long> {
     Long countByDriverId(Long driverId);
 
     @Query("SELECT COUNT(cl) FROM CallLog cl WHERE cl.driver.id = :driverId " +
-           "AND DATE(cl.callStartTime) = CURRENT_DATE")
-    Long countTodayCallsByDriverId(@Param("driverId") Long driverId);
+           "AND cl.callStartTime >= :startOfDay AND cl.callStartTime < :endOfDay")
+    Long countTodayCallsByDriverId(@Param("driverId") Long driverId,
+                                  @Param("startOfDay") LocalDateTime startOfDay,
+                                  @Param("endOfDay") LocalDateTime endOfDay);
 }

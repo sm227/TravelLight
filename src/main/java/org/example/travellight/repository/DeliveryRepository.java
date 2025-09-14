@@ -31,7 +31,7 @@ public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
     List<Delivery> findByDriverIdAndStatusIn(@Param("driverId") Long driverId,
                                            @Param("statuses") List<DeliveryStatus> statuses);
 
-    @Query("SELECT d FROM Delivery d WHERE d.status = 'PENDING' " +
+    @Query("SELECT d FROM Delivery d WHERE d.status = org.example.travellight.entity.DeliveryStatus.PENDING " +
            "ORDER BY d.requestedAt ASC")
     List<Delivery> findPendingDeliveries();
 
@@ -46,14 +46,19 @@ public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
                                  @Param("status") DeliveryStatus status);
 
     @Query("SELECT COUNT(d) FROM Delivery d WHERE d.driver.id = :driverId " +
-           "AND DATE(d.requestedAt) = CURRENT_DATE")
-    Long countTodayDeliveriesByDriverId(@Param("driverId") Long driverId);
+           "AND d.requestedAt >= :startOfDay AND d.requestedAt < :endOfDay")
+    Long countTodayDeliveriesByDriverId(@Param("driverId") Long driverId,
+                                       @Param("startOfDay") LocalDateTime startOfDay,
+                                       @Param("endOfDay") LocalDateTime endOfDay);
 
     @Query("SELECT d FROM Delivery d WHERE d.estimatedDeliveryTime < :currentTime " +
-           "AND d.status IN ('ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'IN_PROGRESS')")
+           "AND (d.status = org.example.travellight.entity.DeliveryStatus.ASSIGNED OR " +
+           "d.status = org.example.travellight.entity.DeliveryStatus.ACCEPTED OR " +
+           "d.status = org.example.travellight.entity.DeliveryStatus.PICKED_UP OR " +
+           "d.status = org.example.travellight.entity.DeliveryStatus.IN_PROGRESS)")
     List<Delivery> findOverdueDeliveries(@Param("currentTime") LocalDateTime currentTime);
 
-    @Query("SELECT d FROM Delivery d WHERE d.driver IS NULL AND d.status = 'PENDING' " +
+    @Query("SELECT d FROM Delivery d WHERE d.driver IS NULL AND d.status = org.example.travellight.entity.DeliveryStatus.PENDING " +
            "ORDER BY d.requestedAt ASC")
     List<Delivery> findUnassignedDeliveries();
 
