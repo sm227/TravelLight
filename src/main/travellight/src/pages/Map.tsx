@@ -140,6 +140,7 @@ const Map = () => {
   const [endTime, setEndTime] = useState("18:00");
   const [partnershipMarkers, setPartnershipMarkers] = useState<any[]>([]);
   const [isReservationOpen, setIsReservationOpen] = useState(false);
+  const [reservationStep, setReservationStep] = useState<'bag-selection' | 'datetime-selection'>('bag-selection'); // 예약 단계 상태 추가
   const [bagSizes, setBagSizes] = useState({
     small: 0,
     medium: 0,
@@ -6123,16 +6124,17 @@ const Map = () => {
                     transition: "all 0.2s ease",
                   }}
                 >
+                  {/* 헤더 - 탭 네비게이션 포함 */}
                   <Box
                     sx={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      mb: 3,
+                      mb: 2,
                     }}
                   >
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {t("luggageStorageReservation")}
+                      {reservationStep === 'bag-selection' ? '가방 선택' : '날짜 및 시간 선택'}
                     </Typography>
                     <Button
                       sx={{
@@ -6148,10 +6150,64 @@ const Map = () => {
                           outline: "none",
                         },
                       }}
-                      onClick={() => setIsReservationOpen(false)}
+                      onClick={() => {
+                        setIsReservationOpen(false);
+                        setReservationStep('bag-selection'); // 단계 초기화
+                      }}
                     >
                       ×
                     </Button>
+                  </Box>
+
+                  {/* 단계 표시 인디케이터 */}
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                      <Box sx={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        backgroundColor: reservationStep === 'bag-selection' ? "#1976d2" : "#4caf50",
+                        color: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "12px",
+                        fontWeight: "600"
+                      }}>
+                        {reservationStep === 'bag-selection' ? '1' : '✓'}
+                      </Box>
+                      <Typography sx={{ 
+                        fontSize: "13px", 
+                        fontWeight: reservationStep === 'bag-selection' ? 600 : 400,
+                        color: reservationStep === 'bag-selection' ? "#1976d2" : "#4caf50"
+                      }}>
+                        가방 선택
+                      </Typography>
+                      
+                      <Box sx={{ width: "20px", height: "2px", backgroundColor: reservationStep === 'datetime-selection' ? "#4caf50" : "#e0e0e0", mx: 1 }} />
+                      
+                      <Box sx={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        backgroundColor: reservationStep === 'datetime-selection' ? "#1976d2" : "#e0e0e0",
+                        color: reservationStep === 'datetime-selection' ? "white" : "#999",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "12px",
+                        fontWeight: "600"
+                      }}>
+                        2
+                      </Box>
+                      <Typography sx={{ 
+                        fontSize: "13px", 
+                        fontWeight: reservationStep === 'datetime-selection' ? 600 : 400,
+                        color: reservationStep === 'datetime-selection' ? "#1976d2" : "#999"
+                      }}>
+                        날짜·시간
+                      </Typography>
+                    </Box>
                   </Box>
 
                   <Typography sx={{ fontWeight: 500, mb: 1 }}>
@@ -6163,9 +6219,12 @@ const Map = () => {
                     {selectedPlace.address_name}
                   </Typography>
 
-                  <Typography sx={{ fontWeight: 500, mb: 2 }}>
-                    {t("selectLuggage")}
-                  </Typography>
+                  {/* 가방 선택 탭 */}
+                  {reservationStep === 'bag-selection' && (
+                    <>
+                      <Typography sx={{ fontWeight: 500, mb: 2 }}>
+                        {t("selectLuggage")}
+                      </Typography>
 
                   {/* 소형 가방 */}
                   <Box
@@ -6554,7 +6613,58 @@ const Map = () => {
                     </Box>
                   </Box>
 
-                  {/* 보관 기간 설정 섹션 추가 */}
+                  {/* 선택된 가방 요약 표시 */}
+                  {(bagSizes.small > 0 || bagSizes.medium > 0 || bagSizes.large > 0) && (
+                    <Box sx={{
+                      mt: 3,
+                      p: 2,
+                      backgroundColor: "#f8f9fa",
+                      borderRadius: "12px",
+                      border: "1px solid #e9ecef"
+                    }}>
+                      <Typography sx={{ fontWeight: 600, mb: 1, fontSize: "14px" }}>
+                        선택된 가방
+                      </Typography>
+                      <Typography sx={{ fontSize: "13px", color: "text.secondary" }}>
+                        {getBagSummary()}
+                      </Typography>
+                      <Typography sx={{ 
+                        fontSize: "16px", 
+                        fontWeight: 600, 
+                        color: "#1976d2", 
+                        mt: 1 
+                      }}>
+                        예상 금액: {totalPrice.toLocaleString()}원
+                      </Typography>
+                    </Box>
+                  )}
+                    </>
+                  )}
+
+                  {/* 날짜 및 시간 선택 탭 */}
+                  {reservationStep === 'datetime-selection' && (
+                    <>
+                      <Typography sx={{ fontWeight: 500, mb: 2 }}>
+                        날짜와 시간을 선택해주세요
+                      </Typography>
+
+                      {/* 선택된 가방 요약 - 상단에 표시 */}
+                      <Box sx={{
+                        mb: 3,
+                        p: 2,
+                        backgroundColor: "#f8f9fa",
+                        borderRadius: "12px",
+                        border: "1px solid #e9ecef"
+                      }}>
+                        <Typography sx={{ fontWeight: 600, mb: 1, fontSize: "14px" }}>
+                          선택된 가방
+                        </Typography>
+                        <Typography sx={{ fontSize: "13px", color: "text.secondary" }}>
+                          {getBagSummary()}
+                        </Typography>
+                      </Box>
+
+                      {/* 보관 기간 설정 섹션 추가 */}
                   <Box sx={{ mb: 3 }}>
                     <Box
                       sx={{
@@ -7083,6 +7193,8 @@ const Map = () => {
                       {t("won")}
                     </Typography>
                   </Box>
+                    </>
+                  )}
                 </Box>
               )}
             </>
@@ -7194,6 +7306,7 @@ const Map = () => {
               }}
               onClick={() => {
                 setIsReservationOpen(true);
+                setReservationStep('bag-selection'); // 단계 초기화
                 // 초기화
                 setBagSizes({
                   small: 0,
@@ -7215,25 +7328,52 @@ const Map = () => {
               borderTop: "1px solid rgba(0, 0, 0, 0.06)",
               backgroundColor: "white",
               borderRadius: "0 0 24px 24px",
+              display: "flex",
+              gap: 2
             }}
           >
+            {/* 뒤로가기 버튼 - 날짜/시간 선택 탭에서만 표시 */}
+            {reservationStep === 'datetime-selection' && (
+              <Button
+                variant="outlined"
+                sx={{
+                  backgroundColor: "white",
+                  color: "#1976d2",
+                  borderColor: "#1976d2",
+                  borderRadius: "12px",
+                  p: 1.5,
+                  minWidth: "100px",
+                  "&:hover": { 
+                    backgroundColor: "#f5f5f5",
+                    borderColor: "#1565c0"
+                  },
+                  "&:focus": {
+                    outline: "none",
+                  },
+                  transition: "all 0.2s ease",
+                }}
+                onClick={() => setReservationStep('bag-selection')}
+              >
+                이전
+              </Button>
+            )}
+
             <Button
               variant="contained"
               fullWidth
               disabled={
-                (bagSizes.small === 0 &&
-                  bagSizes.medium === 0 &&
-                  bagSizes.large === 0) ||
-                !storageDate ||
-                !storageStartTime ||
-                !storageEndTime ||
-                (storageDuration === "period" && !storageEndDate) ||
-                !selectedPlace ||
-                !isTimeValid ||
-                isClosedOnDate(storageDate) ||
-                (storageDuration === "period" &&
-                  storageEndDate &&
-                  isClosedOnDate(storageEndDate))
+                reservationStep === 'bag-selection' 
+                  ? (bagSizes.small === 0 && bagSizes.medium === 0 && bagSizes.large === 0)
+                  : (!storageDate ||
+                     !storageStartTime ||
+                     !storageEndTime ||
+                     (storageDuration === "period" && !storageEndDate) ||
+                     !selectedPlace ||
+                     !isTimeValid ||
+                     isClosedOnDate(storageDate) ||
+                     (storageDuration === "period" &&
+                       storageEndDate &&
+                       isClosedOnDate(storageEndDate)))
               }
               sx={{
                 backgroundColor: "#1a73e8",
@@ -7253,43 +7393,53 @@ const Map = () => {
                 transition: "background-color 0.2s ease",
               }}
               onClick={() => {
-                if (
-                  totalPrice > 0 &&
-                  isTimeValid &&
-                  storageDate &&
-                  storageStartTime &&
-                  storageEndTime &&
-                  (storageDuration !== "period" || storageEndDate) &&
-                  !isClosedOnDate(storageDate) &&
-                  !(
-                    storageDuration === "period" &&
-                    storageEndDate &&
-                    isClosedOnDate(storageEndDate)
-                  )
-                ) {
-                  if (!isAuthenticated) {
-                    setReservationError(t("loginRequiredMessage"));
-                  } else {
-                    setIsPaymentOpen(true);
+                if (reservationStep === 'bag-selection') {
+                  // 가방 선택 단계에서는 다음 단계로
+                  setReservationStep('datetime-selection');
+                } else {
+                  // 날짜/시간 선택 단계에서는 결제로
+                  if (
+                    totalPrice > 0 &&
+                    isTimeValid &&
+                    storageDate &&
+                    storageStartTime &&
+                    storageEndTime &&
+                    (storageDuration !== "period" || storageEndDate) &&
+                    !isClosedOnDate(storageDate) &&
+                    !(
+                      storageDuration === "period" &&
+                      storageEndDate &&
+                      isClosedOnDate(storageEndDate)
+                    )
+                  ) {
+                    if (!isAuthenticated) {
+                      setReservationError(t("loginRequiredMessage"));
+                    } else {
+                      setIsPaymentOpen(true);
+                    }
                   }
                 }
               }}
             >
-              {!isAuthenticated
-                ? t("loginRequired")
-                : isClosedOnDate(storageDate) ||
-                  (storageDuration === "period" &&
-                    storageEndDate &&
-                    isClosedOnDate(storageEndDate))
-                ? "선택한 날짜는 휴무일입니다"
-                : !isTimeValid
-                ? t("setWithinOperatingHours")
-                : !storageDate ||
-                  !storageStartTime ||
-                  !storageEndTime ||
-                  (storageDuration === "period" && !storageEndDate)
-                ? t("selectAllDateAndTime")
-                : t("pay")}
+              {reservationStep === 'bag-selection' 
+                ? (bagSizes.small === 0 && bagSizes.medium === 0 && bagSizes.large === 0)
+                  ? "가방을 선택해주세요"
+                  : "다음 단계"
+                : !isAuthenticated
+                  ? t("loginRequired")
+                  : isClosedOnDate(storageDate) ||
+                    (storageDuration === "period" &&
+                      storageEndDate &&
+                      isClosedOnDate(storageEndDate))
+                  ? "선택한 날짜는 휴무일입니다"
+                  : !isTimeValid
+                  ? t("setWithinOperatingHours")
+                  : !storageDate ||
+                    !storageStartTime ||
+                    !storageEndTime ||
+                    (storageDuration === "period" && !storageEndDate)
+                  ? t("selectAllDateAndTime")
+                  : t("pay")}
             </Button>
           </Box>
         )}
