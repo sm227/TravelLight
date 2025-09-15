@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { Box, Container } from "@mui/material";
+import { useTranslation } from 'react-i18next';
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import Services from "../components/Services";
@@ -7,6 +8,8 @@ import Footer from "../components/Footer";
 import TopRatedPlaces from "../components/reviews/TopRatedPlaces";
 
 const Home: React.FC = () => {
+  const { t } = useTranslation();
+  
   useEffect(() => {
     // SEO 메타 태그 설정
     document.title = "TravelLight - 여행짐 보관 및 배송 서비스";
@@ -219,7 +222,7 @@ const Home: React.FC = () => {
         {/* Top Rated Places section - 상위 평점 제휴점 */}
         <Box component="section" aria-label="추천 제휴점" sx={{ py: 8, bgcolor: 'grey.50' }}>
           <Container maxWidth="lg">
-            <TopRatedPlaces limit={6} title="믿을 수 있는 제휴점" />
+            <TopRatedPlaces limit={6} title={t('trustedPartners')} />
           </Container>
         </Box>
       </Box>

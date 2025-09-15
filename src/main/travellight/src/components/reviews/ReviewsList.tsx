@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Typography,
@@ -41,6 +42,7 @@ const ReviewsList: React.FC<ReviewsListProps> = ({
   canWriteReview = false,
   reservationId
 }) => {
+  const { t } = useTranslation();
   const [reviews, setReviews] = useState<ReviewResponse[]>([]);
   const [summary, setSummary] = useState<ReviewSummaryType | null>(null);
   const [sortBy, setSortBy] = useState('latest');
@@ -162,7 +164,7 @@ const ReviewsList: React.FC<ReviewsListProps> = ({
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 600, color: '#333' }}>
-            리뷰 ({summary?.totalReviews || 0})
+            {t('reviewsWithCount', { count: summary?.totalReviews || 0 })}
           </Typography>
           
           {canWriteReview && currentUserId && (
@@ -181,17 +183,17 @@ const ReviewsList: React.FC<ReviewsListProps> = ({
                 }
               }}
             >
-              리뷰 작성
+              {t('writeReview')}
             </Button>
           )}
         </Box>
 
         <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>정렬</InputLabel>
+          <InputLabel>{t('sort')}</InputLabel>
           <Select 
             value={sortBy} 
             onChange={handleSortChange} 
-            label="정렬"
+            label={t('sort')}
             sx={{
               borderRadius: 2,
               '& .MuiOutlinedInput-notchedOutline': {
@@ -199,8 +201,8 @@ const ReviewsList: React.FC<ReviewsListProps> = ({
               }
             }}
           >
-            <MenuItem value="latest">최신순</MenuItem>
-            <MenuItem value="rating">평점순</MenuItem>
+            <MenuItem value="latest">{t('latest')}</MenuItem>
+            <MenuItem value="rating">{t('rating')}</MenuItem>
           </Select>
         </FormControl>
       </Box>
@@ -222,7 +224,7 @@ const ReviewsList: React.FC<ReviewsListProps> = ({
           border: '1px dashed #d0d7de'
         }}>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-            📝 아직 리뷰가 없습니다
+            {t('noReviewsYet')}
           </Typography>
           {canWriteReview && currentUserId && (
             <Button
@@ -235,7 +237,7 @@ const ReviewsList: React.FC<ReviewsListProps> = ({
                 textTransform: 'none'
               }}
             >
-              첫 리뷰 작성
+              {t('writeFirstReview')}
             </Button>
           )}
         </Box>
@@ -289,16 +291,16 @@ const ReviewsList: React.FC<ReviewsListProps> = ({
 
       {/* 삭제 확인 다이얼로그 */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>리뷰 삭제</DialogTitle>
+        <DialogTitle>{t('deleteReview')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            정말로 이 리뷰를 삭제하시겠습니까? 삭제된 리뷰는 복구할 수 없습니다.
+            {t('confirmDeleteReview')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>취소</Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>{t('cancel')}</Button>
           <Button onClick={confirmDeleteReview} color="error" autoFocus>
-            삭제
+            {t('delete')}
           </Button>
         </DialogActions>
       </Dialog>

@@ -36,6 +36,10 @@ import NotFound from './pages/NotFound';
 import PaymentComplete from './pages/PaymentComplete';
 import About from './pages/About';
 import Careers from './pages/Careers';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import Refund from './pages/Refund';
+import LocationTerms from './pages/LocationTerms';
 
 // 네이버 맵 상태를 위한 전역 타입 확장
 declare global {
@@ -298,6 +302,12 @@ function App() {
             <Route path="/payment-complete" element={<PaymentComplete />} />
             <Route path="/about" element={<About />} />
             <Route path="/careers" element={<Careers />} />
+            
+            {/* 약관 및 정책 페이지들 */}
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/refund" element={<Refund />} />
+            <Route path="/location-terms" element={<LocationTerms />} />
 
             {/* 관리자 라우트 */}
             <Route path="/admin/login" element={<AdminLogin />} />

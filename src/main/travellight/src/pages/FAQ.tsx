@@ -13,15 +13,83 @@ import {
     Button,
     Grid,
     useTheme,
-    alpha
+    alpha,
+    Card,
+    CardContent
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { keyframes } from '@mui/system';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SearchIcon from '@mui/icons-material/Search';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import SupportAgentIcon from '@mui/icons-material/SupportAgent';
+import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
+import PhoneIcon from '@mui/icons-material/Phone';
+import EmailIcon from '@mui/icons-material/Email';
 import { Link as RouterLink } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useTranslation } from 'react-i18next';
+
+// 애니메이션 정의
+const fadeIn = keyframes`
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+`;
+
+// 스타일된 컴포넌트들
+const StyledCard = styled(Card)(({ theme }) => ({
+    height: '100%',
+    borderRadius: '12px',
+    border: '1px solid #F1F5F9',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+        transform: 'translateY(-4px)',
+        boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)',
+        borderColor: '#E2E8F0'
+    }
+}));
+
+const StyledAccordion = styled(Accordion)(({ theme }) => ({
+    border: '1px solid #F1F5F9',
+    borderRadius: '12px !important',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+    marginBottom: '12px',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+        borderColor: '#E2E8F0',
+        boxShadow: '0 4px 12px -2px rgba(0, 0, 0, 0.1)'
+    },
+    '&:before': {
+        display: 'none',
+    },
+    '&.Mui-expanded': {
+        margin: '0 0 12px 0',
+        borderColor: '#3B82F6',
+        boxShadow: '0 4px 12px -2px rgba(59, 130, 246, 0.15)'
+    }
+}));
+
+const CategoryChip = styled(Chip)<{ selected?: boolean }>(({ theme, selected }) => ({
+    borderRadius: '8px',
+    fontWeight: selected ? 600 : 500,
+    border: '1px solid #E2E8F0',
+    backgroundColor: selected ? '#3B82F6' : '#FFFFFF',
+    color: selected ? '#FFFFFF' : '#475569',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+        backgroundColor: selected ? '#2563EB' : '#F8FAFC',
+        borderColor: selected ? '#2563EB' : '#CBD5E1',
+        transform: 'translateY(-1px)'
+    }
+}));
 
 /**
  * 자주 묻는 질문(FAQ) 페이지 컴포넌트
@@ -57,13 +125,13 @@ const FAQPage = () => {
             id: 2,
             category: 'reservation',
             question: '예약 후 일정이 변경되면 어떻게 해야 하나요?',
-            answer: '예약 변경은 마이페이지 > 예약 내역에서 변경하시거나, 출발 48시간 전까지 무료로 변경 가능합니다. 그 이후에는 수수료가 발생할 수 있습니다.'
+            answer: '예약 변경은 마이페이지 &gt; 예약 내역에서 변경하시거나, 출발 48시간 전까지 무료로 변경 가능합니다. 그 이후에는 수수료가 발생할 수 있습니다.'
         },
         {
             id: 3,
             category: 'delivery',
             question: '배송 중인 짐의 현재 위치를 확인할 수 있나요?',
-            answer: '네, 마이페이지 > 배송 조회에서 실시간으로 짐의 위치를 확인하실 수 있습니다. 배송 조회 번호를 통해 더 자세한 정보를 확인하실 수 있습니다.'
+            answer: '네, 마이페이지 &gt; 배송 조회에서 실시간으로 짐의 위치를 확인하실 수 있습니다. 배송 조회 번호를 통해 더 자세한 정보를 확인하실 수 있습니다.'
         },
         {
             id: 4,
@@ -75,7 +143,7 @@ const FAQPage = () => {
             id: 5,
             category: 'storage',
             question: '보관 중인 짐을 미리 찾을 수 있나요?',
-            answer: '네, 가능합니다. 마이페이지 > 보관 서비스에서 찾으실 날짜를 변경하시거나, 고객센터(1588-0000)로 문의해 주시면 가능 여부를 확인해 드립니다. 단, 최소 12시간 전에 알려주셔야 원활한 처리가 가능합니다.'
+            answer: '네, 가능합니다. 마이페이지 &gt; 보관 서비스에서 찾으실 날짜를 변경하시거나, 고객센터(1588-0000)로 문의해 주시면 가능 여부를 확인해 드립니다. 단, 최소 12시간 전에 알려주셔야 원활한 처리가 가능합니다.'
         },
         {
             id: 6,
@@ -87,13 +155,13 @@ const FAQPage = () => {
             id: 7,
             category: 'account',
             question: '계정 정보를 변경하고 싶어요.',
-            answer: '마이페이지 > 설정 > 계정 정보 수정에서 개인정보 및 연락처 정보를 변경하실 수 있습니다.'
+            answer: '마이페이지 &gt; 설정 &gt; 계정 정보 수정에서 개인정보 및 연락처 정보를 변경하실 수 있습니다.'
         },
         {
             id: 8,
             category: 'account',
             question: '회원 탈퇴는 어떻게 하나요?',
-            answer: '마이페이지 > 설정 > 회원 탈퇴에서 진행하실 수 있습니다. 단, 현재 진행 중인 서비스나 예약이 있다면 완료 후 탈퇴가 가능합니다.'
+            answer: '마이페이지 &gt; 설정 &gt; 회원 탈퇴에서 진행하실 수 있습니다. 단, 현재 진행 중인 서비스나 예약이 있다면 완료 후 탈퇴가 가능합니다.'
         },
         {
             id: 9,
@@ -136,60 +204,89 @@ const FAQPage = () => {
         <>
             <Navbar />
             <Box sx={{ 
-                backgroundImage: 'linear-gradient(180deg, #f5f7ff 0%, #ffffff 100%)',
+                background: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 50%, #F1F5F9 100%)',
                 pt: { xs: 10, md: 12 },
                 minHeight: '100vh',
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                position: 'relative',
+                overflow: 'hidden'
             }}>
-                <Container maxWidth="md" sx={{ py: 4, flexGrow: 1 }}>
+                {/* 미니멀한 배경 장식 */}
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: '10%',
+                        right: '5%',
+                        width: '200px',
+                        height: '200px',
+                        background: 'radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0) 70%)',
+                        borderRadius: '50%',
+                        zIndex: 0,
+                    }}
+                />
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        bottom: '20%',
+                        left: '5%',
+                        width: '150px',
+                        height: '150px',
+                        background: 'radial-gradient(circle, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0) 70%)',
+                        borderRadius: '50%',
+                        zIndex: 0,
+                    }}
+                />
+
+                <Container maxWidth="lg" sx={{ py: 4, flexGrow: 1, position: 'relative', zIndex: 1 }}>
                     {/* 헤더 섹션 */}
-                    <Box sx={{ mb: 6, textAlign: 'center' }}>
+                    <Box sx={{ 
+                        mb: 8, 
+                        textAlign: 'center',
+                        animation: `${fadeIn} 0.8s ease-out`
+                    }}>
                         <Typography 
-                            variant="h3" 
-                            component="h1" 
-                            gutterBottom 
-                            fontWeight="bold" 
-                            color="primary.main"
+                            variant="h2" 
+                            component="h1"
                             sx={{
+                                fontSize: { xs: '2rem', md: '2.5rem' },
+                                fontWeight: 700,
+                                color: '#0F172A',
                                 mb: 2,
-                                background: 'linear-gradient(90deg, #1976d2 0%, #3f85ee 100%)',
-                                backgroundClip: 'text',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                                textShadow: '0px 4px 8px rgba(24, 51, 107, 0.1)'
+                                letterSpacing: '-0.01em'
                             }}
                         >
-                            이용방법 안내
+                            고객 지원 센터
                         </Typography>
                         <Typography 
-                            variant="subtitle1" 
-                            color="text.secondary" 
-                            gutterBottom
-                            sx={{ fontSize: '1.1rem', maxWidth: '700px', mx: 'auto' }}
+                            variant="h6"
+                            sx={{
+                                color: '#64748B',
+                                maxWidth: '600px',
+                                mx: 'auto',
+                                fontSize: '1.1rem',
+                                fontWeight: 400,
+                                lineHeight: 1.6
+                            }}
                         >
                             TravelLight 서비스 이용 방법과 자주 묻는 질문들을 확인하세요.
                         </Typography>
                     </Box>
 
                     {/* 서비스 이용 가이드 섹션 */}
-                    <Paper
-                        sx={{ 
-                            p: 4, 
-                            mb: 5, 
-                            borderRadius: '16px',
-                            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.06)',
-                            border: '1px solid',
-                            borderColor: alpha(theme.palette.primary.main, 0.1)
-                        }}
-                    >
+                    <StyledCard sx={{ 
+                        p: 4, 
+                        mb: 6,
+                        animation: `${fadeIn} 0.6s ease-out 0.2s both`
+                    }}>
                         <Typography 
-                            variant="h5" 
+                            variant="h4" 
                             component="h2" 
                             sx={{ 
-                                mb: 3, 
-                                fontWeight: 'bold',
-                                color: theme.palette.primary.main 
+                                mb: 4, 
+                                fontWeight: 600,
+                                color: '#1E293B',
+                                fontSize: { xs: '1.5rem', md: '1.75rem' }
                             }}
                         >
                             서비스 이용 절차
@@ -221,34 +318,57 @@ const FAQPage = () => {
                                     <Box 
                                         sx={{ 
                                             display: 'flex', 
-                                            p: 2,
-                                            backgroundColor: alpha(theme.palette.primary.light, 0.05),
+                                            p: 3,
+                                            backgroundColor: '#F8FAFC',
+                                            border: '1px solid #F1F5F9',
                                             borderRadius: '12px',
-                                            height: '100%'
+                                            height: '100%',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                backgroundColor: '#F1F5F9',
+                                                borderColor: '#E2E8F0',
+                                                transform: 'translateY(-2px)'
+                                            }
                                         }}
                                     >
                                         <Box 
                                             sx={{ 
                                                 width: 40, 
                                                 height: 40, 
-                                                borderRadius: '50%', 
-                                                backgroundColor: theme.palette.primary.main,
+                                                borderRadius: '8px', 
+                                                backgroundColor: '#3B82F6',
                                                 color: 'white',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
-                                                fontWeight: 'bold',
-                                                mr: 2,
-                                                flexShrink: 0
+                                                fontWeight: 600,
+                                                mr: 3,
+                                                flexShrink: 0,
+                                                fontSize: '1.1rem'
                                             }}
                                         >
                                             {item.step}
                                         </Box>
                                         <Box>
-                                            <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 'bold', mb: 0.5 }}>
+                                            <Typography 
+                                                variant="h6" 
+                                                sx={{ 
+                                                    fontSize: '1.1rem', 
+                                                    fontWeight: 600, 
+                                                    mb: 1,
+                                                    color: '#1E293B'
+                                                }}
+                                            >
                                                 {item.title}
                                             </Typography>
-                                            <Typography variant="body2" color="text.secondary">
+                                            <Typography 
+                                                variant="body2" 
+                                                sx={{ 
+                                                    color: '#64748B',
+                                                    lineHeight: 1.5,
+                                                    fontSize: '0.9rem'
+                                                }}
+                                            >
                                                 {item.description}
                                             </Typography>
                                         </Box>
@@ -256,20 +376,23 @@ const FAQPage = () => {
                                 </Grid>
                             ))}
                         </Grid>
-                        <Box sx={{ mt: 3, textAlign: 'center' }}>
+                        <Box sx={{ mt: 4, textAlign: 'center' }}>
                             <Button
                                 variant="contained"
-                                color="primary"
                                 component={RouterLink}
-                                to="/services"
+                                to="/#services"
                                 sx={{ 
-                                    mt: 2, 
-                                    borderRadius: '24px', 
-                                    px: 3,
-                                    boxShadow: '0 4px 12px rgba(24, 51, 107, 0.2)',
+                                    backgroundColor: '#3B82F6',
+                                    color: 'white',
+                                    px: 4,
+                                    py: 1.5,
+                                    borderRadius: '10px',
+                                    fontSize: '1rem',
+                                    fontWeight: 600,
+                                    textTransform: 'none',
                                     '&:hover': {
-                                        boxShadow: '0 6px 16px rgba(24, 51, 107, 0.3)',
-                                        transform: 'translateY(-2px)'
+                                        backgroundColor: '#2563EB',
+                                        transform: 'translateY(-1px)'
                                     },
                                     transition: 'all 0.3s ease'
                                 }}
@@ -277,41 +400,79 @@ const FAQPage = () => {
                                 서비스 자세히 보기
                             </Button>
                         </Box>
-                    </Paper>
+                    </StyledCard>
                     
                     {/* FAQ 섹션 타이틀 */}
-                    <Typography 
-                        variant="h4" 
-                        component="h2" 
-                        sx={{ 
-                            mb: 4, 
-                            mt: 6,
-                            fontWeight: 'bold',
-                            color: theme.palette.primary.main,
-                            textAlign: 'center'
-                        }}
-                    >
-                        자주 묻는 질문 (FAQ)
-                    </Typography>
+                    <Box sx={{ 
+                        mb: 6, 
+                        textAlign: 'center',
+                        animation: `${fadeIn} 0.6s ease-out 0.4s both`
+                    }}>
+                        <Typography 
+                            variant="h3" 
+                            component="h2" 
+                            sx={{ 
+                                mb: 2,
+                                fontWeight: 700,
+                                color: '#0F172A',
+                                fontSize: { xs: '1.75rem', md: '2.25rem' },
+                                letterSpacing: '-0.01em'
+                            }}
+                        >
+                            자주 묻는 질문
+                        </Typography>
+                        <Typography 
+                            variant="body1"
+                            sx={{
+                                color: '#64748B',
+                                fontSize: '1rem',
+                                maxWidth: '500px',
+                                mx: 'auto'
+                            }}
+                        >
+                            궁금한 내용을 빠르게 찾아보세요
+                        </Typography>
+                    </Box>
 
                     {/* 검색 바 */}
                     <Paper
-                        component="form"
-                        sx={{ 
-                            p: '2px 4px', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            mb: 4,
-                            borderRadius: '12px',
-                            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)'
-                        }}
                         elevation={0}
+                        sx={{ 
+                            display: 'flex',
+                            alignItems: 'center',
+                            maxWidth: '600px',
+                            mx: 'auto',
+                            mb: 4,
+                            backgroundColor: '#FFFFFF',
+                            border: '1px solid #E2E8F0',
+                            borderRadius: '12px',
+                            overflow: 'hidden',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                                borderColor: '#3B82F6',
+                                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)'
+                            },
+                            '&:focus-within': {
+                                borderColor: '#3B82F6',
+                                boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                            },
+                            animation: `${fadeIn} 0.6s ease-out 0.6s both`
+                        }}
                     >
-                        <IconButton sx={{ p: '12px' }} aria-label="search">
+                        <IconButton sx={{ p: 2, color: '#64748B' }} aria-label="search">
                             <SearchIcon />
                         </IconButton>
                         <InputBase
-                            sx={{ ml: 1, flex: 1, fontSize: '1rem', py: 1 }}
+                            sx={{ 
+                                flex: 1, 
+                                px: 1,
+                                py: 2,
+                                fontSize: '1rem',
+                                color: '#1E293B',
+                                '&::placeholder': {
+                                    color: '#94A3B8'
+                                }
+                            }}
                             placeholder="궁금한 내용을 검색해보세요"
                             value={searchQuery}
                             onChange={handleSearchChange}
@@ -319,175 +480,287 @@ const FAQPage = () => {
                     </Paper>
 
                     {/* 카테고리 선택 칩 */}
-                    <Box sx={{ mb: 4, display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+                    <Box sx={{ 
+                        mb: 6, 
+                        display: 'flex', 
+                        flexWrap: 'wrap', 
+                        gap: 1.5, 
+                        justifyContent: 'center',
+                        animation: `${fadeIn} 0.6s ease-out 0.8s both`
+                    }}>
                         {categories.map((category) => (
-                            <Chip
+                            <CategoryChip
                                 key={category.id}
                                 label={category.name}
                                 onClick={() => handleCategoryChange(category.id)}
-                                color={selectedCategory === category.id ? "primary" : "default"}
-                                variant={selectedCategory === category.id ? "filled" : "outlined"}
-                                sx={{ 
-                                    mb: 1,
-                                    py: 0.5,
-                                    px: 0.5,
-                                    borderRadius: '8px',
-                                    fontWeight: selectedCategory === category.id ? 'bold' : 'normal',
-                                    '&:hover': {
-                                        backgroundColor: selectedCategory === category.id 
-                                            ? theme.palette.primary.main 
-                                            : alpha(theme.palette.primary.light, 0.1)
-                                    }
-                                }}
+                                selected={selectedCategory === category.id}
+                                sx={{ mb: 1 }}
                             />
                         ))}
                     </Box>
 
                     {/* FAQ 아코디언 목록 */}
-                    <Box>
+                    <Box sx={{ 
+                        maxWidth: '800px', 
+                        mx: 'auto',
+                        animation: `${fadeIn} 0.6s ease-out 1s both`
+                    }}>
                         {filteredFAQs.length > 0 ? (
-                            filteredFAQs.map((faq) => (
-                                <Accordion 
-                                    key={faq.id} 
-                                    sx={{ 
-                                        mb: 2,
-                                        borderRadius: '12px !important',
-                                        overflow: 'hidden',
-                                        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        '&:before': {
-                                            display: 'none',
-                                        }
+                            filteredFAQs.map((faq, index) => (
+                                <StyledAccordion 
+                                    key={faq.id}
+                                    sx={{
+                                        animation: `${fadeIn} 0.4s ease-out ${1.2 + index * 0.1}s both`
                                     }}
                                 >
                                     <AccordionSummary
-                                        expandIcon={<ExpandMoreIcon color="primary" />}
+                                        expandIcon={<ExpandMoreIcon sx={{ color: '#64748B' }} />}
                                         aria-controls={`panel-${faq.id}-content`}
                                         id={`panel-${faq.id}-header`}
                                         sx={{
-                                            backgroundColor: alpha(theme.palette.primary.light, 0.03),
+                                            py: 2,
+                                            px: 3,
+                                            backgroundColor: '#FAFBFC',
+                                            transition: 'background-color 0.2s ease',
                                             '&:hover': {
-                                                backgroundColor: alpha(theme.palette.primary.light, 0.07),
+                                                backgroundColor: '#F1F5F9',
+                                            },
+                                            '&.Mui-expanded': {
+                                                backgroundColor: '#F8FAFC',
+                                                borderBottom: '1px solid #E2E8F0'
                                             }
                                         }}
                                     >
-                                        <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                                            <HelpOutlineIcon sx={{ mr: 2, color: 'primary.main' }} />
+                                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                            <QuestionAnswerIcon sx={{ 
+                                                mr: 2, 
+                                                color: '#3B82F6',
+                                                fontSize: 20
+                                            }} />
                                             <Typography 
-                                                variant="subtitle1" 
-                                                fontWeight="medium"
-                                                sx={{ color: 'text.primary', letterSpacing: '0.02em' }}
+                                                variant="body1" 
+                                                sx={{ 
+                                                    fontWeight: 600,
+                                                    color: '#1E293B',
+                                                    fontSize: '1rem',
+                                                    flex: 1
+                                                }}
                                             >
                                                 {faq.question}
                                             </Typography>
                                         </Box>
                                     </AccordionSummary>
-                                    <AccordionDetails sx={{ p: 3 }}>
-                                        <Typography 
-                                            variant="body1" 
-                                            sx={{ 
-                                                pl: 5,
-                                                color: 'text.secondary',
-                                                lineHeight: 1.7
-                                            }}
-                                        >
-                                            {faq.answer}
-                                        </Typography>
+                                    <AccordionDetails sx={{ px: 3, py: 3 }}>
+                                        <Box sx={{ pl: 4 }}>
+                                            <Typography 
+                                                variant="body1" 
+                                                sx={{ 
+                                                    color: '#64748B',
+                                                    lineHeight: 1.7,
+                                                    fontSize: '0.95rem'
+                                                }}
+                                            >
+                                                {faq.answer}
+                                            </Typography>
+                                        </Box>
                                     </AccordionDetails>
-                                </Accordion>
+                                </StyledAccordion>
                             ))
                         ) : (
                             // 검색 결과가 없을 때 표시
-                            <Box sx={{ 
+                            <StyledCard sx={{ 
                                 textAlign: 'center', 
-                                py: 4,
-                                backgroundColor: alpha(theme.palette.warning.light, 0.1),
-                                borderRadius: '12px',
-                                padding: 4
+                                py: 6,
+                                px: 4,
+                                backgroundColor: '#F8FAFC'
                             }}>
-                                <Typography variant="body1" color="text.secondary">
-                                    검색 결과가 없습니다. 다른 키워드로 검색하시거나 1:1 문의를 이용해 주세요.
+                                <QuestionAnswerIcon sx={{ 
+                                    fontSize: 48, 
+                                    color: '#94A3B8',
+                                    mb: 2
+                                }} />
+                                <Typography 
+                                    variant="h6" 
+                                    sx={{ 
+                                        mb: 1,
+                                        fontWeight: 600,
+                                        color: '#475569'
+                                    }}
+                                >
+                                    검색 결과가 없습니다
+                                </Typography>
+                                <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                        color: '#64748B',
+                                        mb: 3,
+                                        lineHeight: 1.6
+                                    }}
+                                >
+                                    다른 키워드로 검색하시거나 1:1 문의를 이용해 주세요.
                                 </Typography>
                                 <Button
                                     component={RouterLink}
                                     to="/Inquiry"
                                     variant="contained"
-                                    color="primary"
                                     sx={{ 
-                                        mt: 2,
-                                        borderRadius: '24px',
-                                        px: 3,
-                                        boxShadow: '0 4px 12px rgba(24, 51, 107, 0.2)'
+                                        backgroundColor: '#3B82F6',
+                                        color: 'white',
+                                        px: 4,
+                                        py: 1.5,
+                                        borderRadius: '10px',
+                                        fontSize: '1rem',
+                                        fontWeight: 600,
+                                        textTransform: 'none',
+                                        '&:hover': {
+                                            backgroundColor: '#2563EB'
+                                        }
                                     }}
                                 >
                                     1:1 문의하기
                                 </Button>
-                            </Box>
+                            </StyledCard>
                         )}
                     </Box>
 
                     {/* 하단 고객센터 안내 */}
-                    <Paper sx={{ 
-                        mt: 6, 
-                        p: 4, 
-                        bgcolor: alpha(theme.palette.primary.light, 0.05), 
-                        borderRadius: '16px',
-                        border: '1px solid',
-                        borderColor: alpha(theme.palette.primary.main, 0.1),
-                        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05)'
-                    }}>
-                        <Grid container spacing={3} alignItems="center">
-                            <Grid item xs={12} md={8}>
+                    <Grid container spacing={3} sx={{ mt: 8 }}>
+                        <Grid item xs={12} md={6}>
+                            <StyledCard sx={{ 
+                                p: 4,
+                                textAlign: 'center',
+                                backgroundColor: '#F8FAFC',
+                                animation: `${fadeIn} 0.6s ease-out 1.4s both`
+                            }}>
+                                <SupportAgentIcon sx={{ 
+                                    fontSize: 48, 
+                                    color: '#3B82F6',
+                                    mb: 2
+                                }} />
                                 <Typography 
                                     variant="h6" 
-                                    gutterBottom
-                                    sx={{ fontWeight: 'bold', color: 'primary.main' }}
+                                    sx={{ 
+                                        mb: 2,
+                                        fontWeight: 600,
+                                        color: '#1E293B'
+                                    }}
                                 >
-                                    더 궁금한 점이 있으신가요?
+                                    고객센터 문의
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.95rem' }}>
-                                    고객센터 운영시간: 평일 09:00 - 18:00 (공휴일 제외)
+                                <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                        color: '#64748B',
+                                        mb: 2,
+                                        lineHeight: 1.6
+                                    }}
+                                >
+                                    평일 09:00 - 18:00 (공휴일 제외)
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.95rem' }}>
-                                    전화: 1588-0000 | 이메일: support@travellight.com
+                                <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    mb: 2,
+                                    gap: 1
+                                }}>
+                                    <PhoneIcon sx={{ fontSize: 18, color: '#3B82F6' }} />
+                                    <Typography 
+                                        variant="h6" 
+                                        sx={{ 
+                                            fontWeight: 600,
+                                            color: '#1E293B'
+                                        }}
+                                    >
+                                        1588-0000
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    gap: 1
+                                }}>
+                                    <EmailIcon sx={{ fontSize: 16, color: '#64748B' }} />
+                                    <Typography 
+                                        variant="body2" 
+                                        sx={{ color: '#64748B' }}
+                                    >
+                                        support@travellight.com
+                                    </Typography>
+                                </Box>
+                            </StyledCard>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <StyledCard sx={{ 
+                                p: 4,
+                                textAlign: 'center',
+                                backgroundColor: '#3B82F6',
+                                color: 'white',
+                                animation: `${fadeIn} 0.6s ease-out 1.6s both`
+                            }}>
+                                <QuestionAnswerIcon sx={{ 
+                                    fontSize: 48, 
+                                    color: 'white',
+                                    mb: 2
+                                }} />
+                                <Typography 
+                                    variant="h6" 
+                                    sx={{ 
+                                        mb: 2,
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    1:1 문의하기
                                 </Typography>
-                            </Grid>
-                            <Grid item xs={12} md={4} sx={{ textAlign: { md: 'right' }}}>
+                                <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                        mb: 3,
+                                        opacity: 0.9,
+                                        lineHeight: 1.6
+                                    }}
+                                >
+                                    더 자세한 문의사항이 있으시면 1:1 문의를 통해 빠른 답변을 받아보세요.
+                                </Typography>
                                 <Button
                                     component={RouterLink}
                                     to="/Inquiry"
                                     variant="contained"
-                                    color="primary"
                                     sx={{ 
-                                        borderRadius: '24px', 
-                                        px: 3,
+                                        backgroundColor: 'white',
+                                        color: '#3B82F6',
+                                        px: 4,
                                         py: 1.5,
+                                        borderRadius: '10px',
                                         fontSize: '1rem',
-                                        boxShadow: '0 6px 20px rgba(24, 51, 107, 0.2)',
+                                        fontWeight: 600,
+                                        textTransform: 'none',
                                         '&:hover': {
-                                            boxShadow: '0 8px 25px rgba(24, 51, 107, 0.3)',
-                                            transform: 'translateY(-2px)'
+                                            backgroundColor: '#F8FAFC',
+                                            transform: 'translateY(-1px)'
                                         },
                                         transition: 'all 0.3s ease'
                                     }}
                                 >
-                                    1:1 문의하기
+                                    문의하기
                                 </Button>
-                            </Grid>
+                            </StyledCard>
                         </Grid>
-                    </Paper>
+                    </Grid>
 
                     {/* 약관 및 정책 */}
-                    <Box sx={{ mt: 6, mb: 4 }}>
+                    <Box sx={{ mt: 10, mb: 6 }}>
                         <Typography 
-                            variant="h5" 
+                            variant="h4" 
                             component="h2" 
                             sx={{ 
-                                mb: 4, 
-                                fontWeight: 'bold',
-                                color: theme.palette.primary.main,
-                                textAlign: 'center'
+                                mb: 6, 
+                                fontWeight: 600,
+                                color: '#1E293B',
+                                textAlign: 'center',
+                                fontSize: { xs: '1.5rem', md: '1.75rem' },
+                                animation: `${fadeIn} 0.6s ease-out 1.8s both`
                             }}
                         >
                             약관 및 정책
@@ -500,92 +773,128 @@ const FAQPage = () => {
                                 { title: '위치기반 서비스 이용약관', description: '위치정보 수집 및 이용에 관한 약관입니다.', link: '/location-terms' }
                             ].map((item, index) => (
                                 <Grid item xs={12} sm={6} key={index}>
-                                    <Paper
+                                    <StyledCard
                                         sx={{
                                             p: 3,
                                             height: '100%',
-                                            borderRadius: '12px',
-                                            border: '1px solid',
-                                            borderColor: theme.palette.divider,
-                                            transition: 'all 0.3s ease',
-                                            '&:hover': {
-                                                borderColor: theme.palette.primary.main,
-                                                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                                                transform: 'translateY(-4px)'
-                                            }
+                                            animation: `${fadeIn} 0.4s ease-out ${2 + index * 0.1}s both`
                                         }}
                                     >
-                                        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
+                                        <Typography 
+                                            variant="h6" 
+                                            sx={{ 
+                                                mb: 1, 
+                                                fontWeight: 600,
+                                                color: '#1E293B',
+                                                fontSize: '1.1rem'
+                                            }}
+                                        >
                                             {item.title}
                                         </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                        <Typography 
+                                            variant="body2" 
+                                            sx={{ 
+                                                color: '#64748B',
+                                                mb: 3,
+                                                lineHeight: 1.5,
+                                                fontSize: '0.9rem'
+                                            }}
+                                        >
                                             {item.description}
                                         </Typography>
                                         <Button
                                             component={RouterLink}
                                             to={item.link}
-                                            color="primary"
-                                            endIcon={<span>→</span>}
-                                            sx={{ fontWeight: 'medium' }}
+                                            variant="outlined"
+                                            size="small"
+                                            sx={{
+                                                borderColor: '#E2E8F0',
+                                                color: '#475569',
+                                                fontWeight: 500,
+                                                textTransform: 'none',
+                                                fontSize: '0.9rem',
+                                                '&:hover': {
+                                                    backgroundColor: '#F8FAFC',
+                                                    borderColor: '#CBD5E1'
+                                                }
+                                            }}
                                         >
-                                            자세히 보기
+                                            자세히 보기 →
                                         </Button>
-                                    </Paper>
+                                    </StyledCard>
                                 </Grid>
                             ))}
                         </Grid>
                     </Box>
 
-                    {/* 다운로드 가능한 이용 가이드 */}
-                    <Box sx={{ mb: 6, mt: 5, textAlign: 'center' }}>
-                        <Paper
+                    {/* 이용 가이드 다운로드 */}
+                    <StyledCard sx={{ 
+                        mb: 6, 
+                        mt: 8, 
+                        textAlign: 'center',
+                        background: 'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)',
+                        color: 'white',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        animation: `${fadeIn} 0.6s ease-out 2.4s both`
+                    }}>
+                        <Box
                             sx={{
-                                p: 4,
-                                borderRadius: '16px',
-                                background: 'linear-gradient(135deg, #1976d2 0%, #304FFE 100%)',
-                                color: 'white',
-                                position: 'relative',
-                                overflow: 'hidden'
+                                position: 'absolute',
+                                top: '10%',
+                                right: '-5%',
+                                width: '120px',
+                                height: '120px',
+                                background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+                                borderRadius: '50%',
+                                zIndex: 0
                             }}
-                        >
-                            <Box
-                                sx={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    right: 0,
-                                    width: '150px',
-                                    height: '150px',
-                                    background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)',
-                                    zIndex: 0
+                        />
+                        <Box sx={{ position: 'relative', zIndex: 1, p: 4 }}>
+                            <Typography 
+                                variant="h5" 
+                                sx={{ 
+                                    fontWeight: 600, 
+                                    mb: 2,
+                                    fontSize: { xs: '1.25rem', md: '1.5rem' }
                                 }}
-                            />
-                            <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2, position: 'relative', zIndex: 1 }}>
+                            >
                                 TravelLight 서비스 이용 가이드
                             </Typography>
-                            <Typography variant="body1" sx={{ mb: 3, maxWidth: '700px', mx: 'auto', position: 'relative', zIndex: 1 }}>
+                            <Typography 
+                                variant="body1" 
+                                sx={{ 
+                                    mb: 4, 
+                                    maxWidth: '600px', 
+                                    mx: 'auto',
+                                    opacity: 0.95,
+                                    lineHeight: 1.6
+                                }}
+                            >
                                 서비스 이용에 관한 모든 정보를 담은 가이드북을 다운로드하여 확인하세요.
                             </Typography>
                             <Button
                                 variant="contained"
                                 sx={{
-                                    bgcolor: '#ffffff',
-                                    color: 'primary.main',
-                                    fontWeight: 'bold',
+                                    backgroundColor: 'white',
+                                    color: '#3B82F6',
+                                    fontWeight: 600,
                                     px: 4,
                                     py: 1.5,
-                                    borderRadius: '28px',
+                                    borderRadius: '10px',
+                                    fontSize: '1rem',
+                                    textTransform: 'none',
                                     '&:hover': {
-                                        bgcolor: alpha('#ffffff', 0.9),
-                                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)'
+                                        backgroundColor: '#F8FAFC',
+                                        transform: 'translateY(-1px)'
                                     },
-                                    position: 'relative',
-                                    zIndex: 1
+                                    transition: 'all 0.3s ease'
                                 }}
                             >
                                 이용 가이드 다운로드
                             </Button>
-                        </Paper>
-                    </Box>
+                        </Box>
+                    </StyledCard>
                 </Container>
                 <Footer />
             </Box>
