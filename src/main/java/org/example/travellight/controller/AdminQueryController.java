@@ -179,11 +179,17 @@ public class AdminQueryController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getCacheStats() {
         try {
-            Map<String, Object> stats = new HashMap<>();
-            stats.put("cacheSize", queryCacheService.getCacheSize());
-            stats.put("success", true);
+            QueryCacheService.CacheStats stats = queryCacheService.getDetailedCacheStats();
 
-            return ResponseEntity.ok(stats);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("cacheSize", stats.getCacheSize());
+            response.put("totalRequests", stats.getTotalRequests());
+            response.put("hits", stats.getHits());
+            response.put("misses", stats.getMisses());
+            response.put("hitRate", Math.round(stats.getHitRate() * 100.0) / 100.0); // 소수점 2자리
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("캐시 통계 조회 중 오류 발생", e);
 
@@ -200,11 +206,12 @@ public class AdminQueryController {
     public ResponseEntity<?> clearCache() {
         try {
             queryCacheService.clearAllCache();
+            queryCacheService.resetStats(); // 통계도 초기화
             databaseSchemaService.invalidateSchemaCache();
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "모든 캐시가 삭제되었습니다.");
+            response.put("message", "모든 캐시와 통계가 초기화되었습니다.");
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

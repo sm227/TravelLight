@@ -98,7 +98,13 @@ const AdminServices = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
-  const [cacheStats, setCacheStats] = useState({ cacheSize: 0 });
+  const [cacheStats, setCacheStats] = useState({
+    cacheSize: 0,
+    totalRequests: 0,
+    hits: 0,
+    misses: 0,
+    hitRate: 0
+  });
 
   // AWS 서비스 상태 체크
   const checkAWSServices = async () => {
@@ -146,8 +152,14 @@ const AdminServices = () => {
       const data = await response.json();
 
       if (data.success) {
-        setCacheStats({ cacheSize: 0 });
-        alert('캐시가 성공적으로 삭제되었습니다.');
+        setCacheStats({
+          cacheSize: 0,
+          totalRequests: 0,
+          hits: 0,
+          misses: 0,
+          hitRate: 0
+        });
+        alert('캐시와 통계가 성공적으로 초기화되었습니다.');
       } else {
         alert('캐시 삭제 중 오류가 발생했습니다.');
       }
@@ -342,19 +354,92 @@ const AdminServices = () => {
               mb: 2
             }}>
               <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                       <MemoryIcon sx={{ color: COLORS.accentSecondary, mr: 1, fontSize: '1.25rem' }} />
                       <Typography variant="h6" sx={{ color: COLORS.textPrimary }}>
                         AI 쿼리 캐시 관리
                       </Typography>
                     </Box>
-                    <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
-                      저장된 쿼리: {cacheStats.cacheSize}개 | 자동 TTL: 2시간
+
+                    {/* 캐시 통계 그리드 */}
+                    <Grid container spacing={2}>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{
+                          p: 1.5,
+                          bgcolor: COLORS.backgroundLight,
+                          borderRadius: 1,
+                          border: `1px solid ${COLORS.borderPrimary}`
+                        }}>
+                          <Typography variant="caption" sx={{ color: COLORS.textMuted, fontSize: '0.625rem' }}>
+                            저장된 쿼리
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
+                            {cacheStats.cacheSize}개
+                          </Typography>
+                        </Box>
+                      </Grid>
+
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{
+                          p: 1.5,
+                          bgcolor: COLORS.backgroundLight,
+                          borderRadius: 1,
+                          border: `1px solid ${COLORS.borderPrimary}`
+                        }}>
+                          <Typography variant="caption" sx={{ color: COLORS.textMuted, fontSize: '0.625rem' }}>
+                            히트율
+                          </Typography>
+                          <Typography variant="h6" sx={{
+                            color: cacheStats.hitRate >= 70 ? COLORS.success :
+                                   cacheStats.hitRate >= 40 ? COLORS.warning : COLORS.danger,
+                            fontWeight: 700
+                          }}>
+                            {cacheStats.hitRate.toFixed(1)}%
+                          </Typography>
+                        </Box>
+                      </Grid>
+
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{
+                          p: 1.5,
+                          bgcolor: COLORS.backgroundLight,
+                          borderRadius: 1,
+                          border: `1px solid ${COLORS.borderPrimary}`
+                        }}>
+                          <Typography variant="caption" sx={{ color: COLORS.textMuted, fontSize: '0.625rem' }}>
+                            총 요청
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
+                            {cacheStats.totalRequests}회
+                          </Typography>
+                        </Box>
+                      </Grid>
+
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{
+                          p: 1.5,
+                          bgcolor: COLORS.backgroundLight,
+                          borderRadius: 1,
+                          border: `1px solid ${COLORS.borderPrimary}`
+                        }}>
+                          <Typography variant="caption" sx={{ color: COLORS.textMuted, fontSize: '0.625rem' }}>
+                            히트/미스
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
+                            {cacheStats.hits}/{cacheStats.misses}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+
+                    <Typography variant="body2" sx={{ color: COLORS.textSecondary, mt: 2 }}>
+                      자동 TTL: 2시간 | 30초마다 자동 갱신
                     </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
+
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
                     <Button
                       variant="outlined"
                       size="small"
