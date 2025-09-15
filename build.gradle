@@ -58,6 +58,9 @@ dependencies {
     // Google Gemini API 의존성 추가
     implementation 'com.google.genai:google-genai:1.16.0'
 
+    // Redis 캐싱 의존성 추가
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
 }
 
 tasks.named('test') {

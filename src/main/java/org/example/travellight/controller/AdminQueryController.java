@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.travellight.service.DatabaseSchemaService;
 import org.example.travellight.service.GeminiQueryService;
+import org.example.travellight.service.QueryCacheService;
 import org.example.travellight.service.QueryExecutorService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,6 +25,7 @@ public class AdminQueryController {
     private final GeminiQueryService geminiQueryService;
     private final QueryExecutorService queryExecutorService;
     private final DatabaseSchemaService databaseSchemaService;
+    private final QueryCacheService queryCacheService;
     private final ObjectMapper objectMapper;
 
     @PostMapping("/natural")
@@ -167,6 +169,72 @@ public class AdminQueryController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("error", "예시 쿼리를 조회할 수 없습니다: " + e.getMessage());
+
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    // 캐시 관리 엔드포인트들
+    @GetMapping("/cache/stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getCacheStats() {
+        try {
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("cacheSize", queryCacheService.getCacheSize());
+            stats.put("success", true);
+
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            log.error("캐시 통계 조회 중 오류 발생", e);
+
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "캐시 통계를 조회할 수 없습니다: " + e.getMessage());
+
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    @DeleteMapping("/cache/clear")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> clearCache() {
+        try {
+            queryCacheService.clearAllCache();
+            databaseSchemaService.invalidateSchemaCache();
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "모든 캐시가 삭제되었습니다.");
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("캐시 삭제 중 오류 발생", e);
+
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "캐시 삭제 중 오류가 발생했습니다: " + e.getMessage());
+
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    @DeleteMapping("/cache/query/{queryHash}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> clearSpecificCache(@PathVariable String queryHash) {
+        try {
+            queryCacheService.invalidateCache(queryHash);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "지정된 쿼리 캐시가 삭제되었습니다.");
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("특정 캐시 삭제 중 오류 발생", e);
+
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "특정 캐시 삭제 중 오류가 발생했습니다: " + e.getMessage());
 
             return ResponseEntity.internalServerError().body(errorResponse);
         }

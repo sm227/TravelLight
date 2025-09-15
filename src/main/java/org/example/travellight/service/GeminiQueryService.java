@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -19,6 +21,7 @@ public class GeminiQueryService {
     private String modelName;
 
     private final DatabaseSchemaService databaseSchemaService;
+    private final QueryCacheService queryCacheService;
 
     public String convertNaturalLanguageToSQL(String naturalQuery) {
         // 입력 유효성 검증
@@ -28,6 +31,17 @@ public class GeminiQueryService {
 
         if (naturalQuery.length() > 1000) {
             throw new IllegalArgumentException("질문이 너무 깁니다. 1000자 이내로 입력해주세요.");
+        }
+
+        // 캐시에서 먼저 확인
+        try {
+            Optional<String> cachedResult = queryCacheService.getCachedQuery(naturalQuery);
+            if (cachedResult.isPresent()) {
+                log.info("쿼리 캐시 히트: {}", naturalQuery);
+                return cachedResult.get();
+            }
+        } catch (Exception e) {
+            log.warn("캐시 조회 중 오류 발생, API 호출로 진행: {}", e.getMessage());
         }
 
         // API 키 확인 (환경변수 GOOGLE_API_KEY 체크)
@@ -83,6 +97,13 @@ public class GeminiQueryService {
                 String cleanedResult = extractJsonFromMarkdown(result);
 
                 if (cleanedResult != null && !cleanedResult.isEmpty()) {
+                    // 성공한 결과를 캐시에 저장
+                    try {
+                        queryCacheService.cacheQuery(naturalQuery, cleanedResult);
+                    } catch (Exception cacheException) {
+                        log.warn("캐시 저장 중 오류 발생: {}", cacheException.getMessage());
+                    }
+
                     return cleanedResult;
                 } else {
                     log.warn("Gemini가 올바른 JSON 형태로 응답하지 않음: {}", result);

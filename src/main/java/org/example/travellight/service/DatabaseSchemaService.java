@@ -21,7 +21,29 @@ public class DatabaseSchemaService {
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
 
+    // 스키마 정보 메모리 캐싱
+    private JsonNode cachedSchema;
+    private String cachedSchemaPrompt;
+    private volatile boolean schemaCacheInitialized = false;
+
     public JsonNode getDatabaseSchema() {
+        // 캐시된 스키마가 있으면 반환
+        if (schemaCacheInitialized && cachedSchema != null) {
+            log.debug("스키마 캐시 히트");
+            return cachedSchema;
+        }
+
+        // 캐시 미스 또는 초기화되지 않은 경우 새로 생성
+        return initializeSchemaCache();
+    }
+
+    private synchronized JsonNode initializeSchemaCache() {
+        // Double-checked locking
+        if (schemaCacheInitialized && cachedSchema != null) {
+            return cachedSchema;
+        }
+
+        log.info("데이터베이스 스키마 캐시 초기화 시작");
         ObjectNode schemaNode = objectMapper.createObjectNode();
         ObjectNode tablesNode = objectMapper.createObjectNode();
 
@@ -83,6 +105,11 @@ public class DatabaseSchemaService {
 
         schemaNode.set("tables", tablesNode);
         schemaNode.put("description", "TravelLight 데이터베이스 스키마 정보");
+
+        // 캐시에 저장
+        cachedSchema = schemaNode;
+        schemaCacheInitialized = true;
+        log.info("데이터베이스 스키마 캐시 초기화 완료");
 
         return schemaNode;
     }
@@ -149,6 +176,21 @@ public class DatabaseSchemaService {
     }
 
     public String getSchemaForPrompt() {
+        // 캐시된 스키마 프롬프트가 있으면 반환
+        if (schemaCacheInitialized && cachedSchemaPrompt != null) {
+            log.debug("스키마 프롬프트 캐시 히트");
+            return cachedSchemaPrompt;
+        }
+
+        return generateSchemaPrompt();
+    }
+
+    private synchronized String generateSchemaPrompt() {
+        // Double-checked locking
+        if (schemaCacheInitialized && cachedSchemaPrompt != null) {
+            return cachedSchemaPrompt;
+        }
+
         try {
             JsonNode schema = getDatabaseSchema();
             StringBuilder promptBuilder = new StringBuilder();
@@ -189,10 +231,25 @@ public class DatabaseSchemaService {
             promptBuilder.append("- reviews: 리뷰 정보 (고객 평점 및 후기)\n");
             promptBuilder.append("- event_storages: 이벤트 보관 신청 정보\n");
 
-            return promptBuilder.toString();
+            String result = promptBuilder.toString();
+
+            // 캐시에 저장
+            cachedSchemaPrompt = result;
+            log.info("스키마 프롬프트 캐시 저장 완료");
+
+            return result;
         } catch (Exception e) {
             log.error("스키마 정보를 프롬프트용으로 변환하는 중 오류 발생", e);
             return "데이터베이스 스키마 정보를 가져올 수 없습니다.";
+        }
+    }
+
+    public void invalidateSchemaCache() {
+        synchronized (this) {
+            cachedSchema = null;
+            cachedSchemaPrompt = null;
+            schemaCacheInitialized = false;
+            log.info("스키마 캐시 무효화 완료");
         }
     }
 }
