@@ -15,6 +15,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-TravelLight4-1}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     volumes:
       - ./logs:/app/logs
     depends_on:
