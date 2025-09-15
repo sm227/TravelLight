@@ -40,11 +40,11 @@ const Footer: React.FC = () => {
   ];
   
   const supportLinks = [
-    { name: t('faq'), href: '#' },
-    { name: t('inquiry'), href: '#' },
-    { name: t('termsOfService'), href: '#' },
-    { name: t('privacyPolicy'), href: '#' },
-    { name: t('location'), href: '#' }
+    { name: t('faq'), href: '/FAQ' },
+    { name: t('inquiry'), href: '/Inquiry' },
+    { name: t('termsOfService'), href: '/terms' },
+    { name: t('privacyPolicy'), href: '/privacy' },
+    { name: '위치약관', href: '/location-terms' }
   ];
   
   return (
@@ -259,11 +259,14 @@ const Footer: React.FC = () => {
             © {currentYear} TravelLight. {t('allRights')}
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
-            <Link href="#" underline="none" sx={{ color: alpha('#fff', 0.6), '&:hover': { color: alpha('#fff', 0.9) } }}>
+            <Link href="/terms" underline="none" sx={{ color: alpha('#fff', 0.6), '&:hover': { color: alpha('#fff', 0.9) } }}>
               {t('termsOfService')}
             </Link>
-            <Link href="#" underline="none" sx={{ color: alpha('#fff', 0.6), '&:hover': { color: alpha('#fff', 0.9) } }}>
+            <Link href="/privacy" underline="none" sx={{ color: alpha('#fff', 0.6), '&:hover': { color: alpha('#fff', 0.9) } }}>
               {t('privacyPolicy')}
+            </Link>
+            <Link href="/refund" underline="none" sx={{ color: alpha('#fff', 0.6), '&:hover': { color: alpha('#fff', 0.9) } }}>
+              환불정책
             </Link>
           </Stack>
         </Box>

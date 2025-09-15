@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Container,
@@ -26,6 +26,8 @@ import {
     DialogContentText,
     DialogActions
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { keyframes } from '@mui/system';
 import EventIcon from '@mui/icons-material/Event';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -35,10 +37,67 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import ko from "date-fns/locale/ko";
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+import { useTranslation } from 'react-i18next';
+
+// 애니메이션 정의
+const fadeIn = keyframes`
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+`;
+
+// 스타일된 컴포넌트
+const StyledCard = styled(Paper)(({ theme }) => ({
+    padding: theme.spacing(2),
+    borderRadius: '12px',
+    border: '1px solid #F1F5F9',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    '&:hover': {
+        transform: 'translateY(-2px)',
+        boxShadow: '0 4px 20px 0 rgba(0, 0, 0, 0.15)',
+        borderColor: '#E2E8F0'
+    },
+    animation: `${fadeIn} 0.6s ease-out`
+}));
+
+const StyledFormPaper = styled(Paper)(({ theme }) => ({
+    padding: theme.spacing(4),
+    borderRadius: '12px',
+    border: '1px solid #F1F5F9',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+    animation: `${fadeIn} 0.6s ease-out 0.2s both`
+}));
+
+const StyledInfoPaper = styled(Paper)(({ theme }) => ({
+    padding: theme.spacing(2.5),
+    borderRadius: '12px',
+    border: '1px solid #F1F5F9',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+    animation: `${fadeIn} 0.6s ease-out 0.1s both`
+}));
 
 const EventStorage: React.FC = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const { t } = useTranslation();
+
+    // 페이지 로드 시 스크롤을 맨 위로 이동
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
 
     const [formData, setFormData] = useState({
         eventName: '',
@@ -141,180 +200,292 @@ const EventStorage: React.FC = () => {
 
     const benefits = [
         {
-            icon: <EventIcon sx={{fontSize: 56, color: 'primary.main'}}/>,
+            icon: <EventIcon sx={{ fontSize: 32, color: '#3B82F6' }}/>,
             title: '편리한 이벤트 진행',
             description: '관객들의 짐 보관 문제를 해결하여 이벤트 경험을 향상시킵니다.',
         },
         {
-            icon: <LocalShippingIcon sx={{fontSize: 56, color: 'secondary.main'}}/>,
+            icon: <LocalShippingIcon sx={{ fontSize: 32, color: '#10B981' }}/>,
             title: '이동식 솔루션',
             description: '원하는 장소에 맞춤형 규모의 짐 보관 서비스를 제공합니다.',
         },
         {
-            icon: <LocationOnIcon sx={{fontSize: 56, color: 'info.main'}}/>,
+            icon: <LocationOnIcon sx={{ fontSize: 32, color: '#F59E0B' }}/>,
             title: '유연한 설치',
             description: '공간 제약에 맞게 다양한 크기와 배치로 설치 가능합니다.',
         },
         {
-            icon: <SupportAgentIcon sx={{fontSize: 56, color: 'success.main'}}/>,
+            icon: <SupportAgentIcon sx={{ fontSize: 32, color: '#8B5CF6' }}/>,
             title: '전문 운영 인력',
             description: '전문 인력이 짐 보관부터 반환까지 모든 과정을 안전하게 관리합니다.',
         },
     ];
 
     return (
-        <Box
-            sx={{
-                bgcolor: 'background.paper',
-                pt: {xs: 12, md: 16},
-                pb: {xs: 8, md: 12},
+        <>
+            <Navbar />
+            <Box sx={{ 
+                background: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 50%, #F1F5F9 100%)',
+                pt: { xs: 10, md: 12 },
+                pb: { xs: 8, md: 12 },
+                minHeight: '100vh',
                 position: 'relative',
-                overflow: 'hidden',
-            }}
-        >
-            {/* 배경 장식 */}
-            <Box
-                sx={{
-                    position: 'absolute',
-                    top: -100,
-                    right: -100,
-                    width: 400,
-                    height: 400,
-                    borderRadius: '50%',
-                    backgroundColor: 'primary.light',
-                    opacity: 0.1,
-                    zIndex: 0,
-                }}
-            />
-            <Box
-                sx={{
-                    position: 'absolute',
-                    bottom: -150,
-                    left: -150,
-                    width: 500,
-                    height: 500,
-                    borderRadius: '50%',
-                    backgroundColor: 'secondary.light',
-                    opacity: 0.1,
-                    zIndex: 0,
-                }}
-            />
+                overflow: 'hidden'
+            }}>
+                {/* 배경 장식 */}
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: '10%',
+                        right: '5%',
+                        width: '200px',
+                        height: '200px',
+                        background: 'radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0) 70%)',
+                        borderRadius: '50%',
+                        zIndex: 0,
+                    }}
+                />
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        bottom: '20%',
+                        left: '5%',
+                        width: '150px',
+                        height: '150px',
+                        background: 'radial-gradient(circle, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0) 70%)',
+                        borderRadius: '50%',
+                        zIndex: 0,
+                    }}
+                />
 
-            <Container maxWidth="lg" sx={{position: 'relative', zIndex: 1}}>
-                <Grid container spacing={6}>
-                    <Grid item xs={12}>
-                        <Typography
+                <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+                    {/* 헤더 */}
+                    <Box sx={{ 
+                        mb: 6, 
+                        textAlign: 'center',
+                        animation: `${fadeIn} 0.8s ease-out`
+                    }}>
+                        <Typography 
+                            variant="h2" 
                             component="h1"
-                            variant={isMobile ? 'h3' : 'h2'}
-                            color="text.primary"
-                            align="center"
-                            gutterBottom
-                            sx={{fontWeight: 700}}
+                            sx={{
+                                fontSize: { xs: '2rem', md: '2.5rem' },
+                                fontWeight: 700,
+                                color: '#0F172A',
+                                mb: 2,
+                                letterSpacing: '-0.01em'
+                            }}
                         >
                             콘서트 및 행사 전용 이동식 짐보관 신청
                         </Typography>
-                        <Typography
+                        <Typography 
                             variant="h6"
-                            color="text.secondary"
-                            align="center"
-                            paragraph
-                            sx={{maxWidth: 800, mx: 'auto', mb: 6}}
+                            sx={{
+                                color: '#64748B',
+                                fontSize: '1.1rem',
+                                fontWeight: 400,
+                                lineHeight: 1.6,
+                                maxWidth: 800,
+                                mx: 'auto'
+                            }}
                         >
                             TravelLight의 이동식 짐보관 서비스로 콘서트, 페스티벌, 기업 행사를 더욱 편리하게 진행하세요.
                             현장에 직접 설치되는 맞춤형 짐보관 솔루션으로 관객들에게 특별한 경험을 제공합니다.
                         </Typography>
-                    </Grid>
+                    </Box>
 
-                    <Grid item xs={12} md={6}>
-                        <Box>
-                            <Typography variant="h4" component="h2" sx={{mb: 4, fontWeight: 600}}>
-                                서비스 특징
-                            </Typography>
+                    <Grid container spacing={4}>
 
-                            <Grid container spacing={3}>
-                                {benefits.map((benefit, index) => (
-                                    <Grid item xs={12} sm={6} key={index}>
-                                        <Paper
-                                            elevation={3}
-                                            sx={{
-                                                p: 3,
-                                                height: '100%',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                alignItems: 'center',
-                                                textAlign: 'center',
-                                                transition: 'transform 0.3s ease-in-out',
-                                                '&:hover': {
-                                                    transform: 'translateY(-8px)',
-                                                    boxShadow: 6,
-                                                },
-                                            }}
-                                        >
-                                            {benefit.icon}
-                                            <Typography variant="h6" component="h3"
-                                                        sx={{mt: 2, fontWeight: 'bold'}}>
-                                                {benefit.title}
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary" sx={{mt: 1}}>
-                                                {benefit.description}
-                                            </Typography>
-                                        </Paper>
-                                    </Grid>
-                                ))}
-                            </Grid>
-
-                            <Box sx={{mt: 6}}>
-                                <Typography variant="h5" component="h3" sx={{mb: 2, fontWeight: 600}}>
-                                    이동식 짐보관 서비스 안내
+                        <Grid item xs={12} md={6}>
+                            <Box sx={{ animation: `${fadeIn} 0.6s ease-out 0.1s both` }}>
+                                <Typography 
+                                    variant="h4" 
+                                    component="h2" 
+                                    sx={{
+                                        mb: 3, 
+                                        fontWeight: 600,
+                                        color: '#1E293B'
+                                    }}
+                                >
+                                    서비스 특징
                                 </Typography>
 
-                                <Paper elevation={2} sx={{p: 3}}>
-                                    <Stack spacing={2}>
-                                        <Box>
-                                            <Typography variant="subtitle1" fontWeight="bold">규모 및 용량</Typography>
-                                            <Typography variant="body2">
-                                                윙바디 트럭 1대 기준 약 300개의 짐을 보관할 수 있으며, 행사 규모에 따라 복수의 트럭을 배치할 수 있습니다.
-                                            </Typography>
-                                        </Box>
-                                        <Divider/>
-                                        <Box>
-                                            <Typography variant="subtitle1" fontWeight="bold">서비스 운영 방식</Typography>
-                                            <Typography variant="body2">
-                                                행사 시작 2시간 전에 현장에 도착하여 설치를 완료하고, 행사 종료 후 모든 짐이 반환될 때까지 서비스를 제공합니다.
-                                            </Typography>
-                                        </Box>
-                                        <Divider/>
-                                        <Box>
-                                            <Typography variant="subtitle1" fontWeight="bold">보안 및 안전</Typography>
-                                            <Typography variant="body2">
-                                                전문 스태프가 상시 대기하며, 디지털 태그와 QR코드 시스템을 통해 안전하게 짐을 관리합니다.
-                                            </Typography>
-                                        </Box>
-                                        <Divider/>
-                                        <Box>
-                                            <Typography variant="subtitle1" fontWeight="bold">맞춤형 브랜딩</Typography>
-                                            <Typography variant="body2">
-                                                행사나 이벤트 로고로 짐보관소를 맞춤 브랜딩하여 특별한 경험을 제공할 수 있습니다.
-                                            </Typography>
-                                        </Box>
-                                        <Divider/>
-                                        <Box>
-                                            <Typography variant="subtitle1" fontWeight="bold">이용 요금</Typography>
-                                            <Typography variant="body2">
-                                                행사 규모, 기간, 위치에 따라 맞춤 견적이 제공됩니다. 견적은 신청서 접수 후 개별 연락드립니다.
-                                            </Typography>
-                                        </Box>
-                                    </Stack>
-                                </Paper>
-                            </Box>
-                        </Box>
-                    </Grid>
+                                <Grid container spacing={2}>
+                                    {benefits.map((benefit, index) => (
+                                        <Grid item xs={6} sm={6} key={index}>
+                                            <StyledCard>
+                                                {benefit.icon}
+                                                <Typography 
+                                                    variant="subtitle1" 
+                                                    component="h3"
+                                                    sx={{
+                                                        mt: 1, 
+                                                        mb: 0.5,
+                                                        fontWeight: 600,
+                                                        color: '#1E293B',
+                                                        fontSize: '0.9rem'
+                                                    }}
+                                                >
+                                                    {benefit.title}
+                                                </Typography>
+                                                <Typography 
+                                                    variant="body2" 
+                                                    sx={{
+                                                        color: '#64748B',
+                                                        lineHeight: 1.4,
+                                                        fontSize: '0.8rem'
+                                                    }}
+                                                >
+                                                    {benefit.description}
+                                                </Typography>
+                                            </StyledCard>
+                                        </Grid>
+                                    ))}
+                                </Grid>
 
-                    <Grid item xs={12} md={6}>
-                        <Paper elevation={4} sx={{p: 4, borderRadius: 2}}>
-                            <Typography variant="h4" component="h2" sx={{mb: 4, fontWeight: 600}}>
-                                이동식 짐보관 서비스 신청
-                            </Typography>
+                                <Box sx={{ mt: 4 }}>
+                                    <Typography 
+                                        variant="h5" 
+                                        component="h3" 
+                                        sx={{
+                                            mb: 2, 
+                                            fontWeight: 600,
+                                            color: '#1E293B'
+                                        }}
+                                    >
+                                        이동식 짐보관 서비스 안내
+                                    </Typography>
+
+                                    <StyledInfoPaper>
+                                        <Stack spacing={2}>
+                                            <Box>
+                                                <Typography 
+                                                    variant="subtitle1" 
+                                                    sx={{ 
+                                                        fontWeight: 600,
+                                                        color: '#1E293B',
+                                                        mb: 1
+                                                    }}
+                                                >
+                                                    규모 및 용량
+                                                </Typography>
+                                                <Typography 
+                                                    variant="body2"
+                                                    sx={{ 
+                                                        color: '#64748B',
+                                                        lineHeight: 1.6
+                                                    }}
+                                                >
+                                                    윙바디 트럭 1대 기준 약 300개의 짐을 보관할 수 있으며, 행사 규모에 따라 복수의 트럭을 배치할 수 있습니다.
+                                                </Typography>
+                                            </Box>
+                                            <Divider sx={{ borderColor: '#F1F5F9' }}/>
+                                            <Box>
+                                                <Typography 
+                                                    variant="subtitle1" 
+                                                    sx={{ 
+                                                        fontWeight: 600,
+                                                        color: '#1E293B',
+                                                        mb: 1
+                                                    }}
+                                                >
+                                                    서비스 운영 방식
+                                                </Typography>
+                                                <Typography 
+                                                    variant="body2"
+                                                    sx={{ 
+                                                        color: '#64748B',
+                                                        lineHeight: 1.6
+                                                    }}
+                                                >
+                                                    행사 시작 2시간 전에 현장에 도착하여 설치를 완료하고, 행사 종료 후 모든 짐이 반환될 때까지 서비스를 제공합니다.
+                                                </Typography>
+                                            </Box>
+                                            <Divider sx={{ borderColor: '#F1F5F9' }}/>
+                                            <Box>
+                                                <Typography 
+                                                    variant="subtitle1" 
+                                                    sx={{ 
+                                                        fontWeight: 600,
+                                                        color: '#1E293B',
+                                                        mb: 1
+                                                    }}
+                                                >
+                                                    보안 및 안전
+                                                </Typography>
+                                                <Typography 
+                                                    variant="body2"
+                                                    sx={{ 
+                                                        color: '#64748B',
+                                                        lineHeight: 1.6
+                                                    }}
+                                                >
+                                                    전문 스태프가 상시 대기하며, 디지털 태그와 QR코드 시스템을 통해 안전하게 짐을 관리합니다.
+                                                </Typography>
+                                            </Box>
+                                            <Divider sx={{ borderColor: '#F1F5F9' }}/>
+                                            <Box>
+                                                <Typography 
+                                                    variant="subtitle1" 
+                                                    sx={{ 
+                                                        fontWeight: 600,
+                                                        color: '#1E293B',
+                                                        mb: 1
+                                                    }}
+                                                >
+                                                    맞춤형 브랜딩
+                                                </Typography>
+                                                <Typography 
+                                                    variant="body2"
+                                                    sx={{ 
+                                                        color: '#64748B',
+                                                        lineHeight: 1.6
+                                                    }}
+                                                >
+                                                    행사나 이벤트 로고로 짐보관소를 맞춤 브랜딩하여 특별한 경험을 제공할 수 있습니다.
+                                                </Typography>
+                                            </Box>
+                                            <Divider sx={{ borderColor: '#F1F5F9' }}/>
+                                            <Box>
+                                                <Typography 
+                                                    variant="subtitle1" 
+                                                    sx={{ 
+                                                        fontWeight: 600,
+                                                        color: '#1E293B',
+                                                        mb: 1
+                                                    }}
+                                                >
+                                                    이용 요금
+                                                </Typography>
+                                                <Typography 
+                                                    variant="body2"
+                                                    sx={{ 
+                                                        color: '#64748B',
+                                                        lineHeight: 1.6
+                                                    }}
+                                                >
+                                                    행사 규모, 기간, 위치에 따라 맞춤 견적이 제공됩니다. 견적은 신청서 접수 후 개별 연락드립니다.
+                                                </Typography>
+                                            </Box>
+                                        </Stack>
+                                    </StyledInfoPaper>
+                                </Box>
+                            </Box>
+                        </Grid>
+
+                        <Grid item xs={12} md={6}>
+                            <StyledFormPaper>
+                                <Typography 
+                                    variant="h4" 
+                                    component="h2" 
+                                    sx={{
+                                        mb: 4, 
+                                        fontWeight: 600,
+                                        color: '#1E293B'
+                                    }}
+                                >
+                                    이동식 짐보관 서비스 신청
+                                </Typography>
 
                             <Box component="form" onSubmit={handleSubmit} noValidate>
                                 <Grid container spacing={3}>
@@ -537,10 +708,17 @@ const EventStorage: React.FC = () => {
                                             size="large"
                                             fullWidth
                                             sx={{
-                                                borderRadius: '28px',
+                                                borderRadius: '8px',
                                                 py: 1.5,
-                                                fontWeight: 'bold',
-                                                fontSize: '1.1rem'
+                                                fontWeight: 600,
+                                                fontSize: '1.1rem',
+                                                background: 'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)',
+                                                '&:hover': {
+                                                    background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                                                    transform: 'translateY(-1px)',
+                                                    boxShadow: '0 4px 12px 0 rgba(59, 130, 246, 0.4)'
+                                                },
+                                                transition: 'all 0.2s ease-in-out'
                                             }}
                                         >
                                             이동식 짐보관 서비스 신청하기
@@ -548,10 +726,10 @@ const EventStorage: React.FC = () => {
                                     </Grid>
                                 </Grid>
                             </Box>
-                        </Paper>
+                            </StyledFormPaper>
+                        </Grid>
                     </Grid>
-                </Grid>
-            </Container>
+                </Container>
 
             {/* 신청 완료 모달 대화상자 */}
             <Dialog
@@ -578,8 +756,10 @@ const EventStorage: React.FC = () => {
                         확인
                     </Button>
                 </DialogActions>
-            </Dialog>
-        </Box>
+                    </Dialog>
+                <Footer />
+            </Box>
+        </>
     );
 };
 
