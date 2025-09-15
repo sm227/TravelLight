@@ -164,7 +164,7 @@ const ReviewsList: React.FC<ReviewsListProps> = ({
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 600, color: '#333' }}>
-            리뷰 ({summary?.totalReviews || 0})
+            {t('reviewsWithCount', { count: summary?.totalReviews || 0 })}
           </Typography>
           
           {canWriteReview && currentUserId && (
