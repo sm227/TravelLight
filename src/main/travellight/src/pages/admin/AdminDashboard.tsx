@@ -217,6 +217,7 @@ const AdminDashboard = () => {
     }
   }, [partnerships]);
 
+
   // 자동 스크롤 기능
   useEffect(() => {
     if (!isHovering && storageUsages.length > 3) {
@@ -359,7 +360,6 @@ const AdminDashboard = () => {
       { name: '대형 가방', count: totalLarge, color: COLORS.warning }
     ].filter(item => item.count > 0);
   }, [recentReservations]);
-
 
 
   return (
@@ -979,6 +979,7 @@ const AdminDashboard = () => {
           </Paper>
         </Grid>
       </Grid>
+
 
       {/* AI 채팅 인터페이스 */}
       {isChatOpen && (

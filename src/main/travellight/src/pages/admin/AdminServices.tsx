@@ -98,6 +98,7 @@ const AdminServices = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
+  const [cacheStats, setCacheStats] = useState({ cacheSize: 0 });
 
   // AWS 서비스 상태 체크
   const checkAWSServices = async () => {
@@ -123,11 +124,48 @@ const AdminServices = () => {
     }
   };
 
+  // 캐시 통계 로드
+  const loadCacheStats = async () => {
+    try {
+      const response = await fetch('/api/admin/query/cache/stats');
+      const data = await response.json();
+      if (data.success) {
+        setCacheStats(data);
+      }
+    } catch (error) {
+      console.error('캐시 통계 로드 실패:', error);
+    }
+  };
+
+  // 캐시 삭제
+  const handleClearCache = async () => {
+    try {
+      const response = await fetch('/api/admin/query/cache/clear', {
+        method: 'DELETE'
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setCacheStats({ cacheSize: 0 });
+        alert('캐시가 성공적으로 삭제되었습니다.');
+      } else {
+        alert('캐시 삭제 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error('캐시 삭제 실패:', error);
+      alert('캐시 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
   useEffect(() => {
     checkAWSServices();
-    
+    loadCacheStats();
+
     // 30초마다 자동 새로고침
-    const interval = setInterval(checkAWSServices, 30000);
+    const interval = setInterval(() => {
+      checkAWSServices();
+      loadCacheStats();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -290,6 +328,62 @@ const AdminServices = () => {
                       px: 1
                     }}
                   />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* AI 쿼리 캐시 관리 카드 */}
+          <Grid item xs={12}>
+            <Card sx={{
+              bgcolor: COLORS.backgroundCard,
+              border: `1px solid ${COLORS.borderPrimary}`,
+              borderRadius: 1,
+              mb: 2
+            }}>
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                      <MemoryIcon sx={{ color: COLORS.accentSecondary, mr: 1, fontSize: '1.25rem' }} />
+                      <Typography variant="h6" sx={{ color: COLORS.textPrimary }}>
+                        AI 쿼리 캐시 관리
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
+                      저장된 쿼리: {cacheStats.cacheSize}개 | 자동 TTL: 2시간
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={loadCacheStats}
+                      startIcon={<RefreshIcon />}
+                      sx={{
+                        color: COLORS.accentPrimary,
+                        borderColor: COLORS.accentPrimary,
+                        '&:hover': {
+                          backgroundColor: `${COLORS.accentPrimary}15`,
+                        }
+                      }}
+                    >
+                      새로고침
+                    </Button>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      onClick={handleClearCache}
+                      sx={{
+                        backgroundColor: COLORS.danger,
+                        '&:hover': {
+                          backgroundColor: `${COLORS.danger}dd`,
+                        }
+                      }}
+                    >
+                      캐시 삭제
+                    </Button>
+                  </Box>
                 </Box>
               </CardContent>
             </Card>
