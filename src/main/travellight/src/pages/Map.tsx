@@ -23,6 +23,16 @@ import {
   Menu,
   Divider,
   Typography,
+  Modal,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormLabel,
+  CircularProgress,
+  Stepper,
+  Step,
+  StepLabel,
+  Paper,
 } from "@mui/material";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
@@ -49,7 +59,8 @@ import ShareIcon from "@mui/icons-material/Share";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import StorefrontIcon from "@mui/icons-material/Storefront";
+import StorefrontIcon from '@mui/icons-material/Storefront';
+import PriceCheckIcon from '@mui/icons-material/PriceCheck';
 import TranslateIcon from "@mui/icons-material/Translate";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
@@ -65,7 +76,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { getMyReservations, cancelReservation, cancelPayment } from '../services/reservationService';
 import { ReservationDto } from '../types/reservation';
 import ReviewsList from '../components/reviews/ReviewsList';
-import { reviewService } from '../services/api';
+import ReviewForm from '../components/reviews/ReviewForm';
+import { reviewService, Partnership, partnershipService, DeliveryRequest, DeliveryResponse } from '../services/api';
 import QrCodeIcon from '@mui/icons-material/QrCode';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 
@@ -117,6 +129,17 @@ interface BusinessHourDto {
   open: string;
   close: string;
 }
+
+// 배달 관련 상수
+const deliverySteps = ['배달 방식 선택', '배달 정보 입력', '정보 확인 및 신청'];
+
+// 배달 상태 정보와 스텝 추가
+const deliveryStatusSteps = [
+  { status: 'PENDING', label: '배송접수' },
+  { status: 'ACCEPTED', label: '배송준비' },
+  { status: 'PICKED_UP', label: '배송중' },
+  { status: 'DELIVERED', label: '배송완료' }
+];
 
 //영문 지도 변환
 const Map = () => {
@@ -219,6 +242,34 @@ const Map = () => {
   const [cancellingReservation, setCancellingReservation] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string>('');
   const [cancelSuccess, setCancelSuccess] = useState<string>('');
+
+  // 리뷰 관련 상태
+  const [reviewFormOpen, setReviewFormOpen] = useState(false);
+  const [selectedReservationForReview, setSelectedReservationForReview] = useState<ReservationDto | null>(null);
+  const [reviewStatuses, setReviewStatuses] = useState<{[key: number]: boolean}>({});
+  const [editingReview, setEditingReview] = useState<any>(null);
+
+  // 배달 관련 상태
+  const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
+  const [deliveryType, setDeliveryType] = useState('');
+  const [currentReservationForDelivery, setCurrentReservationForDelivery] = useState<ReservationDto | null>(null);
+  const [customAddress, setCustomAddress] = useState('');
+  const [deliveryStep, setDeliveryStep] = useState(0);
+  
+  // 제휴 매장 관련 상태
+  const [partnerStores, setPartnerStores] = useState<Partnership[]>([]);
+  const [selectedPartner, setSelectedPartner] = useState<Partnership | null>(null);
+  const [loadingPartners, setLoadingPartners] = useState(false);
+  const [estimatedPrice, setEstimatedPrice] = useState<number>(0);
+
+  // 검색 관련 상태
+  const [partnerSearchQuery, setPartnerSearchQuery] = useState('');
+  const [partnerSearchResults, setPartnerSearchResults] = useState<Partnership[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // 배달 상태 정보 추가
+  const [deliveries, setDeliveries] = useState<DeliveryResponse[]>([]);
+  const [loadingDeliveries, setLoadingDeliveries] = useState(false);
 
   // 사용자 메뉴 및 언어 메뉴 상태
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -374,6 +425,28 @@ const Map = () => {
           fetchStorageStatus(reservation.reservationNumber);
         }
       });
+
+      // 각 예약에 대한 배달 정보 조회
+      const deliveryPromises = updatedReservations.map(reservation => 
+        fetchDeliveryStatus(reservation.id)
+      );
+      
+      const deliveryResults = await Promise.all(deliveryPromises);
+      setDeliveries(deliveryResults.flat());
+
+      // 각 예약의 리뷰 상태 확인
+      const reviewPromises = updatedReservations.map(async (reservation) => {
+        const hasReview = await checkReviewStatus(reservation.id);
+        return { reservationId: reservation.id, hasReview };
+      });
+      
+      const reviewResults = await Promise.all(reviewPromises);
+      const reviewStatusMap = reviewResults.reduce((acc, { reservationId, hasReview }) => {
+        acc[reservationId] = hasReview;
+        return acc;
+      }, {} as {[key: number]: boolean});
+      
+      setReviewStatuses(reviewStatusMap);
     } catch (error) {
       console.error('예약 목록을 불러오는데 실패했습니다:', error);
     } finally {
@@ -649,6 +722,300 @@ const Map = () => {
     } finally {
       setCancellingReservation(null);
     }
+  };
+
+  // ========== 리뷰 관련 함수들 ==========
+  
+  // 예약의 리뷰 상태 확인 함수
+  const checkReviewStatus = async (reservationId: number) => {
+    try {
+      const response = await reviewService.getReviewStatus(reservationId);
+      return response.data.hasReview;
+    } catch (error) {
+      console.error('리뷰 상태 확인 실패:', error);
+      return false;
+    }
+  };
+
+  // 리뷰 작성 핸들러
+  const handleWriteReview = async (reservation: ReservationDto) => {
+    try {
+      // 사용자 인증 확인
+      if (!user?.id) {
+        alert('로그인이 필요합니다.');
+        return;
+      }
+
+      // 예약 상태 먼저 확인
+      if (reservation.status !== 'COMPLETED') {
+        alert('완료된 예약에만 리뷰를 작성할 수 있습니다.');
+        return;
+      }
+
+      // 먼저 최신 리뷰 상태 확인 (실시간 체크)
+      console.log('리뷰 상태 재확인 중...');
+      const hasReview = await checkReviewStatus(reservation.id);
+      
+      // 상태 업데이트
+      setReviewStatuses(prev => ({
+        ...prev,
+        [reservation.id]: hasReview
+      }));
+
+      if (hasReview) {
+        alert('이미 리뷰를 작성한 예약입니다. 페이지를 새로고침하겠습니다.');
+        await fetchMyReservations(); // 예약 목록 새로고침
+        return;
+      }
+
+      // 리뷰 작성 가능 여부 확인 (이중 체크)
+      const canWriteResponse = await reviewService.canWriteReview(reservation.id, user.id);
+      
+      if (canWriteResponse.data) {
+        setSelectedReservationForReview(reservation);
+        setReviewFormOpen(true);
+      } else {
+        alert('이미 리뷰를 작성했거나 리뷰 작성이 불가능한 예약입니다.');
+        // 상태 강제 업데이트
+        setReviewStatuses(prev => ({
+          ...prev,
+          [reservation.id]: true
+        }));
+      }
+    } catch (error: any) {
+      console.error('리뷰 작성 중 오류:', error);
+      alert('리뷰 작성 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 리뷰 수정 핸들러
+  const handleEditReview = async (reservation: ReservationDto) => {
+    try {
+      const response = await reviewService.getReviewByReservation(reservation.id);
+      setEditingReview(response.data);
+      setSelectedReservationForReview(reservation);
+      setReviewFormOpen(true);
+    } catch (error) {
+      console.error('리뷰 조회 실패:', error);
+      alert('리뷰 정보를 불러오는데 실패했습니다.');
+    }
+  };
+
+  // 리뷰 삭제 핸들러
+  const handleDeleteReview = async (reservation: ReservationDto) => {
+    if (!window.confirm('리뷰를 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      const response = await reviewService.getReviewByReservation(reservation.id);
+      await reviewService.deleteReview(response.data.id);
+      
+      // 상태 업데이트
+      setReviewStatuses(prev => ({
+        ...prev,
+        [reservation.id]: false
+      }));
+      
+      alert('리뷰가 삭제되었습니다.');
+    } catch (error) {
+      console.error('리뷰 삭제 실패:', error);
+      alert('리뷰 삭제에 실패했습니다.');
+    }
+  };
+
+  // 리뷰 제출 핸들러
+  const handleReviewSubmit = async (reviewData: any) => {
+    try {
+      if (!user?.id || !selectedReservationForReview) {
+        alert('로그인이 필요하거나 잘못된 요청입니다.');
+        return;
+      }
+
+      if (editingReview) {
+        // 수정
+        await reviewService.updateReview(selectedReservationForReview.id, reviewData, user.id);
+        alert('리뷰가 수정되었습니다.');
+      } else {
+        // 새 리뷰 작성
+        await reviewService.createReview(reviewData, user.id);
+        alert('리뷰가 작성되었습니다.');
+        
+        // 상태 업데이트
+        setReviewStatuses(prev => ({
+          ...prev,
+          [selectedReservationForReview.id]: true
+        }));
+      }
+      
+      setReviewFormOpen(false);
+      setSelectedReservationForReview(null);
+      setEditingReview(null);
+    } catch (error) {
+      console.error('리뷰 처리 실패:', error);
+      alert('리뷰 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  // ========== 배달 관련 함수들 ==========
+
+  // 배달 상태 정보 조회
+  const fetchDeliveryStatus = async (reservationId: number) => {
+    try {
+      setLoadingDeliveries(true);
+      const response = await axios.get(`/api/deliveries/reservation/${reservationId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('배달 정보를 불러오는데 실패했습니다:', error);
+      return [];
+    } finally {
+      setLoadingDeliveries(false);
+    }
+  };
+
+  // 배달 상태 스텝 인덱스 계산
+  const getDeliveryStatusIndex = (status: string) => {
+    const index = deliveryStatusSteps.findIndex(step => step.status === status);
+    return index >= 0 ? index : 0;
+  };
+
+  // 예약의 배달 정보 조회
+  const getDeliveriesForReservation = (reservationId: number) => {
+    return deliveries.filter(delivery => delivery.reservationId === reservationId);
+  };
+
+  // 배달 신청 시작
+  const handleStartDelivery = (reservation: ReservationDto) => {
+    setCurrentReservationForDelivery(reservation);
+    setDeliveryStep(0);
+    setDeliveryType('');
+    setCustomAddress('');
+    setSelectedPartner(null);
+    setEstimatedPrice(0);
+    setPartnerSearchQuery('');
+    setPartnerSearchResults([]);
+    setIsDeliveryModalOpen(true);
+  };
+
+  // 배달 모달 닫기
+  const handleCloseDeliveryModal = () => {
+    setIsDeliveryModalOpen(false);
+    setCurrentReservationForDelivery(null);
+    setDeliveryStep(0);
+    setDeliveryType('');
+    setCustomAddress('');
+    setSelectedPartner(null);
+    setEstimatedPrice(0);
+    setPartnerSearchQuery('');
+    setPartnerSearchResults([]);
+  };
+
+  // 배달 유형 변경
+  const handleDeliveryTypeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setDeliveryType(event.target.value);
+  };
+
+  // 다음 단계
+  const handleNextStep = () => {
+    setDeliveryStep(prev => prev + 1);
+  };
+
+  // 이전 단계
+  const handlePrevStep = () => {
+    if (deliveryStep === 0) {
+      handleCloseDeliveryModal();
+    } else {
+      setDeliveryStep(prev => prev - 1);
+    }
+  };
+
+  // 제휴 매장 선택
+  const handlePartnerSelect = (partner: Partnership) => {
+    setSelectedPartner(partner);
+    calculatePartnerPrice(partner);
+  };
+
+  // 제휴 매장 배달 가격 계산
+  const calculatePartnerPrice = (partner: Partnership) => {
+    // 간단한 가격 계산 로직 (실제로는 더 복잡한 로직 필요)
+    const basePrice = 3000;
+    const distance = Math.random() * 10; // 실제로는 거리 계산 필요
+    const calculatedPrice = basePrice + (distance * 500);
+    setEstimatedPrice(Math.round(calculatedPrice));
+  };
+
+  // 일반 주소 배달 가격 계산
+  const calculatePrice = () => {
+    if (!customAddress.trim()) return;
+    
+    // 간단한 가격 계산 로직
+    const basePrice = 5000;
+    const calculatedPrice = basePrice + Math.random() * 3000;
+    setEstimatedPrice(Math.round(calculatedPrice));
+  };
+
+  // 배달 신청 제출
+  const handleDeliverySubmit = async () => {
+    if (!currentReservationForDelivery || !user) return;
+    
+    try {
+      const deliveryData = {
+        userId: user.id,
+        reservationId: currentReservationForDelivery.id,
+        pickupAddress: currentReservationForDelivery.placeName,
+        deliveryAddress: deliveryType === 'partner' && selectedPartner 
+          ? selectedPartner.address 
+          : customAddress,
+        itemDescription: `소형 ${currentReservationForDelivery.smallBags}개, 중형 ${currentReservationForDelivery.mediumBags}개, 대형 ${currentReservationForDelivery.largeBags}개`,
+        weight: currentReservationForDelivery.smallBags + currentReservationForDelivery.mediumBags + currentReservationForDelivery.largeBags
+      };
+      
+      // 배달 요청 API 호출
+      const response = await axios.post('/api/deliveries', deliveryData);
+      
+      // 성공 메시지 표시
+      alert('배달 신청이 완료되었습니다.');
+      
+      // 모달 닫기
+      handleCloseDeliveryModal();
+      
+      // 예약 목록 새로고침
+      await fetchMyReservations();
+    } catch (error) {
+      console.error('배달 신청 중 오류:', error);
+      alert('배달 신청 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 검색 기능 구현
+  const handleSearch = async () => {
+    if (!partnerSearchQuery.trim()) {
+      setPartnerSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await partnershipService.getAllPartnerships();
+      const approvedPartners = response.data.filter(p => p.status === 'APPROVED');
+      
+      // 검색어로 필터링
+      const filteredPartners = approvedPartners.filter(partner => 
+        partner.businessName.toLowerCase().includes(partnerSearchQuery.toLowerCase()) ||
+        partner.address.toLowerCase().includes(partnerSearchQuery.toLowerCase())
+      );
+      
+      setPartnerSearchResults(filteredPartners);
+    } catch (error) {
+      console.error('매장 검색 중 오류:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // 검색어 변경 핸들러
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setPartnerSearchQuery(event.target.value);
   };
 
   // 공통 스크롤바 스타일 정의
@@ -4945,6 +5312,175 @@ const Map = () => {
                         </Typography>
                       </Box>
 
+                      {/* 액션 버튼들 */}
+                      <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+                        {/* 배달 정보 표시 */}
+                        {(() => {
+                          const tripDeliveries = getDeliveriesForReservation(reservation.id);
+                          const hasDelivery = tripDeliveries.length > 0;
+                          
+                          return (
+                            <>
+                              {hasDelivery && (
+                                <Box sx={{ 
+                                  padding: 2, 
+                                  borderTop: '1px solid #e0e0e0',
+                                  backgroundColor: '#f8f9fa',
+                                  borderRadius: '8px',
+                                  mb: 1
+                                }}>
+                                  {tripDeliveries.map((delivery, index) => (
+                                    <Box key={delivery.id} sx={{ mb: index < tripDeliveries.length - 1 ? 2 : 0 }}>
+                                      <Typography variant="subtitle2" sx={{ mb: 1, color: '#1976d2' }}>
+                                        배달 진행 상태
+                                      </Typography>
+                                      <Stepper activeStep={getDeliveryStatusIndex(delivery.status)} sx={{ width: '100%' }}>
+                                        {deliveryStatusSteps.map((step, stepIndex) => (
+                                          <Step key={step.status} completed={stepIndex <= getDeliveryStatusIndex(delivery.status)}>
+                                            <StepLabel>{step.label}</StepLabel>
+                                          </Step>
+                                        ))}
+                                      </Stepper>
+                                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                                        배달 신청일: {new Date(delivery.requestedAt).toLocaleString()}
+                                      </Typography>
+                                    </Box>
+                                  ))}
+                                </Box>
+                              )}
+                              
+                              {/* 액션 버튼들 - 배달 여부와 관계없이 항상 표시 */}
+                              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                                {/* 예약 상태별 버튼들 */}
+                                {reservation.status === 'RESERVED' && (
+                                  <Button
+                                    fullWidth
+                                    variant="contained"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openNaverMap(reservation);
+                                    }}
+                                    sx={{
+                                      backgroundColor: '#03C75A',
+                                      color: 'white',
+                                      '&:hover': {
+                                        backgroundColor: '#02a74a'
+                                      },
+                                      fontSize: '12px',
+                                      py: 0.8
+                                    }}
+                                  >
+                                    네이버맵 길찾기
+                                  </Button>
+                                )}
+                                
+                                {/* 배달 신청 버튼 - 배달이 없는 경우에만 표시 */}
+                                {!hasDelivery && (
+                                  <Button
+                                    fullWidth
+                                    variant="outlined"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStartDelivery(reservation);
+                                    }}
+                                    disabled={reservation.status !== 'COMPLETED' && reservation.status !== 'RESERVED'}
+                                    sx={{
+                                      borderColor: '#1976d2',
+                                      color: '#1976d2',
+                                      '&:hover': {
+                                        backgroundColor: '#e3f2fd'
+                                      },
+                                      fontSize: '12px',
+                                      py: 0.8
+                                    }}
+                                  >
+                                    배달 신청하기
+                                  </Button>
+                                )}
+
+                                {/* 리뷰 관련 버튼들 - 배달 여부와 관계없이 COMPLETED 상태에서 항상 표시 */}
+                                {reservation.status === 'COMPLETED' && (
+                                  <>
+                                    {reviewStatuses[reservation.id] ? (
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Button
+                                          variant="contained"
+                                          disabled
+                                          sx={{
+                                            flex: 1,
+                                            backgroundColor: '#4CAF50',
+                                            color: 'white',
+                                            fontSize: '11px',
+                                            py: 0.8,
+                                            opacity: 0.8
+                                          }}
+                                        >
+                                          ✅ 리뷰 완료
+                                        </Button>
+                                        <Button
+                                          variant="outlined"
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEditReview(reservation);
+                                          }}
+                                          sx={{
+                                            borderColor: '#2196F3',
+                                            color: '#2196F3',
+                                            fontSize: '10px',
+                                            minWidth: 'auto',
+                                            px: 1
+                                          }}
+                                        >
+                                          ✏️
+                                        </Button>
+                                        <Button
+                                          variant="outlined"
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteReview(reservation);
+                                          }}
+                                          sx={{
+                                            borderColor: '#f44336',
+                                            color: '#f44336',
+                                            fontSize: '10px',
+                                            minWidth: 'auto',
+                                            px: 1
+                                          }}
+                                        >
+                                          🗑️
+                                        </Button>
+                                      </Box>
+                                    ) : (
+                                      <Button
+                                        fullWidth
+                                        variant="contained"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleWriteReview(reservation);
+                                        }}
+                                        sx={{
+                                          backgroundColor: '#FF5722',
+                                          color: 'white',
+                                          '&:hover': {
+                                            backgroundColor: '#E64A19'
+                                          },
+                                          fontSize: '12px',
+                                          py: 0.8
+                                        }}
+                                      >
+                                        ⭐ 리뷰 작성하기
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </Box>
+                            </>
+                          );
+                        })()}
+                      </Box>
+
                       {/* 보관 상태 인디케이터 */}
                       {storageStatuses[reservation.reservationNumber] && (
                         <Box sx={{ mt: 1 }}>
@@ -5373,7 +5909,7 @@ const Map = () => {
 
                       {/* 리뷰 탭 */}
                       {selectedTab === 'reviews' && (
-                        <Box sx={{ maxHeight: '400px', overflow: 'auto' }}>
+                        <Box>
                           <ReviewsList
                             placeName={selectedPlace.place_name}
                             placeAddress={selectedPlace.address_name}
@@ -7756,6 +8292,329 @@ const Map = () => {
           English
         </MenuItem>
       </Menu>
+
+      {/* 배달 신청 모달 */}
+      <Modal
+        open={isDeliveryModalOpen}
+        onClose={handleCloseDeliveryModal}
+        aria-labelledby="delivery-modal-title"
+        aria-describedby="delivery-modal-description"
+      >
+        <Box sx={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: { xs: '90%', sm: '500px' },
+          maxHeight: '90vh',
+          overflow: 'auto',
+          bgcolor: 'background.paper',
+          boxShadow: 24,
+          borderRadius: 2,
+          p: 3
+        }}>
+          <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
+            배달 서비스 신청
+          </Typography>
+
+          {/* 스텝 인디케이터 */}
+          <Stepper activeStep={deliveryStep} alternativeLabel sx={{ mb: 3 }}>
+            {deliverySteps.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+
+          {/* 스텝별 컨텐츠 */}
+          {deliveryStep === 0 && (
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                짐을 어디로 배달할지 선택해주세요
+              </Typography>
+
+              <FormControl component="fieldset">
+                <RadioGroup
+                  value={deliveryType}
+                  onChange={handleDeliveryTypeChange}
+                >
+                  <Paper 
+                    variant="outlined" 
+                    sx={{ 
+                      p: 2, 
+                      mb: 2, 
+                      border: deliveryType === 'partner' ? 2 : 1,
+                      borderColor: deliveryType === 'partner' ? 'primary.main' : 'grey.300'
+                    }}
+                  >
+                    <FormControlLabel
+                      value="partner"
+                      control={<Radio />}
+                      label={
+                        <Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <StorefrontIcon color="primary" />
+                            <Typography variant="subtitle1">
+                              트래블라이트 제휴 매장으로 배달
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" color="text.secondary">
+                            전국 각지의 트래블라이트 제휴 매장으로 짐을 배달받을 수 있습니다.
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </Paper>
+
+                  <Paper 
+                    variant="outlined" 
+                    sx={{ 
+                      p: 2, 
+                      border: deliveryType === 'custom' ? 2 : 1,
+                      borderColor: deliveryType === 'custom' ? 'primary.main' : 'grey.300'
+                    }}
+                  >
+                    <FormControlLabel
+                      value="custom"
+                      control={<Radio />}
+                      label={
+                        <Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <LocationOnIcon color="primary" />
+                            <Typography variant="subtitle1">
+                              특정 주소로 배달
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" color="text.secondary">
+                            집, 호텔, 회사 등 원하는 주소지로 짐을 배달받을 수 있습니다.
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </Paper>
+                </RadioGroup>
+              </FormControl>
+            </Box>
+          )}
+
+          {deliveryStep === 1 && (
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                {deliveryType === 'partner' ? '제휴 매장 선택' : '배달 주소 입력'}
+              </Typography>
+
+              {deliveryType === 'partner' ? (
+                <Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    배달받을 제휴 매장을 검색하거나 선택해주세요
+                  </Typography>
+
+                  <TextField
+                    fullWidth
+                    label="매장명 또는 주소로 검색"
+                    variant="outlined"
+                    value={partnerSearchQuery}
+                    onChange={handleSearchChange}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    sx={{ mb: 2 }}
+                    InputProps={{
+                      endAdornment: (
+                        <Button 
+                          variant="contained" 
+                          onClick={handleSearch}
+                          disabled={isSearching}
+                          sx={{ ml: 1 }}
+                        >
+                          {isSearching ? <CircularProgress size={20} /> : '검색'}
+                        </Button>
+                      ),
+                    }}
+                  />
+
+                  {isSearching ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : partnerSearchResults.length > 0 ? (
+                    <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
+                      {partnerSearchResults.map((partner) => (
+                        <Paper
+                          key={partner.id}
+                          variant="outlined"
+                          sx={{
+                            p: 2,
+                            mb: 1,
+                            cursor: 'pointer',
+                            border: selectedPartner?.id === partner.id ? 2 : 1,
+                            borderColor: selectedPartner?.id === partner.id ? 'primary.main' : 'grey.300'
+                          }}
+                          onClick={() => handlePartnerSelect(partner)}
+                        >
+                          <Typography variant="subtitle1">{partner.businessName}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {partner.address}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {partner.is24Hours ? '24시간 영업' : '영업시간: 09:00-18:00'}
+                          </Typography>
+                          {selectedPartner?.id === partner.id && estimatedPrice > 0 && (
+                            <Typography variant="body2" color="primary" sx={{ mt: 1 }}>
+                              예상 배달 가격: {estimatedPrice.toLocaleString()}원
+                            </Typography>
+                          )}
+                        </Paper>
+                      ))}
+                    </Box>
+                  ) : partnerSearchQuery ? (
+                    <Alert severity="info">검색 결과가 없습니다.</Alert>
+                  ) : null}
+                </Box>
+              ) : (
+                <Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    정확한 주소를 입력해주세요
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    label="배달 주소"
+                    variant="outlined"
+                    value={customAddress}
+                    onChange={(e) => setCustomAddress(e.target.value)}
+                    sx={{ mb: 2 }}
+                  />
+                  {customAddress && (
+                    <Button 
+                      variant="outlined" 
+                      onClick={calculatePrice}
+                      sx={{ mb: 2 }}
+                    >
+                      배달 가격 계산하기
+                    </Button>
+                  )}
+                  {estimatedPrice > 0 && (
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography variant="subtitle2">예상 배달 가격</Typography>
+                      <Typography variant="h5" color="primary">
+                        {estimatedPrice.toLocaleString()}원
+                      </Typography>
+                    </Paper>
+                  )}
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {deliveryStep === 2 && (
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                배달 신청 확인
+              </Typography>
+
+              <Paper variant="outlined" sx={{ p: 2 }}>
+                <Typography variant="subtitle1" sx={{ mb: 2 }}>배달 정보</Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2">배달 유형:</Typography>
+                    <Typography variant="body2">
+                      {deliveryType === 'partner' ? '제휴 매장으로 배달' : '특정 주소로 배달'}
+                    </Typography>
+                  </Box>
+
+                  {deliveryType === 'partner' && selectedPartner && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">배달 매장:</Typography>
+                      <Typography variant="body2">{selectedPartner.businessName}</Typography>
+                    </Box>
+                  )}
+
+                  {deliveryType === 'custom' && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">배달 주소:</Typography>
+                      <Typography variant="body2">{customAddress}</Typography>
+                    </Box>
+                  )}
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2">짐 정보:</Typography>
+                    <Typography variant="body2">
+                      소형 {currentReservationForDelivery?.smallBags}개, 
+                      중형 {currentReservationForDelivery?.mediumBags}개, 
+                      대형 {currentReservationForDelivery?.largeBags}개
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2">보관 위치:</Typography>
+                    <Typography variant="body2">{currentReservationForDelivery?.placeName}</Typography>
+                  </Box>
+
+                  <Divider sx={{ my: 1 }} />
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2">예상 배달 가격:</Typography>
+                    <Typography variant="subtitle2" color="primary">
+                      {estimatedPrice.toLocaleString()}원
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
+
+              <Alert severity="info" sx={{ mt: 2 }}>
+                배달 접수 후 배달 예정 시간은 문자로 안내드립니다.
+              </Alert>
+            </Box>
+          )}
+
+          {/* 액션 버튼들 */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+            <Button variant="outlined" onClick={handlePrevStep}>
+              {deliveryStep === 0 ? '취소' : '이전'}
+            </Button>
+            
+            {deliveryStep === 2 ? (
+              <Button 
+                variant="contained" 
+                onClick={handleDeliverySubmit}
+              >
+                배달 신청하기
+              </Button>
+            ) : (
+              <Button 
+                variant="contained" 
+                onClick={handleNextStep}
+                disabled={
+                  (deliveryStep === 0 && !deliveryType) || 
+                  (deliveryStep === 1 && (
+                    (deliveryType === 'partner' && !selectedPartner) || 
+                    (deliveryType === 'custom' && !customAddress)
+                  ))
+                }
+              >
+                다음
+              </Button>
+            )}
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* 리뷰 작성 폼 */}
+      {selectedReservationForReview && (
+        <ReviewForm
+          open={reviewFormOpen}
+          onClose={() => {
+            setReviewFormOpen(false);
+            setSelectedReservationForReview(null);
+            setEditingReview(null);
+          }}
+          onSubmit={handleReviewSubmit}
+          reservationId={selectedReservationForReview.id}
+          placeName={selectedReservationForReview.placeName}
+          placeAddress={selectedReservationForReview.placeAddress}
+          userId={user?.id}
+          editingReview={editingReview}
+        />
+      )}
     </>
   );
 };
