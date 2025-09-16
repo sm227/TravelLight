@@ -4533,8 +4533,8 @@ const Map = () => {
         {!selectedPlace && !showReservations && !selectedReservation && (
           <Box
             sx={{
-              px: 3,
-              py: 2,
+              px: 2,
+              py: 1.5,
               borderBottom: shouldShowResultArea() ? "1px solid rgba(0, 0, 0, 0.06)" : "none",
               backgroundColor: "rgba(255, 255, 255, 0.98)",
               borderRadius: shouldShowResultArea() ? "0" : "0 0 16px 16px", // 결과 영역이 없으면 하단 모서리 둥글게
@@ -4554,8 +4554,8 @@ const Map = () => {
                 size="small"
                 sx={{
                   "& .MuiOutlinedInput-root": {
-                    height: "40px",
-                    borderRadius: "12px",
+                    height: "36px",
+                    borderRadius: "10px",
                     backgroundColor: "#f8f9fa",
                     "& fieldset": {
                       border: "none",
@@ -4575,8 +4575,8 @@ const Map = () => {
                     },
                   },
                   "& .MuiInputBase-input": {
-                    padding: "8px 12px",
-                    fontSize: "14px",
+                    padding: "6px 10px",
+                    fontSize: "13px",
                   },
                 }}
               />
@@ -4587,12 +4587,12 @@ const Map = () => {
                 disabled={isPaymentComplete}
                 size="small"
                 sx={{
-                  minWidth: "60px",
-                  height: "40px",
-                  borderRadius: "12px",
+                  minWidth: "50px",
+                  height: "36px",
+                  borderRadius: "10px",
                   boxShadow: "none",
-                  padding: "0 12px",
-                  fontSize: "14px",
+                  padding: "0 10px",
+                  fontSize: "13px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -4616,9 +4616,9 @@ const Map = () => {
             </Box>
 
             {/* 시간 선택 영역 */}
-            <Box sx={{ mt: 1.5, display: "flex", gap: 1.5 }}>
+            <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
               <FormControl sx={{ flex: 1 }} size="small">
-                <InputLabel id="start-time-label" sx={{ fontSize: "14px" }}>{t("start")}</InputLabel>
+                <InputLabel id="start-time-label" sx={{ fontSize: "13px" }}>{t("start")}</InputLabel>
                 <Select
                   labelId="start-time-label"
                   value={startTime}
@@ -4634,10 +4634,10 @@ const Map = () => {
                     }
                   }}
                   sx={{
-                    height: "40px",
-                    borderRadius: "12px",
+                    height: "36px",
+                    borderRadius: "10px",
                     backgroundColor: "#f8f9fa",
-                    fontSize: "14px",
+                    fontSize: "13px",
                     "& .MuiOutlinedInput-notchedOutline": {
                       border: "none",
                     },
@@ -4694,7 +4694,7 @@ const Map = () => {
                 </Select>
               </FormControl>
               <FormControl sx={{ flex: 1 }} size="small">
-                <InputLabel id="end-time-label" sx={{ fontSize: "14px" }}>{t("end")}</InputLabel>
+                <InputLabel id="end-time-label" sx={{ fontSize: "13px" }}>{t("end")}</InputLabel>
                 <Select
                   labelId="end-time-label"
                   value={endTime}
@@ -4707,10 +4707,10 @@ const Map = () => {
                     }
                   }}
                   sx={{
-                    height: "40px",
-                    borderRadius: "12px",
+                    height: "36px",
+                    borderRadius: "10px",
                     backgroundColor: "#f8f9fa",
-                    fontSize: "14px",
+                    fontSize: "13px",
                     "& .MuiOutlinedInput-notchedOutline": {
                       border: "none",
                     },
@@ -5334,7 +5334,36 @@ const Map = () => {
                                       <Typography variant="subtitle2" sx={{ mb: 1, color: '#1976d2' }}>
                                         배달 진행 상태
                                       </Typography>
-                                      <Stepper activeStep={getDeliveryStatusIndex(delivery.status)} sx={{ width: '100%' }}>
+                                      <Stepper 
+                                        activeStep={getDeliveryStatusIndex(delivery.status)} 
+                                        orientation="horizontal"
+                                        alternativeLabel
+                                        sx={{ 
+                                          width: '100%',
+                                          '& .MuiStep-root': {
+                                            padding: 0
+                                          },
+                                          '& .MuiStepLabel-root': {
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            textAlign: 'center'
+                                          },
+                                          '& .MuiStepLabel-label': {
+                                            fontSize: '10px',
+                                            fontWeight: 500,
+                                            whiteSpace: 'nowrap',
+                                            marginTop: '4px',
+                                            textAlign: 'center'
+                                          },
+                                          '& .MuiStepIcon-root': {
+                                            fontSize: '16px'
+                                          },
+                                          '& .MuiStepConnector-root': {
+                                            top: '8px'
+                                          }
+                                        }}
+                                      >
                                         {deliveryStatusSteps.map((step, stepIndex) => (
                                           <Step key={step.status} completed={stepIndex <= getDeliveryStatusIndex(delivery.status)}>
                                             <StepLabel>{step.label}</StepLabel>
@@ -5461,7 +5490,7 @@ const Map = () => {
                                           handleWriteReview(reservation);
                                         }}
                                         sx={{
-                                          backgroundColor: '#FF5722',
+                                          backgroundColor: '#226fff',
                                           color: 'white',
                                           '&:hover': {
                                             backgroundColor: '#E64A19'
@@ -8318,7 +8347,34 @@ const Map = () => {
           </Typography>
 
           {/* 스텝 인디케이터 */}
-          <Stepper activeStep={deliveryStep} alternativeLabel sx={{ mb: 3 }}>
+          <Stepper 
+            activeStep={deliveryStep} 
+            alternativeLabel 
+            sx={{ 
+              mb: 3,
+              '& .MuiStep-root': {
+                padding: 0
+              },
+              '& .MuiStepLabel-root': {
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center'
+              },
+              '& .MuiStepLabel-label': {
+                fontSize: '12px',
+                fontWeight: 500,
+                textAlign: 'center',
+                marginTop: '4px'
+              },
+              '& .MuiStepIcon-root': {
+                fontSize: '18px'
+              },
+              '& .MuiStepConnector-root': {
+                top: '9px'
+              }
+            }}
+          >
             {deliverySteps.map((label) => (
               <Step key={label}>
                 <StepLabel>{label}</StepLabel>
@@ -8413,19 +8469,38 @@ const Map = () => {
                     fullWidth
                     label="매장명 또는 주소로 검색"
                     variant="outlined"
+                    size="small"
                     value={partnerSearchQuery}
                     onChange={handleSearchChange}
                     onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                    sx={{ mb: 2 }}
+                    sx={{ 
+                      mb: 2,
+                      '& .MuiOutlinedInput-root': {
+                        height: "40px",
+                        borderRadius: "8px",
+                      },
+                      '& .MuiInputBase-input': {
+                        fontSize: "14px",
+                      },
+                      '& .MuiInputLabel-root': {
+                        fontSize: "14px",
+                      }
+                    }}
                     InputProps={{
                       endAdornment: (
                         <Button 
                           variant="contained" 
                           onClick={handleSearch}
                           disabled={isSearching}
-                          sx={{ ml: 1 }}
+                          size="small"
+                          sx={{ 
+                            ml: 1,
+                            minWidth: "65px",
+                            height: "32px",
+                            fontSize: "12px"
+                          }}
                         >
-                          {isSearching ? <CircularProgress size={20} /> : '검색'}
+                          {isSearching ? <CircularProgress size={10} /> : '검색'}
                         </Button>
                       ),
                     }}
