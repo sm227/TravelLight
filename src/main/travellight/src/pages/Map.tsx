@@ -7305,6 +7305,7 @@ const Map = () => {
                 fontSize: "16px",
                 fontWeight: 600,
                 backgroundColor: "#1976d2",
+                color: "white",
                 boxShadow: "0 2px 8px rgba(25, 118, 210, 0.3)",
                 "&:hover": {
                   backgroundColor: "#1565c0",
@@ -7312,18 +7313,22 @@ const Map = () => {
                 },
               }}
               onClick={() => {
-                setIsReservationOpen(true);
-                setReservationStep('bag-selection'); // 단계 초기화
-                // 초기화
-                setBagSizes({
-                  small: 0,
-                  medium: 0,
-                  large: 0,
-                });
-                setTotalPrice(0);
+                if (isAuthenticated) {
+                  setIsReservationOpen(true);
+                  setReservationStep('bag-selection'); // 단계 초기화
+                  // 초기화
+                  setBagSizes({
+                    small: 0,
+                    medium: 0,
+                    large: 0,
+                  });
+                  setTotalPrice(0);
+                } else {
+                  navigate('/login');
+                }
               }}
             >
-              {t('makeReservation')}
+              {isAuthenticated ? t('makeReservation') : t('loginToReserve')}
             </Button>
           </Box>
         )}
