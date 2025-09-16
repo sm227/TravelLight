@@ -4,8 +4,8 @@ import {
   Container, 
   Typography, 
   TextField, 
-  Button, 
-  Link, 
+  Button,
+  Link,
   IconButton,
   Snackbar,
   Alert,
@@ -15,9 +15,9 @@ import {
   Grid,
   Stack
 } from '@mui/material';
-import { 
-  Visibility, 
-  VisibilityOff, 
+import {
+  Visibility,
+  VisibilityOff,
   FlightTakeoff,
   TravelExplore,
   Luggage,
@@ -186,21 +186,21 @@ const Login = () => {
           email,
           password,
         });
-        
+
         login(response.data);
         setLoginSuccess(true);
-        
+
         setTimeout(() => {
           navigate('/');
         }, 1500);
       } catch (error) {
         console.error('로그인 오류:', error);
         let errorMessage = '로그인 중 오류가 발생했습니다.';
-        
+
         if (axios.isAxiosError(error) && error.response?.data?.message) {
           errorMessage = error.response.data.message;
         }
-        
+
         setSnackbar({
           open: true,
           message: errorMessage,
@@ -215,7 +215,7 @@ const Login = () => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#F8FAFC' }}>
       <Navbar />
-      
+
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', py: { xs: 4, md: 8 } }}>
         <Container maxWidth="lg">
           <Grid container spacing={0} sx={{ minHeight: { md: '600px' } }}>
@@ -265,12 +265,12 @@ const Login = () => {
                   <Box sx={{ mb: 4 }}>
                     <Luggage sx={{ fontSize: 64, color: '#3B82F6', mb: 2, opacity: 0.9 }} />
                   </Box>
-                  
-                  <Typography 
-                    variant="h3" 
-                    sx={{ 
-                      fontWeight: 700, 
-                      color: '#0F172A', 
+
+                  <Typography
+                    variant="h3"
+                    sx={{
+                      fontWeight: 700,
+                      color: '#0F172A',
                       mb: 2,
                       fontSize: { xs: '1.75rem', md: '2.25rem' },
                       lineHeight: 1.1,
@@ -282,12 +282,12 @@ const Login = () => {
                       간편하게
                     </Box>
                   </Typography>
-                  
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      color: '#64748B', 
-                      mb: 6, 
+
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: '#64748B',
+                      mb: 6,
                       fontWeight: 400,
                       lineHeight: 1.6,
                       fontSize: '16px'
@@ -305,7 +305,7 @@ const Login = () => {
                       { icon: '📱', text: '모바일 간편 이용' }
                     ].map((feature, index) => (
                       <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Box sx={{ 
+                        <Box sx={{
                           fontSize: '20px',
                           width: '32px',
                           height: '32px',
@@ -318,8 +318,8 @@ const Login = () => {
                         }}>
                           {feature.icon}
                         </Box>
-                        <Typography sx={{ 
-                          color: '#475569', 
+                        <Typography sx={{
+                          color: '#475569',
                           fontSize: '15px',
                           fontWeight: 500,
                           lineHeight: 1.4
@@ -331,22 +331,22 @@ const Login = () => {
                   </Stack>
 
                   {/* 하단 정보 */}
-                  <Box sx={{ 
+                  <Box sx={{
                     mt: 6,
                     pt: 4,
                     borderTop: '1px solid #E2E8F0'
                   }}>
-                    <Typography sx={{ 
-                      fontSize: '14px', 
-                      fontWeight: 600, 
+                    <Typography sx={{
+                      fontSize: '14px',
+                      fontWeight: 600,
                       color: '#3B82F6',
                       letterSpacing: '1px',
                       mb: 1
                     }}>
                       TRAVELLIGHT
                     </Typography>
-                    <Typography sx={{ 
-                      fontSize: '12px', 
+                    <Typography sx={{
+                      fontSize: '12px',
                       color: '#94A3B8',
                       lineHeight: 1.4
                     }}>
@@ -376,21 +376,21 @@ const Login = () => {
                 <Box sx={{ maxWidth: '400px', mx: 'auto', width: '100%' }}>
                   {/* 헤더 */}
                   <Box sx={{ mb: 4 }}>
-                    <Typography 
-                      variant="h4" 
-                      sx={{ 
-                        fontWeight: 700, 
-                        color: '#111827', 
+                    <Typography
+                      variant="h4"
+                      sx={{
+                        fontWeight: 700,
+                        color: '#111827',
                         mb: 1,
                         fontSize: { xs: '1.8rem', md: '2rem' }
                       }}
                     >
                       로그인
                     </Typography>
-                    <Typography 
-                      variant="body1" 
-                      sx={{ 
-                        color: '#6B7280', 
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        color: '#6B7280',
                         fontSize: '16px'
                       }}
                     >
@@ -400,12 +400,12 @@ const Login = () => {
 
                   {/* 소셜 로그인 */}
                   <Stack spacing={2} sx={{ mb: 3 }}>
-                    <SocialLoginButton 
+                    <SocialLoginButton
                       fullWidth
                     >
                       Google로 계속하기
                     </SocialLoginButton>
-                    <SocialLoginButton 
+                    <SocialLoginButton
                       fullWidth
                     >
                       Apple로 계속하기
@@ -487,7 +487,7 @@ const Login = () => {
                       fullWidth
                       variant="contained"
                       disabled={isLoading || loginSuccess}
-                      sx={{ 
+                      sx={{
                         mb: 3,
                         backgroundColor: loginSuccess ? '#10B981' : '#0F4C81',
                         '&:hover': {
@@ -545,7 +545,7 @@ const Login = () => {
           onClose={handleCloseSnackbar} 
           severity={snackbar.severity} 
           variant="filled"
-          sx={{ 
+          sx={{
             width: '100%',
             borderRadius: '8px',
             boxShadow: '0 4px 16px rgba(0,0,0,0.15)'

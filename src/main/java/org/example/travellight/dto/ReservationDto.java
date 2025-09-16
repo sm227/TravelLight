@@ -33,5 +33,7 @@ public class ReservationDto {
     private Integer totalPrice;
     
     private String storageType; // "day" 또는 "period"
+    @Builder.Default
     private String status = "RESERVED"; // RESERVED, COMPLETED, CANCELLED
+    private String paymentId; // 포트원 결제 ID
 } 

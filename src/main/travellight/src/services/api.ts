@@ -275,4 +275,209 @@ export const partnershipService = {
   },
 };
 
+// 리뷰 관련 타입 정의
+export interface ReviewRequest {
+  reservationId: number;
+  rating: number;
+  title?: string;
+  content?: string;
+  photoFilenames?: string[];
+}
+
+export interface ReviewUpdateRequest {
+  rating: number;
+  title?: string;
+  content?: string;
+  keepPhotoIds?: number[];
+  newPhotoFilenames?: string[];
+}
+
+export interface ReviewResponse {
+  id: number;
+  reservationId: number;
+  reservationNumber: string;
+  placeName: string;
+  placeAddress: string;
+  rating: number;
+  title?: string;
+  content?: string;
+  status: string;
+  reportCount: number;
+  helpfulCount: number;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: number;
+    name: string;
+  };
+  photos: ReviewPhotoResponse[];
+  adminReply?: string;
+  adminUser?: {
+    id: number;
+    name: string;
+  };
+  adminReplyAt?: string;
+  isHelpfulByCurrentUser?: boolean;
+  isReportedByCurrentUser?: boolean;
+  canEdit?: boolean;
+}
+
+export interface ReviewPhotoResponse {
+  id: number;
+  filename: string;
+  originalFilename: string;
+  filePath: string;
+  fileSize?: number;
+  mimeType?: string;
+  sortOrder: number;
+  uploadedAt: string;
+}
+
+export interface ReviewSummary {
+  placeName: string;
+  placeAddress: string;
+  averageRating: number;
+  totalReviews: number;
+  ratingDistribution: {
+    rating5Count: number;
+    rating4Count: number;
+    rating3Count: number;
+    rating2Count: number;
+    rating1Count: number;
+  };
+}
+
+export interface ReviewReportRequest {
+  reason: 'SPAM' | 'INAPPROPRIATE_CONTENT' | 'FAKE_REVIEW' | 'PERSONAL_INFO' | 'HATE_SPEECH' | 'COPYRIGHT' | 'OTHER';
+  description?: string;
+}
+
+export interface PlaceReviewSummary {
+  placeName: string;
+  placeAddress: string;
+  averageRating: number;
+  reviewCount: number;
+  recommendationScore: number;
+}
+
+// 리뷰 관련 서비스
+export const reviewService = {
+  // 리뷰 작성 (예약 API 사용)
+  createReview: async (data: ReviewRequest, userId: number): Promise<ApiResponse<ReviewResponse>> => {
+    const response = await api.post<ApiResponse<ReviewResponse>>(`/reservations/reviews?userId=${userId}`, data);
+    return response.data;
+  },
+
+  // 리뷰 수정 (예약 API 사용)
+  updateReview: async (reservationId: number, data: ReviewUpdateRequest, userId: number): Promise<ApiResponse<ReviewResponse>> => {
+    const response = await api.put<ApiResponse<ReviewResponse>>(`/reservations/${reservationId}/review?userId=${userId}`, data);
+    return response.data;
+  },
+
+  // 리뷰 삭제
+  deleteReview: async (reviewId: number): Promise<ApiResponse<void>> => {
+    const response = await api.delete<ApiResponse<void>>(`/reviews/${reviewId}`);
+    return response.data;
+  },
+
+  // 리뷰 상세 조회
+  getReview: async (reviewId: number): Promise<ApiResponse<ReviewResponse>> => {
+    const response = await api.get<ApiResponse<ReviewResponse>>(`/reviews/${reviewId}`);
+    return response.data;
+  },
+
+  // 제휴점 리뷰 목록 조회
+  getPlaceReviews: async (
+    placeName: string, 
+    placeAddress: string, 
+    sortBy: string = 'latest',
+    page: number = 0,
+    size: number = 10
+  ): Promise<ApiResponse<{content: ReviewResponse[], totalElements: number, totalPages: number}>> => {
+    const response = await api.get<ApiResponse<{content: ReviewResponse[], totalElements: number, totalPages: number}>>(`/reviews/place`, {
+      params: { placeName, placeAddress, sortBy, page, size }
+    });
+    return response.data;
+  },
+
+  // 내 리뷰 목록 조회
+  getMyReviews: async (page: number = 0, size: number = 10): Promise<ApiResponse<{content: ReviewResponse[], totalElements: number, totalPages: number}>> => {
+    const response = await api.get<ApiResponse<{content: ReviewResponse[], totalElements: number, totalPages: number}>>('/reviews/my', {
+      params: { page, size }
+    });
+    return response.data;
+  },
+
+  // 제휴점 리뷰 요약
+  getPlaceReviewSummary: async (placeName: string, placeAddress: string): Promise<ApiResponse<ReviewSummary>> => {
+    const response = await api.get<ApiResponse<ReviewSummary>>('/reviews/place/summary', {
+      params: { placeName, placeAddress }
+    });
+    return response.data;
+  },
+
+  // 리뷰 도움이 됨 토글
+  toggleHelpful: async (reviewId: number): Promise<ApiResponse<boolean>> => {
+    const response = await api.post<ApiResponse<boolean>>(`/reviews/${reviewId}/helpful`);
+    return response.data;
+  },
+
+  // 리뷰 신고
+  reportReview: async (reviewId: number, data: ReviewReportRequest): Promise<ApiResponse<void>> => {
+    const response = await api.post<ApiResponse<void>>(`/reviews/${reviewId}/report`, data);
+    return response.data;
+  },
+
+  // 리뷰 사진 업로드
+  uploadReviewPhotos: async (files: File[]): Promise<ApiResponse<string[]>> => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    
+    const response = await api.post<ApiResponse<string[]>>('/reviews/photos/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    });
+    return response.data;
+  },
+
+  // 리뷰 사진 삭제
+  deleteReviewPhoto: async (photoId: number): Promise<ApiResponse<void>> => {
+    const response = await api.delete<ApiResponse<void>>(`/reviews/photos/${photoId}`);
+    return response.data;
+  },
+
+  // 리뷰 작성 가능 여부 확인 (예약 API 사용)
+  canWriteReview: async (reservationId: number, userId: number): Promise<ApiResponse<boolean>> => {
+    const response = await api.get<ApiResponse<boolean>>(`/reservations/${reservationId}/can-write-review?userId=${userId}`);
+    return response.data;
+  },
+
+  // 예약의 리뷰 작성 상태 확인
+  getReviewStatus: async (reservationId: number): Promise<ApiResponse<{hasReview: boolean}>> => {
+    const response = await api.get<ApiResponse<{hasReview: boolean}>>(`/reservations/${reservationId}/review-status`);
+    return response.data;
+  },
+
+  // 예약의 리뷰 조회
+  getReviewByReservation: async (reservationId: number): Promise<ApiResponse<ReviewResponse | null>> => {
+    const response = await api.get<ApiResponse<ReviewResponse | null>>(`/reservations/${reservationId}/review`);
+    return response.data;
+  },
+
+  // 테스트용: 예약의 리뷰 삭제
+  deleteReviewByReservation: async (reservationId: number): Promise<ApiResponse<string>> => {
+    const response = await api.delete<ApiResponse<string>>(`/reservations/${reservationId}/review`);
+    return response.data;
+  },
+
+  // 상위 평점 제휴점 조회
+  getTopRatedPlaces: async (limit: number = 10): Promise<ApiResponse<PlaceReviewSummary[]>> => {
+    const response = await api.get<ApiResponse<PlaceReviewSummary[]>>('/reviews/top-rated-places', {
+      params: { limit }
+    });
+    return response.data;
+  }
+};
+
 export default api;

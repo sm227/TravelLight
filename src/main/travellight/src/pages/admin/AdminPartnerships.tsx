@@ -15,12 +15,36 @@ import {
     Button,
     Chip,
     CircularProgress,
-    alpha
+    alpha,
+    IconButton,
+    Tooltip
 } from '@mui/material';
 import {
     CheckCircle as CheckCircleIcon,
-    Cancel as CancelIcon
+    Cancel as CancelIcon,
+    StorefrontOutlined,
+    MoreVert as MoreVertIcon
 } from '@mui/icons-material';
+
+// AdminDashboard와 동일한 색상 테마
+const COLORS = {
+  backgroundDark: '#0f0f11',
+  backgroundLight: '#18181b',
+  backgroundCard: '#1f1f23',
+  backgroundSurface: '#27272a',
+  textPrimary: '#fafafa',
+  textSecondary: '#a1a1aa',
+  textMuted: '#71717a',
+  borderPrimary: '#27272a',
+  borderSecondary: '#3f3f46',
+  accentPrimary: '#3b82f6',
+  accentSecondary: '#6366f1',
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  info: '#06b6d4',
+  backgroundHover: 'rgba(255, 255, 255, 0.05)',
+};
 
 interface Partnership {
     id: number;
@@ -77,63 +101,276 @@ const AdminPartnerships: React.FC = () => {
             }
             
             fetchPartnerships();
-        } catch (error: any) {
-            const errorMessage = error.response?.data?.message || '상태 업데이트에 실패했습니다.';
+        } catch (error: unknown) {
+            const errorMessage = axios.isAxiosError(error) && error.response?.data?.message 
+                ? error.response.data.message 
+                : '상태 업데이트에 실패했습니다.';
             toast.error(errorMessage);
         }
     };
 
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-                <CircularProgress />
+            <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                minHeight: '80vh',
+                bgcolor: COLORS.backgroundDark
+            }}>
+                <CircularProgress sx={{ color: COLORS.accentPrimary }} />
             </Box>
         );
     }
 
     return (
-        <Box sx={{ p: 3 }}>
-            <Typography variant="h5" sx={{ mb: 3, color: 'var(--text-primary)', fontWeight: 600 }}>
-                제휴점 관리
-            </Typography>
-            
+        <Box sx={{ 
+            bgcolor: COLORS.backgroundDark, 
+            minHeight: '100vh',
+            p: 2.5
+        }}>
+            {/* 헤더 */}
+            <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                mb: 3,
+                pb: 2,
+                borderBottom: `1px solid ${COLORS.borderPrimary}`
+            }}>
+                <Box>
+                    <Typography variant="h5" sx={{ 
+                        color: COLORS.textPrimary, 
+                        fontWeight: 600,
+                        fontSize: '1.25rem',
+                        mb: 0.25,
+                        letterSpacing: '-0.025em',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                    }}>
+                        <StorefrontOutlined sx={{ fontSize: '1.5rem', color: COLORS.accentPrimary }} />
+                        제휴점 관리
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                        color: COLORS.textSecondary,
+                        fontSize: '0.75rem',
+                        fontWeight: 500
+                    }}>
+                        총 {partnerships.length}개 제휴점 신청 현황
+                    </Typography>
+                </Box>
+                
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Chip
+                        label={`대기중: ${partnerships.filter(p => p.status === 'PENDING').length}개`}
+                        size="small"
+                        sx={{
+                            bgcolor: alpha(COLORS.warning, 0.15),
+                            color: COLORS.warning,
+                            fontWeight: 600,
+                            borderRadius: 0,
+                            border: `1px solid ${alpha(COLORS.warning, 0.3)}`
+                        }}
+                    />
+                    <Chip
+                        label={`승인됨: ${partnerships.filter(p => p.status === 'APPROVED').length}개`}
+                        size="small"
+                        sx={{
+                            bgcolor: alpha(COLORS.success, 0.15),
+                            color: COLORS.success,
+                            fontWeight: 600,
+                            borderRadius: 0,
+                            border: `1px solid ${alpha(COLORS.success, 0.3)}`
+                        }}
+                    />
+                </Box>
+            </Box>
+
+            {/* 제휴점 테이블 */}
             <Paper 
                 elevation={0} 
                 sx={{ 
-                    backgroundColor: 'var(--background-paper)', 
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
+                    bgcolor: COLORS.backgroundCard, 
+                    border: `1px solid ${COLORS.borderPrimary}`,
+                    borderRadius: 0,
                     overflow: 'hidden'
                 }}
             >
                 <TableContainer>
-                    <Table sx={{ minWidth: 650 }}>
-                        <TableHead sx={{ backgroundColor: alpha('#000', 0.02) }}>
+                    <Table sx={{ minWidth: 1200 }}>
+                        <TableHead sx={{ bgcolor: COLORS.backgroundLight }}>
                             <TableRow>
-                                <TableCell sx={{ color: 'var(--text-secondary)', fontWeight: 500 }}>상호명</TableCell>
-                                <TableCell sx={{ color: 'var(--text-secondary)', fontWeight: 500 }}>대표자</TableCell>
-                                <TableCell sx={{ color: 'var(--text-secondary)', fontWeight: 500 }}>연락처</TableCell>
-                                <TableCell sx={{ color: 'var(--text-secondary)', fontWeight: 500 }}>주소</TableCell>
-                                <TableCell sx={{ color: 'var(--text-secondary)', fontWeight: 500 }}>상태</TableCell>
-                                <TableCell sx={{ color: 'var(--text-secondary)', fontWeight: 500 }}>신청일</TableCell>
-                                <TableCell sx={{ color: 'var(--text-secondary)', fontWeight: 500 }}>관리</TableCell>
+                                <TableCell sx={{ 
+                                    color: COLORS.textSecondary, 
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    py: 2,
+                                    px: 2,
+                                    borderBottom: `2px solid ${COLORS.borderSecondary}`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em'
+                                }}>
+                                    상호명
+                                </TableCell>
+                                <TableCell sx={{ 
+                                    color: COLORS.textSecondary, 
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    py: 2,
+                                    px: 2,
+                                    borderBottom: `2px solid ${COLORS.borderSecondary}`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em'
+                                }}>
+                                    대표자
+                                </TableCell>
+                                <TableCell sx={{ 
+                                    color: COLORS.textSecondary, 
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    py: 1.5,
+                                    borderBottom: `2px solid ${COLORS.borderSecondary}`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em'
+                                }}>
+                                    연락처
+                                </TableCell>
+                                <TableCell sx={{ 
+                                    color: COLORS.textSecondary, 
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    py: 1.5,
+                                    borderBottom: `2px solid ${COLORS.borderSecondary}`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em'
+                                }}>
+                                    주소
+                                </TableCell>
+                                <TableCell sx={{ 
+                                    color: COLORS.textSecondary, 
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    py: 1.5,
+                                    borderBottom: `2px solid ${COLORS.borderSecondary}`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em'
+                                }}>
+                                    업종/규모
+                                </TableCell>
+                                <TableCell sx={{ 
+                                    color: COLORS.textSecondary, 
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    py: 1.5,
+                                    borderBottom: `2px solid ${COLORS.borderSecondary}`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em'
+                                }}>
+                                    상태
+                                </TableCell>
+                                <TableCell sx={{ 
+                                    color: COLORS.textSecondary, 
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    py: 1.5,
+                                    borderBottom: `2px solid ${COLORS.borderSecondary}`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em'
+                                }}>
+                                    신청일
+                                </TableCell>
+                                <TableCell align="center" sx={{ 
+                                    color: COLORS.textSecondary, 
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    py: 1.5,
+                                    borderBottom: `2px solid ${COLORS.borderSecondary}`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em'
+                                }}>
+                                    관리
+                                </TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {partnerships.map((partnership) => (
+                            {partnerships.map((partnership, index) => (
                                 <TableRow 
                                     key={partnership.id}
                                     sx={{ 
+                                        bgcolor: index % 2 === 0 ? COLORS.backgroundCard : alpha(COLORS.backgroundLight, 0.5),
                                         '&:hover': { 
-                                            backgroundColor: alpha('#fff', 0.03) 
-                                        } 
+                                            bgcolor: alpha(COLORS.accentPrimary, 0.08),
+                                            '& .action-buttons': {
+                                                opacity: 1
+                                            }
+                                        },
+                                        borderBottom: `1px solid ${COLORS.borderSecondary}`,
+                                        transition: 'all 0.2s ease',
+                                        cursor: 'pointer'
                                     }}
                                 >
-                                    <TableCell sx={{ color: 'var(--text-primary)' }}>{partnership.businessName}</TableCell>
-                                    <TableCell sx={{ color: 'var(--text-primary)' }}>{partnership.ownerName}</TableCell>
-                                    <TableCell sx={{ color: 'var(--text-primary)' }}>{partnership.phone}</TableCell>
-                                    <TableCell sx={{ color: 'var(--text-primary)' }}>{partnership.address}</TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ 
+                                        color: COLORS.textPrimary, 
+                                        fontSize: '0.875rem',
+                                        fontWeight: 600,
+                                        py: 1.75,
+                                        px: 2
+                                    }}>
+                                        {partnership.businessName}
+                                    </TableCell>
+                                    <TableCell sx={{ 
+                                        color: COLORS.textSecondary, 
+                                        fontSize: '0.8125rem',
+                                        py: 1.75,
+                                        px: 2
+                                    }}>
+                                        {partnership.ownerName}
+                                    </TableCell>
+                                    <TableCell sx={{ 
+                                        color: COLORS.textSecondary, 
+                                        fontSize: '0.8125rem',
+                                        py: 1.75,
+                                        px: 2
+                                    }}>
+                                        {partnership.phone}
+                                    </TableCell>
+                                    <TableCell sx={{ 
+                                        color: COLORS.textSecondary, 
+                                        fontSize: '0.8125rem',
+                                        py: 1.75,
+                                        px: 2,
+                                        maxWidth: 280,
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
+                                    }}>
+                                        <Tooltip title={partnership.address} arrow>
+                                            <span>{partnership.address}</span>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell sx={{ 
+                                        color: COLORS.textSecondary, 
+                                        fontSize: '0.8125rem',
+                                        py: 1.75,
+                                        px: 2
+                                    }}>
+                                        <Typography sx={{ 
+                                            color: COLORS.textSecondary,
+                                            fontSize: '0.8125rem',
+                                            fontWeight: 500,
+                                            mb: 0.25
+                                        }}>
+                                            {partnership.businessType}
+                                        </Typography>
+                                        <Typography sx={{ 
+                                            color: COLORS.textMuted, 
+                                            fontSize: '0.75rem'
+                                        }}>
+                                            {partnership.spaceSize}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell sx={{ py: 1.75, px: 2 }}>
                                         <Chip 
                                             label={
                                                 partnership.status === 'PENDING' ? '대기중' : 
@@ -141,51 +378,87 @@ const AdminPartnerships: React.FC = () => {
                                             }
                                             size="small"
                                             sx={{
-                                                backgroundColor: 
-                                                    partnership.status === 'PENDING' ? alpha('#FFD700', 0.15) : 
-                                                    partnership.status === 'APPROVED' ? alpha('#4CAF50', 0.15) : 
-                                                    alpha('#f44336', 0.15),
+                                                fontSize: '0.6875rem',
+                                                height: 24,
+                                                minWidth: 60,
+                                                bgcolor: 
+                                                    partnership.status === 'PENDING' ? alpha(COLORS.warning, 0.2) : 
+                                                    partnership.status === 'APPROVED' ? alpha(COLORS.success, 0.2) : 
+                                                    alpha(COLORS.danger, 0.2),
                                                 color: 
-                                                    partnership.status === 'PENDING' ? '#FFD700' : 
-                                                    partnership.status === 'APPROVED' ? '#4CAF50' : 
-                                                    '#f44336',
-                                                fontWeight: 500
+                                                    partnership.status === 'PENDING' ? COLORS.warning : 
+                                                    partnership.status === 'APPROVED' ? COLORS.success : 
+                                                    COLORS.danger,
+                                                fontWeight: 700,
+                                                borderRadius: 0,
+                                                border: `2px solid ${
+                                                    partnership.status === 'PENDING' ? COLORS.warning : 
+                                                    partnership.status === 'APPROVED' ? COLORS.success : 
+                                                    COLORS.danger
+                                                }`
                                             }}
                                         />
                                     </TableCell>
-                                    <TableCell sx={{ color: 'var(--text-primary)' }}>
-                                        {new Date(partnership.createdAt).toLocaleDateString()}
+                                    <TableCell sx={{ 
+                                        color: COLORS.textSecondary, 
+                                        fontSize: '0.8125rem',
+                                        py: 1.75,
+                                        px: 2
+                                    }}>
+                                        {new Date(partnership.createdAt).toLocaleDateString('ko-KR', {
+                                            year: '2-digit',
+                                            month: '2-digit',
+                                            day: '2-digit'
+                                        })}
                                     </TableCell>
-                                    <TableCell>
-                                        <Box sx={{ display: 'flex', gap: 1 }}>
-                                            <Button
-                                                variant="contained"
-                                                size="small"
-                                                color="success"
-                                                startIcon={<CheckCircleIcon />}
-                                                onClick={() => handleStatusChange(partnership.id, 'APPROVED')}
-                                                disabled={partnership.status === 'APPROVED'}
-                                                sx={{
-                                                    textTransform: 'none',
-                                                    fontSize: '0.75rem'
-                                                }}
-                                            >
-                                                승인
-                                            </Button>
-                                            <Button
-                                                variant="contained"
-                                                size="small"
-                                                color="error"
-                                                startIcon={<CancelIcon />}
-                                                onClick={() => handleStatusChange(partnership.id, 'REJECTED')}
-                                                disabled={partnership.status === 'REJECTED'}
-                                                sx={{
-                                                    textTransform: 'none',
-                                                    fontSize: '0.75rem'
-                                                }}
-                                            >
-                                                거절
-                                            </Button>
+                                    <TableCell align="center" sx={{ py: 1.75, px: 2 }}>
+                                        <Box className="action-buttons" sx={{ 
+                                            display: 'flex', 
+                                            gap: 0.5, 
+                                            justifyContent: 'center',
+                                            opacity: 0.7,
+                                            transition: 'opacity 0.15s ease'
+                                        }}>
+                                            <Tooltip title="승인" arrow>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => handleStatusChange(partnership.id, 'APPROVED')}
+                                                    disabled={partnership.status === 'APPROVED'}
+                                                    sx={{
+                                                        color: partnership.status === 'APPROVED' ? COLORS.textMuted : COLORS.success,
+                                                        bgcolor: partnership.status === 'APPROVED' ? 'transparent' : alpha(COLORS.success, 0.1),
+                                                        border: `1px solid ${partnership.status === 'APPROVED' ? COLORS.borderPrimary : COLORS.success}`,
+                                                        borderRadius: 0,
+                                                        width: 32,
+                                                        height: 32,
+                                                        '&:hover': {
+                                                            bgcolor: partnership.status === 'APPROVED' ? 'transparent' : alpha(COLORS.success, 0.2),
+                                                        }
+                                                    }}
+                                                >
+                                                    <CheckCircleIcon sx={{ fontSize: '1rem' }} />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="거절" arrow>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => handleStatusChange(partnership.id, 'REJECTED')}
+                                                    disabled={partnership.status === 'REJECTED'}
+                                                    sx={{
+                                                        color: partnership.status === 'REJECTED' ? COLORS.textMuted : COLORS.danger,
+                                                        bgcolor: partnership.status === 'REJECTED' ? 'transparent' : alpha(COLORS.danger, 0.1),
+                                                        border: `1px solid ${partnership.status === 'REJECTED' ? COLORS.borderPrimary : COLORS.danger}`,
+                                                        borderRadius: 0,
+                                                        width: 32,
+                                                        height: 32,
+                                                        '&:hover': {
+                                                            bgcolor: partnership.status === 'REJECTED' ? 'transparent' : alpha(COLORS.danger, 0.2),
+                                                        }
+                                                    }}
+                                                >
+                                                    <CancelIcon sx={{ fontSize: '1rem' }} />
+                                                </IconButton>
+                                            </Tooltip>
                                         </Box>
                                     </TableCell>
                                 </TableRow>
@@ -194,6 +467,22 @@ const AdminPartnerships: React.FC = () => {
                     </Table>
                 </TableContainer>
             </Paper>
+
+            {partnerships.length === 0 && (
+                <Box sx={{ 
+                    textAlign: 'center', 
+                    py: 8,
+                    color: COLORS.textSecondary 
+                }}>
+                    <StorefrontOutlined sx={{ fontSize: '3rem', mb: 2, color: COLORS.textMuted }} />
+                    <Typography variant="h6" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                        제휴점 신청이 없습니다
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: COLORS.textMuted }}>
+                        새로운 제휴점 신청을 기다리고 있습니다.
+                    </Typography>
+                </Box>
+            )}
         </Box>
     );
 };

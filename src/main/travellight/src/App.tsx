@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import Carry from './pages/Carry';
 import Navbar from './components/Navbar';
+import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider } from './services/AuthContext';
 import './App.css';
 import AdminLogin from './pages/admin/AdminLogin';
@@ -16,6 +17,7 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminEventStorage from './pages/admin/AdminEventStorage';
+import AdminHR from './pages/admin/AdminHR';
 import AdminLayout from './components/admin/AdminLayout';
 import ProtectedAdminRoute from './components/admin/ProtectedAdminRoute';
 import MyPage from './pages/MyPage';
@@ -24,11 +26,20 @@ import './i18n'; // i18n 설정 파일 임포트
 import FAQ from './pages/FAQ';
 import Inquiry from './pages/Inquiry';
 import AdminPartnerships from './pages/admin/AdminPartnerships';
+import AdminServices from './pages/admin/AdminServices';
+import AdminReviews from './pages/admin/AdminReviews';
 import { useTranslation } from 'react-i18next';
 import Partner from './pages/Partner';
 import PartnerSignup from './pages/PartnerSignup';
 import PartnerDashboard from './pages/PartnerDashboard';
 import NotFound from './pages/NotFound';
+import PaymentComplete from './pages/PaymentComplete';
+import About from './pages/About';
+import Careers from './pages/Careers';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import Refund from './pages/Refund';
+import LocationTerms from './pages/LocationTerms';
 
 // 네이버 맵 상태를 위한 전역 타입 확장
 declare global {
@@ -37,6 +48,7 @@ declare global {
     kakao: any;
     naver: any;
     naverMapLoaded?: boolean;
+    KAKAO_REST_API_KEY?: string;
   }
 }
 
@@ -271,6 +283,7 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
+          <ScrollToTop />
           <Routes>
             {/* 일반 사용자 라우트 */}
             <Route path="/" element={<Home />} />
@@ -286,6 +299,15 @@ function App() {
             <Route path="/carry" element={<Carry />}/>
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/Eventstorage" element={<EventStorage />} />
+            <Route path="/payment-complete" element={<PaymentComplete />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/careers" element={<Careers />} />
+            
+            {/* 약관 및 정책 페이지들 */}
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/refund" element={<Refund />} />
+            <Route path="/location-terms" element={<LocationTerms />} />
 
             {/* 관리자 라우트 */}
             <Route path="/admin/login" element={<AdminLogin />} />
@@ -300,6 +322,9 @@ function App() {
               <Route path="orders" element={<AdminOrders />} />
               <Route path="event-storage" element={<AdminEventStorage />} />
               <Route path="partnerships" element={<AdminPartnerships />} />
+              <Route path="services" element={<AdminServices />} />
+              <Route path="hr" element={<AdminHR />} />
+              <Route path="reviews" element={<AdminReviews />} />
             </Route>
 
             {/* Catch-all route for 404 Not Found */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -12,79 +12,109 @@ import {
   Menu,
   MenuItem,
   Divider,
-} from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import LuggageIcon from '@mui/icons-material/Luggage';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import TranslateIcon from '@mui/icons-material/Translate';
-import PersonIcon from '@mui/icons-material/Person';
-import SettingsIcon from '@mui/icons-material/Settings';
-import LogoutIcon from '@mui/icons-material/Logout';
-import LoginIcon from '@mui/icons-material/Login';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import LanguageIcon from '@mui/icons-material/Language';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../services/AuthContext';
-import { useTranslation } from 'react-i18next';
+  Collapse,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
+} from "@mui/material";
+import LuggageIcon from "@mui/icons-material/Luggage";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import TranslateIcon from "@mui/icons-material/Translate";
+import PersonIcon from "@mui/icons-material/Person";
+import SettingsIcon from "@mui/icons-material/Settings";
+import LogoutIcon from "@mui/icons-material/Logout";
+import LoginIcon from "@mui/icons-material/Login";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import LanguageIcon from "@mui/icons-material/Language";
+import BookmarkIcon from "@mui/icons-material/Bookmark";
+import { Link as RouterLink, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../services/AuthContext";
+import { useTranslation } from "react-i18next";
+
+interface MenuItem {
+  text: string;
+  href?: string;
+  onClick?: () => void;
+}
 
 // 메뉴 스타일 정의
 const menuStyles = {
-  '& .MuiPaper-root': {
-    borderRadius: '12px',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
-    border: '1px solid #f3f4f6',
-    minWidth: '160px',
-    marginTop: '8px',
+  "& .MuiPaper-root": {
+    borderRadius: "12px",
+    boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
+    border: "1px solid #f3f4f6",
+    minWidth: "160px",
+    marginTop: "8px",
   },
-  '& .MuiMenuItem-root': {
-    padding: '10px 16px',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#1a1a1a',
-    transition: 'all 0.2s ease',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    '&:hover': {
-      backgroundColor: '#f9fafb',
-      color: '#2563eb',
+  "& .MuiMenuItem-root": {
+    padding: "10px 16px",
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "#1a1a1a",
+    transition: "all 0.2s ease",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    "&:hover": {
+      backgroundColor: "#f9fafb",
+      color: "#2563eb",
     },
-    '&:first-of-type': {
-      marginTop: '4px',
+    "&:first-of-type": {
+      marginTop: "4px",
     },
-    '&:last-of-type': {
-      marginBottom: '4px',
+    "&:last-of-type": {
+      marginBottom: "4px",
     },
-    '& .MuiSvgIcon-root': {
-      fontSize: '18px',
+    "& .MuiSvgIcon-root": {
+      fontSize: "18px",
     },
   },
-  '& .MuiDivider-root': {
-    margin: '6px 0',
-    borderColor: '#f3f4f6',
+  "& .MuiDivider-root": {
+    margin: "6px 0",
+    borderColor: "#f3f4f6",
   },
 };
 
 // 로그아웃 메뉴 아이템 스타일
 const logoutMenuItemStyles = {
-  color: '#dc2626 !important',
-  '&:hover': {
-    backgroundColor: '#fee2e2 !important',
-    color: '#dc2626 !important',
+  color: "#dc2626 !important",
+  "&:hover": {
+    backgroundColor: "#fee2e2 !important",
+    color: "#dc2626 !important",
   },
 };
 
 const Navbar: React.FC = () => {
+  const [hamburgerMenuOpen, setHamburgerMenuOpen] = useState(false);
+  const [hasBeenClicked, setHasBeenClicked] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [partnerMenuAnchorEl, setPartnerMenuAnchorEl] = useState<null | HTMLElement>(null);
-  const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
-  const [overlayOpen, setOverlayOpen] = useState(false);
+  const [partnerMenuAnchorEl, setPartnerMenuAnchorEl] =
+    useState<null | HTMLElement>(null);
+  const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(
+    null
+  );
+  const [menuStep, setMenuStep] = useState<'main' | string>('main');
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, isAuthenticated, isPartner, isWaiting, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
+
+  useEffect(() => {
+    setIsInitialized(true);
+  }, []);
+
+  // 파트너 관련 페이지인지 확인
+  const isPartnerPage =
+    location.pathname.includes("/partner") ||
+    location.pathname.includes("/StoragePartnership") ||
+    location.pathname.includes("/EventStorage") ||
+    location.pathname.includes("/Inquiry");
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -97,7 +127,7 @@ const Navbar: React.FC = () => {
   const handleLogout = () => {
     logout();
     handleMenuClose();
-    navigate('/');
+    navigate("/");
   };
 
   const handlePartnerMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -119,7 +149,7 @@ const Navbar: React.FC = () => {
   };
 
   const changeLanguage = (lng: string) => {
-    localStorage.setItem('preferredLanguage', lng);
+    localStorage.setItem("preferredLanguage", lng);
     handleLangMenuClose();
     setTimeout(() => {
       window.location.reload();
@@ -129,102 +159,165 @@ const Navbar: React.FC = () => {
   // Navigation to Partnership Pages
   const navigateToStoragePartnership = () => {
     handlePartnerMenuClose();
-    navigate('/StoragePartnership');
+    navigate("/StoragePartnership");
+    setHamburgerMenuOpen(false);
   };
 
   const navigateToEventStorage = () => {
     handlePartnerMenuClose();
-    navigate('/EventStorage');
+    navigate("/EventStorage");
+    setHamburgerMenuOpen(false);
   };
 
   const navigateToInquiry = () => {
     handlePartnerMenuClose();
-    navigate('/Inquiry');
-  }
+    navigate("/Inquiry");
+    setHamburgerMenuOpen(false);
+  };
 
   const navigateToFAQ = () => {
     handlePartnerMenuClose();
-    navigate('/FAQ');
+    navigate("/FAQ");
+    setHamburgerMenuOpen(false);
   };
 
   const navigateToPartner = () => {
     handlePartnerMenuClose();
-    
+
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: '/partner' } });
+      navigate("/login", { state: { from: "/partner" } });
+      setHamburgerMenuOpen(false);
       return;
     }
-    
+
     if (isPartner) {
-      navigate('/partner-dashboard');
+      navigate("/partner-dashboard");
     } else if (isWaiting) {
-      navigate('/partner-dashboard');
+      navigate("/partner-dashboard");
     } else {
-      navigate('/partner');
+      navigate("/partner");
+    }
+    setHamburgerMenuOpen(false);
+  };
+
+  const handleHamburgerToggle = () => {
+    if (!hasBeenClicked) {
+      setHasBeenClicked(true);
+    }
+    setHamburgerMenuOpen(!hamburgerMenuOpen);
+    if (!hamburgerMenuOpen) {
+      setMenuStep('main'); // 메뉴 열 때 메인 화면으로 초기화
     }
   };
 
-  const menuItems = [
-    { text: t('home'), href: '/#home' },
-    { text: t('services'), href: '/#services' },
-    { text: t('howItWorks'), onClick: navigateToFAQ },
-    { text: t('pricing'), href: '/#pricing' },
-    { text: t('partner'), onClick: navigateToPartner },
-  ];
+  const handleSectionClick = (sectionKey: string) => {
+    setMenuStep(sectionKey);
+  };
 
-  const partnerSubMenuItems = [
-    { text: t('storageService'), onClick: navigateToStoragePartnership },
-    { text: t('eventStorage'), onClick: navigateToEventStorage },
-    { text: '1:1 문의', onClick: navigateToInquiry },
-  ];
+  const handleBackToMain = () => {
+    setMenuStep('main');
+  };
+
+  const handleMenuItemClick = (href?: string, onClick?: () => void) => {
+    if (onClick) {
+      onClick();
+    } else if (href) {
+      if (href.startsWith("/#")) {
+        window.location.href = href;
+      } else {
+        navigate(href);
+      }
+    }
+    setHamburgerMenuOpen(false);
+  };
 
   const isMenuOpen = Boolean(anchorEl);
-  const menuId = 'primary-search-account-menu';
+  const menuId = "primary-search-account-menu";
   const renderMenu = (
     <Menu
       anchorEl={anchorEl}
       anchorOrigin={{
-        vertical: 'bottom',
-        horizontal: 'right',
+        vertical: "bottom",
+        horizontal: "right",
       }}
       id={menuId}
       keepMounted
       transformOrigin={{
-        vertical: 'top',
-        horizontal: 'right',
+        vertical: "top",
+        horizontal: "right",
       }}
       open={isMenuOpen && isAuthenticated}
       onClose={handleMenuClose}
       sx={menuStyles}
     >
-      <MenuItem onClick={() => { handleMenuClose(); navigate('/mypage'); }}>
+      <MenuItem
+        onClick={() => {
+          handleMenuClose();
+          navigate("/map", { state: { showReservations: true } });
+        }}
+      >
+        <BookmarkIcon />내 예약
+      </MenuItem>
+      <MenuItem
+        onClick={() => {
+          handleMenuClose();
+          navigate("/mypage");
+        }}
+      >
         <PersonIcon />
-        {t('myPage')}
+        {t("myPage")}
       </MenuItem>
-      <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>
+      <MenuItem
+        onClick={() => {
+          handleMenuClose();
+          navigate("/profile");
+        }}
+      >
         <AccountCircleIcon />
-        {t('profile')}
+        {t("profile")}
       </MenuItem>
-      <MenuItem onClick={() => { handleMenuClose(); navigate('/settings'); }}>
+      <MenuItem
+        onClick={() => {
+          handleMenuClose();
+          navigate("/settings");
+        }}
+      >
         <SettingsIcon />
-        {t('settings')}
+        {t("settings")}
       </MenuItem>
       <Divider />
       <MenuItem onClick={handleLogout} sx={logoutMenuItemStyles}>
         <LogoutIcon />
-        {t('logout')}
+        {t("logout")}
       </MenuItem>
     </Menu>
   );
 
   const isLangMenuOpen = Boolean(langMenuAnchorEl);
 
-  const handleOverlayOpen = () => setOverlayOpen(true);
-  const handleOverlayClose = () => setOverlayOpen(false);
+  const menuItems: MenuItem[] = [
+    { text: t("home"), href: "/" },
+    { text: t("about"), href: "/about" },
+    { text: t("services"), href: "/services" },
+    { text: "채용", href: "/careers" },
+    { text: t("contact"), href: "/contact" },
+  ];
 
   return (
     <>
-      <AppBar position="fixed" color="default" elevation={0} sx={{ backgroundColor: 'white' }}>
+      <AppBar
+        position="fixed"
+        color="default"
+        elevation={0}
+        sx={{
+          background: isPartnerPage ? "#2E7DF1" : "white",
+          transition: "background 0.3s ease",
+          borderRadius: 0,
+          boxShadow: isPartnerPage ? "none" : undefined,
+          border: "none",
+          borderBottom: "none",
+        }}
+      >
         <Container maxWidth="lg">
           <Toolbar disableGutters>
             <Typography
@@ -234,44 +327,58 @@ const Navbar: React.FC = () => {
               href="/"
               sx={{
                 mr: 2,
-                display: 'flex',
-                alignItems: 'center',
+                display: "flex",
+                alignItems: "center",
                 fontWeight: 700,
-                color: 'primary.main',
-                textDecoration: 'none',
-                flexGrow: 1
+                color: isPartnerPage ? "white" : "primary.main",
+                textDecoration: "none",
+                flexGrow: 1,
+                transition: "color 0.3s ease",
               }}
             >
               <LuggageIcon sx={{ mr: 1 }} />
-              TravelLight
+              Travelight
             </Typography>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+
+            <Box sx={{ display: "flex", alignItems: "center" }}>
               {/* 번역 아이콘 버튼 */}
               <IconButton
-                aria-label={t('language')}
-                aria-controls={isLangMenuOpen ? 'language-menu' : undefined}
+                aria-label={t("language")}
+                aria-controls={isLangMenuOpen ? "language-menu" : undefined}
                 aria-haspopup="true"
-                aria-expanded={isLangMenuOpen ? 'true' : undefined}
+                aria-expanded={isLangMenuOpen ? "true" : undefined}
                 onClick={handleLangMenuOpen}
-                color="primary"
                 size="small"
-                sx={{ mx: 1 }}
+                sx={{
+                  mx: 1,
+                  fontSize: "1.5rem",
+                  "&:hover": {
+                    backgroundColor: "rgba(37, 99, 235, 0.04)", // 호버 효과
+                  },
+                  color: isPartnerPage ? "white" : "primary.main",
+                  transition: "color 0.3s ease",
+                }}
               >
                 <TranslateIcon />
               </IconButton>
-              
+
               {/* 사용자 아이콘 버튼 또는 사용자 이름 */}
               {isAuthenticated ? (
                 <Button
                   onClick={handleProfileMenuOpen}
-                  color="primary"
-                  sx={{ 
-                    ml: 1, 
-                    textTransform: 'none',
-                    fontWeight: 'medium',
-                    display: 'flex',
-                    alignItems: 'center'
+                  sx={{
+                    ml: 1,
+                    textTransform: "none",
+                    fontWeight: "medium",
+                    display: "flex",
+                    alignItems: "center",
+                    color: isPartnerPage ? "white" : "primary.main",
+                    transition: "color 0.3s ease",
+                    "&:hover": {
+                      backgroundColor: isPartnerPage
+                        ? "rgba(255, 255, 255, 0.1)"
+                        : "rgba(46, 125, 241, 0.1)",
+                    },
                   }}
                   endIcon={<ArrowDropDownIcon />}
                 >
@@ -281,49 +388,140 @@ const Navbar: React.FC = () => {
                 <IconButton
                   aria-label="user menu"
                   onClick={handleProfileMenuOpen}
-                  color="primary"
                   size="small"
-                  sx={{ mx: 1 }}
+                  sx={{
+                    mx: 1,
+                    color: isPartnerPage ? "white" : "primary.main",
+                    transition: "color 0.3s ease",
+                  }}
                 >
                   <AccountCircleIcon />
                 </IconButton>
               )}
-              
-              {/* 햄버거 버튼 */}
-              <IconButton
-                color="inherit"
-                aria-label="open overlay menu"
-                edge="end"
-                onClick={handleOverlayOpen}
-                sx={{ display: 'flex', ml: 1 }}
+
+              {/* 햄버거 메뉴 버튼 */}
+              <Box
+                sx={{
+                  mx: 1,
+                  width: "30px",
+                  height: "30px",
+                  position: "relative",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  "& span": {
+                    display: "block",
+                    position: "absolute",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: "20px",
+                    height: "2px",
+                    backgroundColor: isPartnerPage ? "white" : "primary.main",
+                    borderRadius: "4px",
+                    transition: "all .25s",
+                  },
+                  "& span:nth-of-type(1)": {
+                    top: "8px",
+                    animation: hasBeenClicked
+                      ? hamburgerMenuOpen
+                        ? "active-menu-bar07-01 .4s forwards"
+                        : "menu-bar07-01 .4s forwards"
+                      : "none",
+                  },
+                  "& span:nth-of-type(2)": {
+                    top: "14px",
+                    transition: "all .2s .1s",
+                    opacity: hamburgerMenuOpen ? 0 : 1,
+                  },
+                  "& span:nth-of-type(3)": {
+                    top: "20px",
+                    animation: hasBeenClicked
+                      ? hamburgerMenuOpen
+                        ? "active-menu-bar07-02 .4s forwards"
+                        : "menu-bar07-02 .4s forwards"
+                      : "none",
+                  },
+                  "@keyframes menu-bar07-01": {
+                    "0%": {
+                      transform:
+                        "translateX(-50%) translateY(6px) rotate(45deg)",
+                    },
+                    "50%": {
+                      transform: "translateX(-50%) translateY(6px) rotate(0)",
+                    },
+                    "100%": {
+                      transform: "translateX(-50%) translateY(0) rotate(0)",
+                    },
+                  },
+                  "@keyframes menu-bar07-02": {
+                    "0%": {
+                      transform:
+                        "translateX(-50%) translateY(-6px) rotate(-45deg)",
+                    },
+                    "50%": {
+                      transform: "translateX(-50%) translateY(-6px) rotate(0)",
+                    },
+                    "100%": {
+                      transform: "translateX(-50%) translateY(0) rotate(0)",
+                    },
+                  },
+                  "@keyframes active-menu-bar07-01": {
+                    "0%": {
+                      transform: "translateX(-50%) translateY(0) rotate(0)",
+                    },
+                    "50%": {
+                      transform: "translateX(-50%) translateY(6px) rotate(0)",
+                    },
+                    "100%": {
+                      transform:
+                        "translateX(-50%) translateY(6px) rotate(45deg)",
+                    },
+                  },
+                  "@keyframes active-menu-bar07-02": {
+                    "0%": {
+                      transform: "translateX(-50%) translateY(0) rotate(0)",
+                    },
+                    "50%": {
+                      transform: "translateX(-50%) translateY(-6px) rotate(0)",
+                    },
+                    "100%": {
+                      transform:
+                        "translateX(-50%) translateY(-6px) rotate(-45deg)",
+                    },
+                  },
+                }}
+                onClick={handleHamburgerToggle}
               >
-                <MenuIcon />
-              </IconButton>
+                <span />
+                <span />
+                <span />
+              </Box>
             </Box>
           </Toolbar>
         </Container>
         {renderMenu}
-        
+
         <Menu
           id="language-menu"
           anchorEl={langMenuAnchorEl}
           open={isLangMenuOpen}
           onClose={handleLangMenuClose}
           MenuListProps={{
-            'aria-labelledby': 'language-button',
+            "aria-labelledby": "language-button",
           }}
           sx={menuStyles}
         >
-          <MenuItem onClick={() => changeLanguage('ko')}>
+          <MenuItem onClick={() => changeLanguage("ko")}>
             <LanguageIcon />
-            {t('korean')}
+            {t("korean")}
           </MenuItem>
-          <MenuItem onClick={() => changeLanguage('en')}>
+          <MenuItem onClick={() => changeLanguage("en")}>
             <LanguageIcon />
-            {t('english')}
+            {t("english")}
           </MenuItem>
         </Menu>
-        
+
         {/* 로그인하지 않은 사용자를 위한 계정 메뉴 */}
         <Menu
           id="user-account-menu"
@@ -331,194 +529,357 @@ const Navbar: React.FC = () => {
           open={isMenuOpen && !isAuthenticated}
           onClose={handleMenuClose}
           MenuListProps={{
-            'aria-labelledby': 'user-account-button',
+            "aria-labelledby": "user-account-button",
           }}
           sx={menuStyles}
         >
-          <MenuItem onClick={() => { handleMenuClose(); navigate('/login'); }}>
+          <MenuItem
+            onClick={() => {
+              handleMenuClose();
+              navigate("/login");
+            }}
+          >
             <LoginIcon />
-            {t('login')}
+            {t("login")}
           </MenuItem>
-          <MenuItem onClick={() => { handleMenuClose(); navigate('/register'); }}>
+          <MenuItem
+            onClick={() => {
+              handleMenuClose();
+              navigate("/register");
+            }}
+          >
             <PersonAddIcon />
-            {t('register')}
+            {t("register")}
           </MenuItem>
         </Menu>
       </AppBar>
-      {/* 오버레이 메뉴: 항상 DOM에 렌더링, 스타일로만 제어 */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          zIndex: 3000,
-          display: 'flex',
-          flexDirection: 'row',
-          pointerEvents: overlayOpen ? 'auto' : 'none',
-        }}
-      >
-        {/* 블러+반투명 배경 (메뉴 패널 제외 전체) */}
-        <div
-          onClick={overlayOpen ? handleOverlayClose : undefined}
-          style={{
-            flex: 1,
-            height: '100vh',
-            background: 'rgba(0,0,0,0.10)',
-            backdropFilter: overlayOpen ? 'blur(8px)' : 'none',
-            cursor: overlayOpen ? 'pointer' : 'default',
-            transition: 'backdrop-filter 0.4s, background 0.4s',
-            opacity: overlayOpen ? 1 : 0,
-            pointerEvents: overlayOpen ? 'auto' : 'none',
+      {/* 햄버거 드롭다운 메뉴 */}
+      <>
+        {/* 블러 배경 */}
+        <Box
+          sx={{
+            position: "fixed",
+            top: "64px",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.3)",
+            backdropFilter: "blur(8px)",
+            opacity: hamburgerMenuOpen ? 1 : 0,
+            visibility: hamburgerMenuOpen ? "visible" : "hidden",
+            transition: "all 0.3s ease-in-out",
+            zIndex: 1200,
           }}
+          onClick={() => setHamburgerMenuOpen(false)}
         />
-        {/* 오른쪽 메뉴 패널 */}
-        <div
-          style={{
-            width: 400,
-            maxWidth: '90vw',
-            height: '100vh',
-            background: 'rgba(255,255,255,1)',
-            boxShadow: '-2px 0 16px rgba(0,0,0,0.08)',
-            position: 'relative',
-            zIndex: 2,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            justifyContent: 'flex-start',
-            padding: '48px 40px',
-            transform: overlayOpen ? 'translateX(0)' : 'translateX(100%)',
-            transition: 'transform 0.4s cubic-bezier(.77,0,.18,1), opacity 0.3s',
-            opacity: overlayOpen ? 1 : 0,
-            pointerEvents: overlayOpen ? 'auto' : 'none',
-            flexShrink: 0,
-            overflowY: 'auto',
-            overflowX: 'hidden',
+
+        <Box
+          sx={{
+            position: "fixed",
+            top: "64px",
+            left: 0,
+            right: 0,
+            backgroundColor: isPartnerPage ? "#2E7DF1" : "white",
+            border: "none",
+            borderBottom: "none",
+            zIndex: 1300,
+            maxHeight: hamburgerMenuOpen ? { xs: "400px", md: "300px" } : 0,
+            overflow: "hidden",
+            transition: "max-height 0.3s ease-in-out",
           }}
         >
-          {/* 나가기 버튼 */}
-          <IconButton
-            onClick={handleOverlayClose}
+          <Container
+            maxWidth="lg"
             sx={{
-              position: 'sticky',
-              top: 24,
-              right: 24,
-              width: 48,
-              height: 48,
-              zIndex: 10,
-              background: '#fff',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              '&:hover': { background: '#f5f5f5' },
+              py: { xs: 3, md: 2 },
+              transform: hamburgerMenuOpen
+                ? "translateY(0)"
+                : "translateY(-10px)",
+              opacity: hamburgerMenuOpen ? 1 : 0,
+              transition: "all 0.3s ease-in-out",
             }}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="11" fill="#f5f5f5" />
-              <line x1="8" y1="8" x2="16" y2="16" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
-              <line x1="16" y1="8" x2="8" y2="16" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </IconButton>
-          {/* 애니메이션 효과 유지 */}
-          <div style={{ marginTop: 40, width: '100%', maxWidth: 400, textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
-            {menuItems.map((item, idx) => (
-              <div
-                key={item.text}
-                style={{
-                  display: 'inline-block',
-                  fontSize: 28,
-                  fontWeight: 600,
-                  margin: '28px 0',
-                  opacity: overlayOpen ? 1 : 0,
-                  transform: overlayOpen ? 'translateY(0)' : 'translateY(30px)',
-                  transition: `opacity 0.4s ${idx * 0.05}s, transform 0.4s ${idx * 0.05}s`,
-                  cursor: 'pointer',
-                  position: 'relative',
-                  width: 'fit-content',
-                }}
-                onClick={() => {
-                  setOverlayOpen(false);
-                  if (item.onClick) {
-                    item.onClick();
-                  } else if (item.href) {
-                    window.location.href = item.href;
-                  }
-                }}
-                onMouseEnter={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(1)';
-                }}
-                onMouseLeave={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(0)';
-                }}
-              >
-                {item.text}
-                <div 
-                  className="menu-underline"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    bottom: 0,
-                    width: '100%',
-                    height: 2,
-                    background: '#222',
-                    transform: 'scaleX(0)',
-                    transformOrigin: 'left',
-                    transition: 'transform 0.3s'
+            {/* 데스크톱: 기존 레이아웃, 모바일: 아코디언 */}
+            <Box
+              sx={{
+                display: { xs: "none", md: "flex" },
+                flexDirection: "row",
+                justifyContent: "space-between",
+                gap: 4,
+              }}
+            >
+              {/* 데스크톱용 기존 레이아웃 (간소화) */}
+              {[
+                {
+                  title: "서비스 이용",
+                  items: [
+                    { text: t("services"), href: "/#services" },
+                    { text: t("pricing"), href: "/#pricing" },
+                  ],
+                },
+                {
+                  title: "고객 지원",
+                  items: [
+                    { text: t("howItWorks"), onClick: navigateToFAQ },
+                    { text: "자주 묻는 질문", href: "/faq" },
+                    { text: "고객센터", href: "/support" },
+                  ],
+                },
+                {
+                  title: "파트너쉽",
+                  items: [
+                    { text: t("partner"), onClick: navigateToPartner },
+                    { text: t("eventStorage"), onClick: navigateToEventStorage },
+                    { text: "1:1 문의", onClick: navigateToInquiry },
+                  ],
+                },
+                {
+                  title: "트래블라이트",
+                  items: [
+                    { text: "회사소개", href: "/about" },
+                    { text: "채용", href: "/careers" },
+                    { text: "뉴스", href: "/news" },
+                  ],
+                },
+              ].map((section, index) => (
+                <Box
+                  key={section.title}
+                  sx={{
+                    flex: 1,
+                    opacity: 0,
+                    animation: hamburgerMenuOpen
+                      ? `fadeIn 0.3s ease-out forwards ${0.1 + index * 0.1}s`
+                      : "none",
+                    "@keyframes fadeIn": {
+                      from: {
+                        opacity: 0,
+                        transform: "translateY(-5px)",
+                      },
+                      to: {
+                        opacity: 1,
+                        transform: "translateY(0)",
+                      },
+                    },
                   }}
-                />
-              </div>
-            ))}
-            <div style={{ height: 32 }} />
-            {partnerSubMenuItems.map((item, idx) => (
-              <div
-                key={item.text}
-                style={{
-                  display: 'inline-block',
-                  fontSize: 20,
-                  fontWeight: 400,
-                  margin: '16px 0',
-                  opacity: overlayOpen ? 1 : 0,
-                  transform: overlayOpen ? 'translateY(0)' : 'translateY(30px)',
-                  transition: `opacity 0.4s ${(menuItems.length + idx) * 0.05}s, transform 0.4s ${(menuItems.length + idx) * 0.05}s`,
-                  cursor: 'pointer',
-                  position: 'relative',
-                  width: 'fit-content'
-                }}
-                onClick={() => {
-                  setOverlayOpen(false);
-                  item.onClick();
-                }}
-                onMouseEnter={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(1)';
-                }}
-                onMouseLeave={e => {
-                  const underline = e.currentTarget.querySelector('.menu-underline') as HTMLElement;
-                  if (underline) underline.style.transform = 'scaleX(0)';
-                }}
-              >
-                {item.text}
-                <div 
-                  className="menu-underline"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    bottom: 0,
-                    width: '100%',
-                    height: 2,
-                    background: '#222',
-                    transform: 'scaleX(0)',
-                    transformOrigin: 'left',
-                    transition: 'transform 0.3s'
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <Box sx={{ height: '64px' }} /> {/* AppBar 높이만큼의 여백 추가 */}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      color: isPartnerPage
+                        ? "rgba(255, 255, 255, 0.8)"
+                        : "text.secondary",
+                      fontWeight: 600,
+                      mb: 1.5,
+                      fontSize: "0.95rem",
+                    }}
+                  >
+                    {section.title}
+                  </Typography>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    {section.items.map((item) => (
+                      <Button
+                        key={item.text}
+                        onClick={() =>
+                          handleMenuItemClick(item.href, item.onClick)
+                        }
+                        disableRipple
+                        sx={{
+                          justifyContent: "flex-start",
+                          color: isPartnerPage ? "white" : "text.primary",
+                          fontSize: "1rem",
+                          fontWeight: 400,
+                          textTransform: "none",
+                          py: 1,
+                          px: 0,
+                          borderRadius: "8px",
+                          width: "100%",
+                          "&:hover": {
+                            backgroundColor: "transparent",
+                            opacity: 0.7,
+                          },
+                          transition: "opacity 0.2s",
+                        }}
+                      >
+                        {item.text}
+                      </Button>
+                    ))}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+
+            {/* 모바일용 페이지 네비게이션 */}
+            <Box
+              sx={{
+                display: { xs: "flex", md: "none" },
+                flexDirection: "column",
+                gap: 0,
+                minHeight: "300px",
+              }}
+            >
+              {menuStep === 'main' ? (
+                // 메인 화면: 4개 카테고리
+                <>
+                  {[
+                    { key: "service", title: "서비스 이용" },
+                    { key: "support", title: "고객 지원" },
+                    { key: "partner", title: "파트너쉽" },
+                    { key: "company", title: "트래블라이트" },
+                  ].map((section, index) => (
+                    <Button
+                      key={section.key}
+                      onClick={() => handleSectionClick(section.key)}
+                      disableRipple
+                      sx={{
+                        width: "100%",
+                        justifyContent: "space-between",
+                        color: isPartnerPage ? "white" : "text.primary",
+                        fontSize: "1.1rem",
+                        fontWeight: 500,
+                        textTransform: "none",
+                        py: 3,
+                        px: 0,
+                        "&:hover": {
+                          opacity: 0.7,
+                        },
+                        transition: "opacity 0.2s ease",
+                        opacity: 0,
+                        animation: hamburgerMenuOpen
+                          ? `fadeIn 0.3s ease-out forwards ${0.1 + index * 0.1}s`
+                          : "none",
+                        "@keyframes fadeIn": {
+                          from: {
+                            opacity: 0,
+                            transform: "translateX(-10px)",
+                          },
+                          to: {
+                            opacity: 1,
+                            transform: "translateX(0)",
+                          },
+                        },
+                      }}
+                      endIcon={
+                        <Box sx={{ color: isPartnerPage ? "white" : "text.secondary" }}>
+                          →
+                        </Box>
+                      }
+                    >
+                      {section.title}
+                    </Button>
+                  ))}
+                </>
+              ) : (
+                // 세부 메뉴 화면
+                <>
+                  {/* 뒤로가기 버튼 */}
+                  <Button
+                    onClick={handleBackToMain}
+                    disableRipple
+                    sx={{
+                      width: "100%",
+                      justifyContent: "flex-start",
+                      color: isPartnerPage ? "white" : "text.primary",
+                      fontSize: "1rem",
+                      fontWeight: 500,
+                      textTransform: "none",
+                      py: 2,
+                      px: 0,
+                      mb: 2,
+                      "&:hover": {
+                        opacity: 0.7,
+                      },
+                    }}
+                    startIcon={
+                      <Box sx={{ color: isPartnerPage ? "white" : "text.secondary" }}>
+                        ←
+                      </Box>
+                    }
+                  >
+                    뒤로
+                  </Button>
+
+                  {/* 현재 섹션의 세부 항목들 */}
+                  {(() => {
+                    const sections = {
+                      service: {
+                        title: "서비스 이용",
+                        items: [
+                          { text: t("services"), href: "/#services" },
+                          { text: t("pricing"), href: "/#pricing" },
+                        ],
+                      },
+                      support: {
+                        title: "고객 지원",
+                        items: [
+                          { text: t("howItWorks"), onClick: navigateToFAQ },
+                          { text: "자주 묻는 질문", href: "/faq" },
+                          { text: "고객센터", href: "/support" },
+                        ],
+                      },
+                      partner: {
+                        title: "파트너쉽",
+                        items: [
+                          { text: t("partner"), onClick: navigateToPartner },
+                          { text: t("eventStorage"), onClick: navigateToEventStorage },
+                          { text: "1:1 문의", onClick: navigateToInquiry },
+                        ],
+                      },
+                      company: {
+                        title: "트래블라이트",
+                        items: [
+                          { text: "회사소개", href: "/about" },
+                          { text: "채용", href: "/careers" },
+                          { text: "뉴스", href: "/news" },
+                        ],
+                      },
+                    };
+
+                    const currentSection = sections[menuStep as keyof typeof sections];
+                    if (!currentSection) return null;
+
+                    return currentSection.items.map((item, index) => (
+                      <Button
+                        key={item.text}
+                        onClick={() => handleMenuItemClick(item.href, item.onClick)}
+                        disableRipple
+                        sx={{
+                          width: "100%",
+                          justifyContent: "flex-start",
+                          color: isPartnerPage ? "white" : "text.primary",
+                          fontSize: "1.1rem",
+                          fontWeight: 400,
+                          textTransform: "none",
+                          py: 2.5,
+                          px: 0,
+                          "&:hover": {
+                            opacity: 0.7,
+                          },
+                          transition: "opacity 0.2s ease",
+                          opacity: 0,
+                          animation: `fadeIn 0.3s ease-out forwards ${0.1 + index * 0.05}s`,
+                          "@keyframes fadeIn": {
+                            from: {
+                              opacity: 0,
+                              transform: "translateX(10px)",
+                            },
+                            to: {
+                              opacity: 1,
+                              transform: "translateX(0)",
+                            },
+                          },
+                        }}
+                      >
+                        {item.text}
+                      </Button>
+                    ));
+                  })()}
+                </>
+              )}
+            </Box>
+          </Container>
+        </Box>
+      </>
+      <Box sx={{ height: "64px" }} /> {/* AppBar 높이만큼의 여백 추가 */}
     </>
   );
 };

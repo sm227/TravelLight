@@ -41,6 +41,7 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BusinessIcon from '@mui/icons-material/Business';
+import LuggageIcon from '@mui/icons-material/Luggage';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../services/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -50,6 +51,9 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import { partnershipService } from '../services/api';
+import StorageCheckIn from '../components/storage/StorageCheckIn';
+import StorageCheckOut from '../components/storage/StorageCheckOut';
+import StorageStatusDashboard from '../components/storage/StorageStatusDashboard';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -813,7 +817,7 @@ const PartnerDashboard: React.FC = () => {
         <Paper
             elevation={0}
             sx={{
-              background: 'linear-gradient(135deg, #2E7DF1 0%, #5D9FFF 100%)',
+              background: '#2E7DF1',
               color: 'white',
               py: 4,
               px: 3,
@@ -896,6 +900,7 @@ const PartnerDashboard: React.FC = () => {
             >
               <Tab icon={<StoreIcon />} label="매장 현황" />
               <Tab icon={<EventNoteIcon />} label="예약 관리" />
+              <Tab icon={<LuggageIcon />} label="짐 보관 관리" />
               <Tab icon={<SettingsIcon />} label="설정" />
               <Tab icon={<ReceiptIcon />} label="정산 내역" />
             </Tabs>
@@ -909,59 +914,59 @@ const PartnerDashboard: React.FC = () => {
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                   <Card sx={{ height: '100%' }}>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <BusinessIcon sx={{ color: 'primary.main', mr: 1 }} />
-                        <Typography color="textSecondary" variant="h6" fontWeight="bold">
-                          매장 정보
-                        </Typography>
-                      </Box>
-                      <Divider sx={{ my: 2 }} />
+                    <CardContent sx={{ p: 2.5 }}>
+                      <Typography variant="h6" fontWeight="600" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+                        <BusinessIcon sx={{ mr: 1, color: 'primary.main', fontSize: 20 }} />
+                        매장 정보
+                      </Typography>
                       
-                      {/* 상호명 */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, p: 2, backgroundColor: 'rgba(46, 125, 241, 0.05)', borderRadius: 2 }}>
-                        <StoreIcon sx={{ color: 'primary.main', mr: 2, fontSize: 24 }} />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {/* 상호명 */}
                         <Box>
-                          <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500, fontSize: '0.75rem' }}>
                             상호명
                           </Typography>
-                          <Typography variant="h6" fontWeight="bold" color="primary.main">
+                          <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                             {selectedStore?.name || '-'}
                           </Typography>
                         </Box>
-                      </Box>
 
-                      {/* 주소 */}
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3, p: 2, backgroundColor: 'rgba(76, 175, 80, 0.05)', borderRadius: 2 }}>
-                        <LocationOnIcon sx={{ color: 'success.main', mr: 2, fontSize: 24, mt: 0.5 }} />
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                        <Divider sx={{ my: 0.5 }} />
+
+                        {/* 주소 */}
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500, fontSize: '0.75rem' }}>
                             매장 주소
                           </Typography>
-                          <Typography variant="body1" sx={{ lineHeight: 1.5 }}>
+                          <Typography variant="body2" sx={{ lineHeight: 1.5, color: 'text.primary' }}>
                             {selectedStore?.address || '-'}
                           </Typography>
                         </Box>
-                      </Box>
 
-                      {/* 영업시간 */}
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', p: 2, backgroundColor: 'rgba(255, 152, 0, 0.05)', borderRadius: 2 }}>
-                        <AccessTimeIcon sx={{ color: 'warning.main', mr: 2, fontSize: 24, mt: 0.5 }} />
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                        <Divider sx={{ my: 0.5 }} />
+
+                        {/* 영업시간 */}
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500, fontSize: '0.75rem' }}>
                             영업시간
                           </Typography>
                           {selectedStore?.is24Hours ? (
-                            <Chip 
-                              label="24시간 영업" 
-                              color="success" 
-                              variant="outlined"
-                              sx={{ fontWeight: 'bold' }}
-                            />
+                            <Box sx={{ 
+                              display: 'inline-flex', 
+                              px: 1.5, 
+                              py: 0.5, 
+                              backgroundColor: 'success.main', 
+                              color: 'white', 
+                              borderRadius: 0.5,
+                              fontWeight: 600,
+                              fontSize: '0.75rem'
+                            }}>
+                              24시간 영업
+                            </Box>
                           ) : (
                             <Box>
                               {selectedStore?.businessHours ? (
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
                                   {['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => {
                                     const hours = selectedStore.businessHours[day];
                                     if (!hours) return null;
@@ -973,25 +978,26 @@ const PartnerDashboard: React.FC = () => {
                                                         day === 'SATURDAY' ? '토' :
                                                             day === 'SUNDAY' ? '일' : day;
                                     return (
-                                        <Chip
+                                        <Box 
                                           key={day}
-                                          label={`${formattedDay}: ${hours}`}
-                                          variant="outlined"
-                                          size="small"
                                           sx={{ 
-                                            fontSize: '0.75rem',
-                                            height: 'auto',
-                                            '& .MuiChip-label': {
-                                              padding: '4px 8px',
-                                              whiteSpace: 'nowrap'
-                                            }
+                                            display: 'flex', 
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
                                           }}
-                                        />
+                                        >
+                                          <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                                            {formattedDay}
+                                          </Typography>
+                                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                                            {hours}
+                                          </Typography>
+                                        </Box>
                                     );
                                   }).filter(Boolean)}
                                 </Box>
                               ) : (
-                                <Typography variant="body2" color="textSecondary">
+                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
                                   영업 시간이 설정되지 않았습니다.
                                 </Typography>
                               )}
@@ -1227,7 +1233,7 @@ const PartnerDashboard: React.FC = () => {
                       <Button
                           fullWidth
                           variant="outlined"
-                          onClick={() => setTabValue(3)}
+                          onClick={() => setTabValue(4)}
                       >
                         정산 내역으로 이동
                       </Button>
@@ -1292,6 +1298,54 @@ const PartnerDashboard: React.FC = () => {
           </TabPanel>
 
           <TabPanel value={tabValue} index={2}>
+            {/* 짐 보관 관리 탭 */}
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h5" gutterBottom>
+                짐 보관 관리
+              </Typography>
+              <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
+                고객의 짐 입고 및 출고를 처리하고 현재 보관 현황을 확인할 수 있습니다.
+              </Typography>
+
+              {selectedStore ? (
+                <Grid container spacing={3}>
+                  {/* 입고 처리 */}
+                  <Grid item xs={12} md={6}>
+                    <StorageCheckIn
+                      onCheckInComplete={(result) => {
+                        console.log('입고 완료:', result);
+                        // 필요시 추가 처리
+                      }}
+                    />
+                  </Grid>
+
+                  {/* 출고 처리 */}
+                  <Grid item xs={12} md={6}>
+                    <StorageCheckOut
+                      onCheckOutComplete={(result) => {
+                        console.log('출고 완료:', result);
+                        // 필요시 추가 처리
+                      }}
+                    />
+                  </Grid>
+
+                  {/* 보관 현황 대시보드 */}
+                  <Grid item xs={12}>
+                    <StorageStatusDashboard
+                      storeName={selectedStore.name}
+                      storeAddress={selectedStore.address}
+                    />
+                  </Grid>
+                </Grid>
+              ) : (
+                <Alert severity="info">
+                  짐 보관 관리를 위해 먼저 매장을 선택해주세요.
+                </Alert>
+              )}
+            </Box>
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={3}>
             <Box sx={{ mb: 4 }}>
               <Typography variant="h5" gutterBottom>
                 매장 설정
@@ -1427,7 +1481,7 @@ const PartnerDashboard: React.FC = () => {
             </Box>
           </TabPanel>
 
-          <TabPanel value={tabValue} index={3}>
+          <TabPanel value={tabValue} index={4}>
             <Box sx={{ mb: 4 }}>
               <Typography variant="h5" gutterBottom>
                 정산 내역

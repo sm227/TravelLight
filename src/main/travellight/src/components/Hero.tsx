@@ -188,7 +188,7 @@ const Hero: React.FC = () => {
         const currentLocationMarker = new window.naver.maps.Marker({
             position: new window.naver.maps.LatLng(position.lat, position.lng),
             map: naverMap,
-            title: '현재 위치',
+            title: t('currentLocation'),
             icon: {
                 content: `
                     <div style="
@@ -230,8 +230,8 @@ const Hero: React.FC = () => {
             const infoWindow = new window.naver.maps.InfoWindow({
                 content: `
                     <div style="padding: 12px; min-width: 150px; text-align: center;">
-                        <h4 style="margin: 0 0 5px 0; color: #EF4444;">📍 현재 위치</h4>
-                        <p style="margin: 0; color: #6B7280; font-size: 12px;">여기서 주변 매장을 찾아보세요!</p>
+                        <h4 style="margin: 0 0 5px 0; color: #EF4444;">📍 ${t('currentLocation')}</h4>
+                        <p style="margin: 0; color: #6B7280; font-size: 12px;">${t('currentLocationDescription')}</p>
                     </div>
                 `
             });
@@ -379,7 +379,7 @@ const Hero: React.FC = () => {
                     });
                 } catch (locError) {
                     console.error('지역명 검색 중 오류:', locError);
-                    setErrorMessage('검색 결과가 없습니다. 다른 검색어를 시도해보세요.');
+                    setErrorMessage(t('noSearchResults'));
                 }
             }
         } catch (error) {
@@ -392,25 +392,25 @@ const Hero: React.FC = () => {
 
                     switch(error.response.status) {
                         case 403:
-                            setErrorMessage('서버에 접근 권한이 없습니다. 관리자에게 문의하세요.');
+                            setErrorMessage(t('serverAccessDenied'));
                             break;
                         case 404:
-                            setErrorMessage('서버에서 데이터를 찾을 수 없습니다.');
+                            setErrorMessage(t('dataNotFound'));
                             break;
                         default:
-                            setErrorMessage(`서버 오류가 발생했습니다: ${error.response.status}`);
+                            setErrorMessage(t('serverError') + error.response.status);
                     }
                 } else if (error.request) {
                     // 요청은 보냈으나 응답을 받지 못한 경우
                     console.error('응답 없음:', error.request);
-                    setErrorMessage('서버로부터 응답이 없습니다. 백엔드 서버가 실행 중인지 확인하세요.');
+                    setErrorMessage(t('noServerResponse'));
                 } else {
                     // 요청 구성 중 오류가 발생한 경우
-                    setErrorMessage(`요청 구성 중 오류: ${error.message}`);
+                    setErrorMessage(t('requestConfigError') + error.message);
                 }
             } else {
                 // 다른 유형의 오류
-                setErrorMessage('알 수 없는 오류가 발생했습니다.');
+                setErrorMessage(t('unknownError'));
             }
         } finally {
             setIsSearching(false);
@@ -526,7 +526,7 @@ const Hero: React.FC = () => {
                                 }}
                             >
                                 <InputBase
-                                    placeholder="매장명 또는 주소 검색"
+                                    placeholder={t('searchPlaceholder')}
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyPress={handleKeyPress}
@@ -581,58 +581,56 @@ const Hero: React.FC = () => {
                                 </Typography>
                             )}
 
-                            <Box
-                                sx={{
-                                    display: 'flex',
-                                    gap: 2,
-                                    justifyContent: { xs: 'center', md: 'flex-start' },
-                                    flexWrap: 'wrap'
-                                }}
-                            >
-                                <Button
-                                    variant="contained"
-                                    size="large"
-                                    component={Link}
-                                    to="/map"
+                            <Box>
+                                <Box
                                     sx={{
-                                        backgroundColor: '#3B82F6',
-                                        color: 'white',
-                                        px: 4,
-                                        py: 1.5,
-                                        borderRadius: '10px',
-                                        fontSize: '1rem',
-                                        fontWeight: 600,
-                                        textTransform: 'none',
-                                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
-                                        '&:hover': {
-                                            backgroundColor: '#2563EB',
-                                            boxShadow: '0 6px 16px rgba(37, 99, 235, 0.4)',
-                                            transform: 'translateY(-1px)'
-                                        }
+                                        display: 'flex',
+                                        gap: 2,
+                                        justifyContent: { xs: 'center', md: 'flex-start' },
+                                        flexWrap: 'wrap'
                                     }}
                                 >
-                                    가까운 위치 찾기
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    size="large"
-                                    sx={{
-                                        borderColor: '#E2E8F0',
-                                        color: '#475569',
-                                        px: 4,
-                                        py: 1.5,
-                                        borderRadius: '10px',
-                                        fontSize: '1rem',
-                                        fontWeight: 600,
-                                        textTransform: 'none',
-                                        '&:hover': {
-                                            backgroundColor: '#F8FAFC',
-                                            borderColor: '#CBD5E1'
-                                        }
-                                    }}
-                                >
-                                    더 알아보기
-                                </Button>
+                                    <Button
+                                        variant="contained"
+                                        size="large"
+                                        sx={{
+                                            backgroundColor: '#3B82F6',
+                                            color: 'white',
+                                            px: 4,
+                                            py: 1.5,
+                                            borderRadius: '10px',
+                                            fontSize: '1rem',
+                                            fontWeight: 600,
+                                            textTransform: 'none',
+                                            '&:hover': {
+                                                backgroundColor: '#2563EB'
+                                            }
+                                        }}
+                                        onClick={() => navigate('/map')}
+                                    >
+                                        {t('findNearbyLocation')}
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        size="large"
+                                        sx={{
+                                            borderColor: '#E2E8F0',
+                                            color: '#475569',
+                                            px: 4,
+                                            py: 1.5,
+                                            borderRadius: '10px',
+                                            fontSize: '1rem',
+                                            fontWeight: 600,
+                                            textTransform: 'none',
+                                            '&:hover': {
+                                                backgroundColor: '#F8FAFC',
+                                                borderColor: '#CBD5E1'
+                                            }
+                                        }}
+                                    >
+                                        {t('learnMoreButton')}
+                                    </Button>
+                                </Box>
                             </Box>
                         </Box>
                     </Grid>
@@ -681,7 +679,7 @@ const Hero: React.FC = () => {
                             >
                                 <StorefrontIcon sx={{ fontSize: 20, color: '#3B82F6' }} />
                                 <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
-                                    {partnerships.length}개의 매장
+                                    {partnerships.length}{t('storeCount')}
                                 </Typography>
                             </Box>
 
@@ -707,7 +705,7 @@ const Hero: React.FC = () => {
                                 onClick={() => navigate('/map')}
                             >
                                 <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'white' }}>
-                                    전체 지도 보기
+                                    {t('viewFullMap')}
                                 </Typography>
                             </Box>
                         </Box>

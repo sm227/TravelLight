@@ -64,7 +64,11 @@ public class Reservation {
     private String storageType; // "day" 또는 "period"
     
     @Column(name = "status", nullable = false)
+    @Builder.Default
     private String status = "RESERVED"; // RESERVED, COMPLETED, CANCELLED
+    
+    @Column(name = "payment_id")
+    private String paymentId; // 포트원 결제 ID
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -73,7 +77,12 @@ public class Reservation {
     private LocalDateTime updatedAt;
     
     @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<Delivery> deliveries = new ArrayList<>();
+    
+    @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Review> reviews = new ArrayList<>();
     
     @PrePersist
     protected void onCreate() {
@@ -98,5 +107,20 @@ public class Reservation {
     public void removeDelivery(Delivery delivery) {
         deliveries.remove(delivery);
         delivery.setReservation(null);
+    }
+
+    public void addReview(Review review) {
+        reviews.add(review);
+        review.setReservation(this);
+    }
+
+    public void removeReview(Review review) {
+        reviews.remove(review);
+        review.setReservation(null);
+    }
+    
+    // 리뷰 작성 가능 여부 확인 (서비스 완료 상태일 때만 가능)
+    public boolean canWriteReview() {
+        return "COMPLETED".equals(this.status);
     }
 } 

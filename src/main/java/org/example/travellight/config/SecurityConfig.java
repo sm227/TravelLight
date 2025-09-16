@@ -25,6 +25,10 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .headers(headers -> headers
+                .frameOptions().disable() // iframe 허용 (포트원 결제창용)
+                .contentTypeOptions().disable()
+            )
             .authorizeHttpRequests(auth -> auth
                 .anyRequest().permitAll() // 모든 요청을 인증 없이 허용
             );
@@ -35,7 +39,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173","http://52.79.53.239:5173"));
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173","http://52.79.53.239:5173","https://travelight.co.kr"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));

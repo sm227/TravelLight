@@ -4,7 +4,7 @@ import {
   Container, 
   Typography, 
   TextField, 
-  Button, 
+  Button,
   Link, 
   IconButton,
   Snackbar,
@@ -17,9 +17,9 @@ import {
   Checkbox,
   FormControlLabel
 } from '@mui/material';
-import { 
-  Visibility, 
-  VisibilityOff, 
+import {
+  Visibility,
+  VisibilityOff,
   FlightTakeoff,
   TravelExplore,
   Luggage,
@@ -236,7 +236,7 @@ const Register = () => {
         // 회원가입 성공 시 로그인 처리
         login(response.data);
         setRegisterSuccess(true);
-        
+
         // 홈 페이지로 이동
         setTimeout(() => {
           navigate('/');
@@ -244,11 +244,11 @@ const Register = () => {
       } catch (error) {
         console.error('회원가입 오류:', error);
         let errorMessage = '회원가입 중 오류가 발생했습니다.';
-        
+
         if (axios.isAxiosError(error) && error.response?.data?.message) {
           errorMessage = error.response.data.message;
         }
-        
+
         setSnackbar({
           open: true,
           message: errorMessage,
@@ -263,7 +263,7 @@ const Register = () => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#F8FAFC' }}>
       <Navbar />
-      
+
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', py: { xs: 4, md: 8 } }}>
         <Container maxWidth="lg">
           <Grid container spacing={0} sx={{ minHeight: { md: '700px' } }}>
@@ -313,12 +313,12 @@ const Register = () => {
                   <Box sx={{ mb: 4 }}>
                     <PersonAdd sx={{ fontSize: 64, color: '#10B981', mb: 2, opacity: 0.9 }} />
                   </Box>
-                  
-                  <Typography 
-                    variant="h3" 
-                    sx={{ 
-                      fontWeight: 700, 
-                      color: '#0F172A', 
+
+                  <Typography
+                    variant="h3"
+                    sx={{
+                      fontWeight: 700,
+                      color: '#0F172A',
                       mb: 2,
                       fontSize: { xs: '1.75rem', md: '2.25rem' },
                       lineHeight: 1.1,
@@ -330,12 +330,12 @@ const Register = () => {
                       시작
                     </Box>
                   </Typography>
-                  
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      color: '#64748B', 
-                      mb: 6, 
+
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: '#64748B',
+                      mb: 6,
                       fontWeight: 400,
                       lineHeight: 1.6,
                       fontSize: '16px'
@@ -353,7 +353,7 @@ const Register = () => {
                       { icon: '🛡️', text: '안전한 개인정보 보호' }
                     ].map((feature, index) => (
                       <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Box sx={{ 
+                        <Box sx={{
                           fontSize: '20px',
                           width: '32px',
                           height: '32px',
@@ -366,8 +366,8 @@ const Register = () => {
                         }}>
                           {feature.icon}
                         </Box>
-                        <Typography sx={{ 
-                          color: '#475569', 
+                        <Typography sx={{
+                          color: '#475569',
                           fontSize: '15px',
                           fontWeight: 500,
                           lineHeight: 1.4
@@ -379,22 +379,22 @@ const Register = () => {
                   </Stack>
 
                   {/* 하단 정보 */}
-                  <Box sx={{ 
+                  <Box sx={{
                     mt: 6,
                     pt: 4,
                     borderTop: '1px solid #E2E8F0'
                   }}>
-                    <Typography sx={{ 
-                      fontSize: '14px', 
-                      fontWeight: 600, 
+                    <Typography sx={{
+                      fontSize: '14px',
+                      fontWeight: 600,
                       color: '#10B981',
                       letterSpacing: '1px',
                       mb: 1
                     }}>
                       JOIN TRAVELLIGHT
                     </Typography>
-                    <Typography sx={{ 
-                      fontSize: '12px', 
+                    <Typography sx={{
+                      fontSize: '12px',
                       color: '#94A3B8',
                       lineHeight: 1.4
                     }}>
@@ -424,21 +424,21 @@ const Register = () => {
                 <Box sx={{ maxWidth: '400px', mx: 'auto', width: '100%' }}>
                   {/* 헤더 */}
                   <Box sx={{ mb: 4 }}>
-                    <Typography 
-                      variant="h4" 
-                      sx={{ 
-                        fontWeight: 700, 
-                        color: '#111827', 
+                    <Typography
+                      variant="h4"
+                      sx={{
+                        fontWeight: 700,
+                        color: '#111827',
                         mb: 1,
                         fontSize: { xs: '1.8rem', md: '2rem' }
                       }}
                     >
                       회원가입
                     </Typography>
-                    <Typography 
-                      variant="body1" 
-                      sx={{ 
-                        color: '#6B7280', 
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        color: '#6B7280',
                         fontSize: '16px'
                       }}
                     >
@@ -567,7 +567,7 @@ const Register = () => {
                       fullWidth
                       variant="contained"
                       disabled={isLoading || registerSuccess}
-                      sx={{ 
+                      sx={{
                         mb: 3,
                         backgroundColor: registerSuccess ? '#10B981' : '#0F4C81',
                         '&:hover': {
@@ -614,18 +614,18 @@ const Register = () => {
           </Grid>
         </Container>
       </Box>
-      
-      <Snackbar 
+
+      <Snackbar
         open={snackbar.open} 
         autoHideDuration={6000} 
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={snackbar.severity} 
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
           variant="filled"
-          sx={{ 
+          sx={{
             width: '100%',
             borderRadius: '8px',
             boxShadow: '0 4px 16px rgba(0,0,0,0.15)'

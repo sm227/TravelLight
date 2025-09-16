@@ -24,6 +24,7 @@ export interface AuthContextType {
   isAdmin: boolean;
   isPartner: boolean;
   isWaiting: boolean;
+  isInitialLoading: boolean;
   login: (userData: ExtendedUserResponse) => void;
   logout: () => void;
   adminLogin: (credentials: {
@@ -45,6 +46,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isPartner, setIsPartner] = useState<boolean>(false);
   const [isWaiting, setIsWaiting] = useState<boolean>(false);
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
 
   useEffect(() => {
     // 로컬 스토리지에서 사용자 ID만 불러오기
@@ -60,7 +62,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
         console.error("Failed to parse stored auth data:", error);
         localStorage.removeItem("authData");
+        setIsInitialLoading(false);
       }
+    } else {
+      setIsInitialLoading(false);
     }
   }, []);
 
@@ -82,6 +87,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error("Failed to load user from server:", error);
       // 서버에서 사용자 정보를 가져올 수 없으면 로그아웃
       logout();
+    } finally {
+      setIsInitialLoading(false);
     }
   };
 
@@ -113,6 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       id: userData.id,
     };
     localStorage.setItem("authData", JSON.stringify(authData));
+    
   };
 
   const logout = () => {
@@ -121,6 +129,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsAdmin(false);
     setIsPartner(false);
     setIsWaiting(false);
+    setIsInitialLoading(false);
     localStorage.removeItem("authData");
   };
 
@@ -193,6 +202,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isAdmin,
         isPartner,
         isWaiting,
+        isInitialLoading,
         login,
         logout,
         adminLogin,

@@ -19,8 +19,19 @@ import {
   Alert,
   Stack,
   Chip,
+  IconButton,
+  Menu,
+  Divider,
+  Typography,
 } from "@mui/material";
-import { Typography } from "@mui/material";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
+import { ko } from "date-fns/locale";
+import { useAuth } from "../services/AuthContext";
+import axios from "axios";
+import { useTranslation } from "react-i18next";
+import PortOne from "@portone/browser-sdk/v2";
+import { useLocation, useNavigate } from "react-router-dom";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
@@ -39,14 +50,24 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import StorefrontIcon from "@mui/icons-material/Storefront";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
-import { ko } from "date-fns/locale";
-import { useAuth } from "../services/AuthContext";
-import axios from "axios";
-import { useTranslation } from "react-i18next";
-import PortOne from "@portone/browser-sdk/v2";
-import { useLocation } from "react-router-dom";
+import TranslateIcon from "@mui/icons-material/Translate";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import PersonIcon from "@mui/icons-material/Person";
+import SettingsIcon from "@mui/icons-material/Settings";
+import LogoutIcon from "@mui/icons-material/Logout";
+import LoginIcon from "@mui/icons-material/Login";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import LanguageIcon from "@mui/icons-material/Language";
+import MenuIcon from "@mui/icons-material/Menu";
+import BookmarkIcon from "@mui/icons-material/Bookmark";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { getMyReservations, cancelReservation, cancelPayment } from '../services/reservationService';
+import { ReservationDto } from '../types/reservation';
+import ReviewsList from '../components/reviews/ReviewsList';
+import { reviewService } from '../services/api';
+import QrCodeIcon from '@mui/icons-material/QrCode';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 
 declare global {
   interface Window {
@@ -100,8 +121,9 @@ interface BusinessHourDto {
 //영문 지도 변환
 const Map = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
 
   const mapRef = useRef<HTMLDivElement>(null);
   const [userPosition, setUserPosition] = useState<{
@@ -118,6 +140,7 @@ const Map = () => {
   const [endTime, setEndTime] = useState("18:00");
   const [partnershipMarkers, setPartnershipMarkers] = useState<any[]>([]);
   const [isReservationOpen, setIsReservationOpen] = useState(false);
+  const [reservationStep, setReservationStep] = useState<'bag-selection' | 'datetime-selection'>('bag-selection'); // 예약 단계 상태 추가
   const [bagSizes, setBagSizes] = useState({
     small: 0,
     medium: 0,
@@ -130,12 +153,12 @@ const Map = () => {
 
   // 검색 결과 영역 표시 여부 결정
   const shouldShowResultArea = () => {
-    return selectedPlace !== null || searchResults.length > 0 || isReservationOpen || isPaymentOpen || isPaymentComplete;
+    return selectedPlace !== null || searchResults.length > 0 || isReservationOpen || isPaymentOpen || isPaymentComplete || showReservations || selectedReservation;
   };
 
   // 포트원 결제 관련 상태
   const [portonePaymentId, setPortonePaymentId] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "portone">(
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "portone" | "paypal">(
     "portone"
   ); // 기본값을 포트원으로 설정
   const [storageDuration, setStorageDuration] = useState("day");
@@ -146,6 +169,9 @@ const Map = () => {
   const [isTimeValid, setIsTimeValid] = useState(true);
   // 종료 날짜 상태 추가
   const [storageEndDate, setStorageEndDate] = useState("");
+
+  // 리뷰 탭 상태
+  const [selectedTab, setSelectedTab] = useState<'info' | 'reviews'>('info');
 
   // 예약 관련 상태
   const [reservationError, setReservationError] = useState("");
@@ -178,6 +204,452 @@ const Map = () => {
     medium: number;
     large: number;
   }>({ small: 0, medium: 0, large: 0 });
+
+  // 예약 목록 관련 상태
+  const [showReservations, setShowReservations] = useState(false);
+  const [myReservations, setMyReservations] = useState<ReservationDto[]>([]);
+  const [loadingReservations, setLoadingReservations] = useState(false);
+  const [selectedReservation, setSelectedReservation] = useState<ReservationDto | null>(null);
+
+
+  // 보관 상태 관련 상태
+  const [storageStatuses, setStorageStatuses] = useState<{[key: string]: any}>({});
+  
+  // 예약 취소 관련 상태
+  const [cancellingReservation, setCancellingReservation] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string>('');
+  const [cancelSuccess, setCancelSuccess] = useState<string>('');
+
+  // 사용자 메뉴 및 언어 메뉴 상태
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(null);
+
+  // 메뉴 처리 함수들
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLangMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setLangMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleLangMenuClose = () => {
+    setLangMenuAnchorEl(null);
+  };
+
+  const changeLanguage = (lng: string) => {
+    localStorage.setItem('preferredLanguage', lng);
+    handleLangMenuClose();
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+  };
+
+  // 보관 상태 렌더링 함수
+  const renderStorageStatus = (reservation: ReservationDto) => {
+    const storageStatus = storageStatuses[reservation.reservationNumber];
+
+    if (!storageStatus) {
+      return null; // 로딩 중이거나 보관 정보가 없음
+    }
+
+    if (!storageStatus.hasStorage) {
+      return (
+        <Box sx={{
+          px: 1.5,
+          py: 1,
+          backgroundColor: '#f8f9fa',
+          borderTop: '1px solid #e9ecef'
+        }}>
+          <Typography variant="body2" color="textSecondary">
+            {t('visitStoreForStorage')}
+          </Typography>
+        </Box>
+      );
+    }
+
+    const status = storageStatus.status;
+    const checkInTime = storageStatus.checkInTime;
+    const storageCode = storageStatus.storageCode;
+
+    if (status === 'STORED') {
+      return (
+        <Box sx={{
+          px: 1.5,
+          py: 1,
+          backgroundColor: '#e8f5e8',
+          borderTop: '1px solid #c8e6c9'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#2e7d32' }}>
+                {t('storingLuggage')}
+              </Typography>
+              <Typography variant="caption" color="textSecondary">
+                {t('checkedIn')}: {new Date(checkInTime).toLocaleString('ko-KR')}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Chip
+                icon={<QrCodeIcon />}
+                label="QR Code"
+                size="small"
+                color="primary"
+                variant="outlined"
+              />
+              <Chip
+                icon={<PhotoCameraIcon />}
+                label={t('photo')}
+                size="small"
+                color="secondary"
+                variant="outlined"
+              />
+            </Box>
+          </Box>
+          <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#666' }}>
+            {t('checkOutCode')}: {storageCode}
+          </Typography>
+        </Box>
+      );
+    }
+
+    if (status === 'RETRIEVED') {
+      return (
+        <Box sx={{
+          px: 1.5,
+          py: 1,
+          backgroundColor: '#f3e5f5',
+          borderTop: '1px solid #ce93d8'
+        }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: '#7b1fa2' }}>
+            <CheckCircleIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
+            {t('utilizationComplete')}
+          </Typography>
+          <Typography variant="caption" color="textSecondary">
+            {t('checkOut')}: {storageStatus.checkOutTime ? new Date(storageStatus.checkOutTime).toLocaleString('ko-KR') : t('processed')}
+          </Typography>
+        </Box>
+      );
+    }
+
+    return null;
+  };
+
+  // 보관 상태 조회 함수
+  const fetchStorageStatus = async (reservationNumber: string) => {
+    try {
+      const response = await axios.get(`/api/reservations/${reservationNumber}/storage-status`);
+      if (response.data?.success && response.data?.data) {
+        setStorageStatuses(prev => ({
+          ...prev,
+          [reservationNumber]: response.data.data
+        }));
+      }
+    } catch (error) {
+      console.error('보관 상태 조회 실패:', error);
+      // 실패해도 에러를 표시하지 않고 조용히 처리
+    }
+  };
+
+  // 예약 목록 관련 함수들
+  const fetchMyReservations = async () => {
+    if (!user?.id) return;
+    
+    setLoadingReservations(true);
+    try {
+      const reservations = await getMyReservations(user.id);
+      // 예약 상태를 체크하고 업데이트 (백엔드 API 호출)
+      const updatedReservations = await checkAndUpdateReservationStatus(reservations);
+      // 최신 예약을 맨 위로 정렬 (ID 기준 내림차순 - 더 높은 ID가 최신)
+      const sortedReservations = updatedReservations.sort((a, b) => b.id - a.id);
+      setMyReservations(sortedReservations);
+
+      // 각 예약의 보관 상태 조회
+      sortedReservations.forEach(reservation => {
+        if (reservation.reservationNumber) {
+          fetchStorageStatus(reservation.reservationNumber);
+        }
+      });
+    } catch (error) {
+      console.error('예약 목록을 불러오는데 실패했습니다:', error);
+    } finally {
+      setLoadingReservations(false);
+    }
+  };
+
+  const checkAndUpdateReservationStatus = async (reservations: ReservationDto[]): Promise<ReservationDto[]> => {
+    const now = new Date();
+    const updatedReservations = [];
+    
+    for (const reservation of reservations) {
+      const endDateTime = new Date(`${reservation.storageEndDate}T${reservation.storageEndTime}`);
+
+      if (reservation.status === 'RESERVED' && now > endDateTime) {
+        try {
+          // 백엔드 API 호출하여 예약 상태를 COMPLETED로 업데이트
+          const response = await axios.put(
+            `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/reservations/${reservation.reservationNumber}/complete`,
+            {},
+            {
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            }
+          );
+          
+          if (response.status === 200) {
+            console.log(`예약 완료 처리 성공: ${reservation.reservationNumber}`);
+            updatedReservations.push({
+              ...reservation,
+              status: 'COMPLETED' as const
+            });
+            
+            // 매장 용량 정보 실시간 업데이트
+            if (selectedPlace && 
+                selectedPlace.place_name === reservation.placeName && 
+                selectedPlace.address_name === reservation.placeAddress) {
+              const updatedCapacity = await fetchRealTimeCapacity(
+                reservation.placeName,
+                reservation.placeAddress
+              );
+              setRealTimeCapacity({
+                small: updatedCapacity.smallBags || 0,
+                medium: updatedCapacity.mediumBags || 0,
+                large: updatedCapacity.largeBags || 0,
+              });
+              console.log(`매장 용량 정보 업데이트 완료: ${reservation.placeName}`);
+            }
+          } else {
+            console.error(`예약 완료 처리 실패: ${reservation.reservationNumber}`);
+            updatedReservations.push(reservation);
+          }
+        } catch (error) {
+          console.error(`예약 완료 처리 API 호출 실패: ${reservation.reservationNumber}`, error);
+          // API 호출 실패 시에도 프론트엔드 상태는 업데이트
+          updatedReservations.push({
+            ...reservation,
+            status: 'COMPLETED' as const
+          });
+        }
+      } else {
+        updatedReservations.push(reservation);
+      }
+    }
+    
+    return updatedReservations;
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'RESERVED':
+        return t('reserved');
+      case 'COMPLETED':
+        return t('completed');
+      case 'CANCELLED':
+        return t('cancelled');
+      default:
+        return status;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const formatTimeForReservation = (timeString: string) => {
+    return timeString.slice(0, 5); // HH:MM 형식으로 변환
+  };
+
+  // 네이버맵 길찾기 함수
+  const openNaverMap = (reservation: ReservationDto) => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const placeName = reservation.placeName;
+    const placeAddress = reservation.placeAddress;
+    
+    // 현재 위치 가져오기
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const currentLat = position.coords.latitude;
+          const currentLng = position.coords.longitude;
+          
+          if (isMobile) {
+            // 모바일에서는 네이버맵 앱을 실행 (출발지: 현재위치, 도착지: 매장)
+            const naverMapUrl = `nmap://route/car?slat=${currentLat}&slng=${currentLng}&sname=${t('currentLocationForNavigation')}&dlat=${reservation.placeLatitude}&dlng=${reservation.placeLongitude}&dname=${encodeURIComponent(placeName)}&appname=TravelLight`;
+            
+            // 네이버맵 앱이 설치되어 있으면 실행, 없으면 웹으로 이동
+            const timeout = setTimeout(() => {
+              // 앱 실행 실패시 웹 페이지로 이동 (모바일도 간단한 검색)
+              const searchQuery = encodeURIComponent(`${placeName} ${placeAddress}`);
+              const naverMobileWebUrl = `https://map.naver.com/p/search/${searchQuery}`;
+              window.open(naverMobileWebUrl, '_blank');
+            }, 1000);
+            
+            // 앱이 성공적으로 실행되면 timeout 취소
+            const beforeUnload = () => {
+              clearTimeout(timeout);
+            };
+            
+            window.addEventListener('beforeunload', beforeUnload);
+            window.location.href = naverMapUrl;
+            
+            // 3초 후 이벤트 리스너 제거
+            setTimeout(() => {
+              window.removeEventListener('beforeunload', beforeUnload);
+            }, 3000);
+            
+          } else {
+            // PC에서는 네이버맵 웹 페이지로 이동 (간단한 주소 검색)
+            const searchQuery = encodeURIComponent(`${placeName} ${placeAddress}`);
+            const naverWebUrl = `https://map.naver.com/p/search/${searchQuery}`;
+            window.open(naverWebUrl, '_blank');
+          }
+        },
+        (error) => {
+          console.error('현재 위치를 가져올 수 없습니다:', error);
+          // 위치 정보를 가져올 수 없는 경우 기존 방식으로 동작 (도착지만 설정)
+          if (isMobile) {
+            const naverMapUrl = `nmap://route/car?dlat=${reservation.placeLatitude}&dlng=${reservation.placeLongitude}&dname=${encodeURIComponent(placeName)}&appname=TravelLight`;
+            
+            const timeout = setTimeout(() => {
+              window.open(`https://map.naver.com/p/directions/-1,,,,/-2,${encodeURIComponent(placeAddress)},${encodeURIComponent(placeName)},PLACE/car`, '_blank');
+            }, 1000);
+            
+            const beforeUnload = () => {
+              clearTimeout(timeout);
+            };
+            
+            window.addEventListener('beforeunload', beforeUnload);
+            window.location.href = naverMapUrl;
+            
+            setTimeout(() => {
+              window.removeEventListener('beforeunload', beforeUnload);
+            }, 3000);
+            
+          } else {
+            // 위치 정보를 가져올 수 없는 경우 PC웹용 (간단한 주소 검색)
+            const searchQuery = encodeURIComponent(`${placeName} ${placeAddress}`);
+            const naverWebUrl = `https://map.naver.com/p/search/${searchQuery}`;
+            window.open(naverWebUrl, '_blank');
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000
+        }
+      );
+    } else {
+      console.error('브라우저에서 위치 정보를 지원하지 않습니다.');
+      // Geolocation을 지원하지 않는 경우 기존 방식으로 동작
+      if (isMobile) {
+        const naverMapUrl = `nmap://route/car?dlat=${reservation.placeLatitude}&dlng=${reservation.placeLongitude}&dname=${encodeURIComponent(placeName)}&appname=TravelLight`;
+        
+        const timeout = setTimeout(() => {
+          // 앱 실행 실패시 모바일 웹으로 이동 (간단한 검색)
+          const searchQuery = encodeURIComponent(`${placeName} ${placeAddress}`);
+          const naverMobileWebUrl = `https://map.naver.com/p/search/${searchQuery}`;
+          window.open(naverMobileWebUrl, '_blank');
+        }, 1000);
+        
+        const beforeUnload = () => {
+          clearTimeout(timeout);
+        };
+        
+        window.addEventListener('beforeunload', beforeUnload);
+        window.location.href = naverMapUrl;
+        
+        setTimeout(() => {
+          window.removeEventListener('beforeunload', beforeUnload);
+        }, 3000);
+        
+      } else {
+        // Geolocation을 지원하지 않는 경우 PC웹용 (간단한 주소 검색)
+        const searchQuery = encodeURIComponent(`${placeName} ${placeAddress}`);
+        const naverWebUrl = `https://map.naver.com/p/search/${searchQuery}`;
+        window.open(naverWebUrl, '_blank');
+      }
+    }
+  };
+
+  const handleReservationsClick = () => {
+    setShowReservations(true);
+    setSelectedPlace(null);
+    setSelectedReservation(null);
+    setSearchResults([]);
+    setIsReservationOpen(false);
+    setIsPaymentOpen(false);
+    setIsPaymentComplete(false);
+    fetchMyReservations();
+  };
+
+  const handleBackToSearch = () => {
+    setShowReservations(false);
+    setSelectedReservation(null);
+  };
+
+  // 예약 취소 처리 함수
+  const handleCancelReservation = async (reservation: ReservationDto) => {
+    if (!window.confirm(t('confirmCancelReservation'))) {
+      return;
+    }
+
+    const reservationNumber = reservation.reservationNumber;
+    if (!reservationNumber) {
+      setCancelError(t('reservationNumberNotFound'));
+      return;
+    }
+
+    setCancellingReservation(reservationNumber);
+    setCancelError('');
+    setCancelSuccess('');
+
+    try {
+      // 1. 먼저 예약 취소
+      await cancelReservation(reservationNumber);
+      
+      // 2. 포트원 결제 취소 (paymentId가 있는 경우)
+      if (reservation.paymentId) {
+        try {
+          await cancelPayment(reservation.paymentId, 'Customer requested cancellation');
+        } catch (paymentError) {
+          console.error('결제 취소 실패:', paymentError);
+          // 예약은 취소되었지만 결제 취소가 실패한 경우
+          setCancelError(t('paymentCancellationFailed'));
+        }
+      }
+
+      setCancelSuccess(t('reservationCancelledSuccessfully'));
+
+      // 예약 목록 새로고침
+      await fetchMyReservations();
+
+      // 상세보기에서 목록으로 돌아가기
+      if (selectedReservation) {
+        setSelectedReservation(null);
+      }
+
+      // 성공 메시지 3초 후 자동 제거
+      setTimeout(() => {
+        setCancelSuccess('');
+      }, 3000);
+
+    } catch (error: any) {
+      console.error('예약 취소 실패:', error);
+      setCancelError(error.message || t('reservationCancellationFailed'));
+    } finally {
+      setCancellingReservation(null);
+    }
+  };
 
   // 공통 스크롤바 스타일 정의
   const scrollbarStyle = {
@@ -288,7 +760,28 @@ const Map = () => {
     searchResults: initialSearchResults = [],
     initialPosition,
     searchType,
+    showReservations: initialShowReservations = false,
   } = (location.state as any) || {};
+
+  // Navbar에서 예약 목록 요청 처리
+  useEffect(() => {
+    if (initialShowReservations && isAuthenticated) {
+      console.log('Navbar에서 예약 목록 화면 요청됨');
+      setShowReservations(true);
+      setSelectedPlace(null);
+      setSelectedReservation(null);
+      setSearchResults([]);
+      setIsReservationOpen(false);
+      setIsPaymentOpen(false);
+      setIsPaymentComplete(false);
+      fetchMyReservations();
+      
+      // location.state 정리
+      if (location.state) {
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [initialShowReservations, isAuthenticated]);
 
   // 메인페이지에서 전달받은 검색어 처리
   useEffect(() => {
@@ -340,7 +833,7 @@ const Map = () => {
         x: p.longitude.toString(),
         y: p.latitude.toString(),
         opening_hours: p.is24Hours
-          ? "24시간 영업"
+          ? t('open24Hours')
           : formatBusinessHours(p.businessHours),
       }));
 
@@ -579,7 +1072,7 @@ const Map = () => {
       addMapStyles();
 
       const options = {
-        center: new window.naver.maps.LatLng(37.7454814, 127.0233146),
+        center: new window.naver.maps.LatLng(37.555946, 126.972317),
         zoom: 15,
         zoomControl: false,
         disableKineticPan: false,
@@ -865,10 +1358,10 @@ const Map = () => {
 
           // 영업시간 정보 가져오기
           let hours = partnership.is24Hours
-            ? "24시간 영업"
+            ? t('open24Hours')
             : partnership.businessHours
             ? formatBusinessHours(partnership.businessHours)
-            : "영업시간 정보 없음";
+            : t('noOperatingHours');
 
           // 실시간 보관 가능한 개수를 가져오는 함수
           const createInfoWindowContent = async () => {
@@ -961,27 +1454,27 @@ const Map = () => {
                                                 ? "#28a745"
                                                 : "#dc3545"
                                             };">
-                                                소형: ${
+                                                ${t('small')}: ${
                                                   availableCapacity.smallBags
-                                                }개
+                                                }${t('pieces')}
                                             </span>
                                             <span style="color: ${
                                               availableCapacity.mediumBags > 0
                                                 ? "#28a745"
                                                 : "#dc3545"
                                             };">
-                                                중형: ${
+                                                ${t('medium')}: ${
                                                   availableCapacity.mediumBags
-                                                }개
+                                                }${t('pieces')}
                                             </span>
                                             <span style="color: ${
                                               availableCapacity.largeBags > 0
                                                 ? "#28a745"
                                                 : "#dc3545"
                                             };">
-                                                대형: ${
+                                                ${t('large')}: ${
                                                   availableCapacity.largeBags
-                                                }개
+                                                }${t('pieces')}
                                             </span>
                                         </div>
                                     </div>
@@ -998,7 +1491,7 @@ const Map = () => {
                                         </svg>
                                         ${
                                           partnership.phone ||
-                                          "전화번호 정보 없음"
+                                          t('noPhoneInfo')
                                         }
                                     </div>
                                     <div style="
@@ -1073,11 +1566,12 @@ const Map = () => {
               x: partnership.longitude.toString(),
               y: partnership.latitude.toString(),
               opening_hours: partnership.is24Hours
-                ? "24시간 영업"
+                ? t('open24Hours')
                 : formatBusinessHours(partnership.businessHours),
             };
 
             setSelectedPlace(placeData);
+            setShowReservations(false); // 예약목록 숨기기
             // 사이드바가 닫혀있으면 열기
             setIsSidebarOpen(true);
 
@@ -1131,12 +1625,16 @@ const Map = () => {
       function getCategoryCodeFromBusinessType(businessType: string): string {
         switch (businessType) {
           case "카페":
+          case t('cafe'):
             return "CE7";
           case "편의점":
+          case t('convenienceStore'):
             return "CS2";
           case "숙박":
+          case t('accommodation'):
             return "AD5";
           case "식당":
+          case t('restaurant'):
             return "FD6";
           default:
             return "ETC";
@@ -1148,18 +1646,18 @@ const Map = () => {
         businessHours: Record<string, BusinessHourDto | string>
       ): string {
         if (!businessHours || Object.keys(businessHours).length === 0) {
-          return "영업시간 정보 없음";
+          return t('noOperatingHours');
         }
 
         const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
         const dayNames = {
-          'MONDAY': '월',
-          'TUESDAY': '화',
-          'WEDNESDAY': '수',
-          'THURSDAY': '목',
-          'FRIDAY': '금',
-          'SATURDAY': '토',
-          'SUNDAY': '일'
+          'MONDAY': t('monday'),
+          'TUESDAY': t('tuesday'),
+          'WEDNESDAY': t('wednesday'),
+          'THURSDAY': t('thursday'),
+          'FRIDAY': t('friday'),
+          'SATURDAY': t('saturday'),
+          'SUNDAY': t('sunday')
         };
 
         // 두 가지 데이터 형태 모두 처리
@@ -1169,7 +1667,7 @@ const Map = () => {
           
           // 문자열 형태인 경우 (예: "09:00-18:00")
           if (typeof dayData === 'string') {
-            return dayData.trim() !== '' && dayData !== '휴무';
+            return dayData.trim() !== '' && dayData !== t('closed_keyword');
           }
           
           // 객체 형태인 경우 (예: { enabled: true, open: "09:00", close: "18:00" })
@@ -1181,7 +1679,7 @@ const Map = () => {
         });
 
         if (enabledDays.length === 0) {
-          return "휴무일";
+          return t('closed');
         }
 
         // 연속된 요일과 같은 시간을 그룹화
@@ -1234,18 +1732,18 @@ const Map = () => {
         businessHours: Record<string, BusinessHourDto | string>
       ): string[] {
         if (!businessHours || Object.keys(businessHours).length === 0) {
-          return ["영업시간 정보 없음"];
+          return [t('noOperatingHours')];
         }
 
         const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
         const dayNames = {
-          'MONDAY': '월',
-          'TUESDAY': '화',
-          'WEDNESDAY': '수',
-          'THURSDAY': '목',
-          'FRIDAY': '금',
-          'SATURDAY': '토',
-          'SUNDAY': '일'
+          'MONDAY': t('monday'),
+          'TUESDAY': t('tuesday'),
+          'WEDNESDAY': t('wednesday'),
+          'THURSDAY': t('thursday'),
+          'FRIDAY': t('friday'),
+          'SATURDAY': t('saturday'),
+          'SUNDAY': t('sunday')
         };
 
         // 두 가지 데이터 형태 모두 처리
@@ -1255,7 +1753,7 @@ const Map = () => {
           
           // 문자열 형태인 경우 (예: "09:00-18:00")
           if (typeof dayData === 'string') {
-            return dayData.trim() !== '' && dayData !== '휴무';
+            return dayData.trim() !== '' && dayData !== t('closed_keyword');
           }
           
           // 객체 형태인 경우 (예: { enabled: true, open: "09:00", close: "18:00" })
@@ -1267,7 +1765,7 @@ const Map = () => {
         });
 
         if (enabledDays.length === 0) {
-          return ["휴무일"];
+          return [t('closed')];
         }
 
         // 연속된 요일과 같은 시간을 그룹화
@@ -1328,6 +1826,7 @@ const Map = () => {
 
         // 선택된 장소 초기화
         setSelectedPlace(null);
+        setSelectedReservation(null);
 
         // 현재 정보창 닫기
         if (currentInfoWindow) {
@@ -1564,7 +2063,7 @@ const Map = () => {
         x: p.longitude.toString(),
         y: p.latitude.toString(),
         opening_hours: p.is24Hours
-          ? "24시간 영업"
+          ? t('open24Hours')
           : formatBusinessHours(p.businessHours),
       }));
 
@@ -1724,7 +2223,7 @@ const Map = () => {
         x: p.longitude.toString(),
         y: p.latitude.toString(),
         opening_hours: p.is24Hours
-          ? "24시간 영업"
+          ? t('open24Hours')
           : formatBusinessHours(p.businessHours),
       }));
 
@@ -1937,7 +2436,7 @@ const Map = () => {
           getCategoryFromKeyword(keyword, place.category_name),
         x: place.x,
         y: place.y,
-        opening_hours: "영업시간 정보 없음",
+        opening_hours: t('noOperatingHours'),
         place_url: place.place_url || "",
       }));
     } catch (error) {
@@ -2056,7 +2555,7 @@ const Map = () => {
         x: p.longitude.toString(),
         y: p.latitude.toString(),
         opening_hours: p.is24Hours
-          ? "24시간 영업"
+          ? t('open24Hours')
           : formatBusinessHours(p.businessHours),
       }));
 
@@ -2069,7 +2568,7 @@ const Map = () => {
       setSearchResults(timeFilteredPlaces);
       setSelectedPlace(null);
     } else {
-      alert("검색 결과가 없습니다. 다른 검색어를 시도해보세요.");
+      alert(t('noSearchResults'));
     }
   };
 
@@ -2077,12 +2576,16 @@ const Map = () => {
   const getCategoryCodeFromBusinessType = (businessType: string): string => {
     switch (businessType) {
       case "카페":
+      case t('cafe'):
         return "CE7";
       case "편의점":
+      case t('convenienceStore'):
         return "CS2";
       case "숙박":
+      case t('accommodation'):
         return "AD5";
       case "식당":
+      case t('restaurant'):
         return "FD6";
       default:
         return "ETC";
@@ -2094,7 +2597,7 @@ const Map = () => {
     businessHours: Record<string, BusinessHourDto | string> | undefined
   ): string => {
     if (!businessHours || Object.keys(businessHours).length === 0) {
-      return "영업시간 정보 없음";
+      return t('noOperatingHours');
     }
 
     const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
@@ -2127,7 +2630,7 @@ const Map = () => {
     });
 
     if (enabledDays.length === 0) {
-      return "휴무일";
+      return t('closed');
     }
 
     // 연속된 요일과 같은 시간을 그룹화
@@ -2180,7 +2683,7 @@ const Map = () => {
     businessHours: Record<string, BusinessHourDto | string> | undefined
   ): string[] => {
     if (!businessHours || Object.keys(businessHours).length === 0) {
-      return ["영업시간 정보 없음"];
+      return [t('noOperatingHours')];
     }
 
     const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
@@ -2213,7 +2716,7 @@ const Map = () => {
     });
 
     if (enabledDays.length === 0) {
-      return ["휴무일"];
+      return [t('closed')];
     }
 
     // 연속된 요일과 같은 시간을 그룹화
@@ -2775,42 +3278,42 @@ const Map = () => {
   // 결제 폼 유효성 검사 함수
   const isPaymentFormValid = () => {
     if (!selectedPlace) {
-      setReservationError("장소를 선택해주세요.");
+      setReservationError(t('selectPlease'));
       return false;
     }
 
     if (!storageDate) {
-      setReservationError("보관 날짜를 선택해주세요.");
+      setReservationError(t('selectStorageDate'));
       return false;
     }
 
     if (!storageStartTime) {
-      setReservationError("보관 시작 시간을 선택해주세요.");
+      setReservationError(t('selectStorageStartTime'));
       return false;
     }
 
     if (!storageEndTime) {
-      setReservationError("보관 종료 시간을 선택해주세요.");
+      setReservationError(t('selectStorageEndTime'));
       return false;
     }
 
     if (storageDuration === "period" && !storageEndDate) {
-      setReservationError("보관 종료 날짜를 선택해주세요.");
+      setReservationError(t('selectStorageEndDate'));
       return false;
     }
 
     if (bagSizes.small === 0 && bagSizes.medium === 0 && bagSizes.large === 0) {
-      setReservationError("최소 1개 이상의 가방을 선택해주세요.");
+      setReservationError(t('selectAtLeastOneBag'));
       return false;
     }
 
     if (totalPrice <= 0) {
-      setReservationError("결제 금액이 올바르지 않습니다.");
+      setReservationError(t('invalidPaymentAmount'));
       return false;
     }
 
     if (!user) {
-      setReservationError("로그인이 필요합니다.");
+      setReservationError(t('loginRequired'));
       return false;
     }
 
@@ -2818,7 +3321,7 @@ const Map = () => {
   };
 
   // 예약 정보를 서버로 전송하는 함수
-  const submitReservation = async () => {
+  const submitReservation = async (paymentId?: string) => {
     if (!isAuthenticated || !user) {
       console.error(t("loginRequired"));
       setReservationError(t("loginRequiredMessage"));
@@ -2845,12 +3348,12 @@ const Map = () => {
 
       // 필수 데이터 검증
       if (!selectedPlace) {
-        setReservationError("선택된 장소가 없습니다.");
+        setReservationError(t('noSelectedPlace'));
         return false;
       }
 
       if (!storageDate || !storageStartTime || !storageEndTime) {
-        setReservationError("보관 날짜와 시간을 모두 선택해주세요.");
+        setReservationError(t('selectDateAndTimeAll'));
         return false;
       }
 
@@ -2898,6 +3401,7 @@ const Map = () => {
         totalPrice: totalPrice || 0,
         storageType: storageDuration || "daily",
         status: "RESERVED",
+        paymentId: paymentId || portonePaymentId,
       };
 
       // 데이터 검증 로그
@@ -3070,7 +3574,7 @@ const Map = () => {
   const getCapacityText = async (bagType: "small" | "medium" | "large") => {
     const capacity = await getRealTimeStoreCapacity();
     const available = capacity[bagType] - bagSizes[bagType];
-    return available > 0 ? `(${available}개 보관 가능)` : "(보관 불가)";
+    return available > 0 ? `(${available}${t('storageAvailable')})` : `(${t('storageUnavailable')})`;
   };
 
   // 선택된 매장이 변경될 때 실시간 용량 업데이트
@@ -3106,7 +3610,7 @@ const Map = () => {
   // 보관 가능한 개수 정보를 표시하는 함수 (동기적)
   const getCapacityTextSync = (bagType: "small" | "medium" | "large") => {
     const available = realTimeCapacity[bagType] - bagSizes[bagType];
-    return available > 0 ? `(${available}개 보관 가능)` : "(보관 불가)";
+    return available > 0 ? `(${available}${t('storageAvailable')})` : `(${t('storageUnavailable')})`;
   };
 
   // 장소 검색 함수 추가 (랜드마크, 지하철역 등을 검색하기 위함)
@@ -3259,7 +3763,7 @@ const Map = () => {
       x: p.longitude.toString(),
       y: p.latitude.toString(),
       opening_hours: p.is24Hours
-        ? "24시간 영업"
+            ? t('open24Hours')
         : formatBusinessHours(p.businessHours),
     }));
 
@@ -3300,17 +3804,52 @@ const Map = () => {
       console.log("결제 금액:", totalPrice);
       console.log("========================");
 
+      // 결제 수단에 따른 설정
+      let payMethodConfig: any = {};
+      let payMethodType: string = "CARD";
+      let channelKey: string = "channel-key-1841d885-af90-429d-a2d7-d0e6698bb23a"; // KG 이니시스 채널
+      let currency: string = "KRW";
+      let windowType: any = {
+        pc: "IFRAME",
+        mobile: "REDIRECTION"
+      };
+      
+      if (paymentMethod === "paypal") {
+        // PayPal은 직접 결제 방식 사용
+        payMethodType = "PAYPAL";
+        payMethodConfig = {}; // PayPal 직접 결제는 추가 설정 불필요
+        // 실제 PayPal 채널 키
+        channelKey = "channel-key-4ac60642-8459-4dc7-9c88-0b674246cd2b";
+        // PayPal은 USD 통화만 지원
+        currency = "USD";
+        // PayPal은 POPUP 방식 사용
+        windowType = {
+          pc: "POPUP",
+          mobile: "REDIRECTION"
+        };
+      }
+
+      console.log("=== 결제 설정 ===");
+      console.log("결제 수단:", paymentMethod);
+      console.log("PayMethod 타입:", payMethodType);
+      console.log("채널 키:", channelKey);
+      console.log("PayMethod Config:", payMethodConfig);
+      console.log("================");
+
       // 포트원 결제 요청
       const payment = await PortOne.requestPayment({
         storeId: "store-ef16a71d-87cc-4e73-a6b8-448a8b07840d", // 환경변수 또는 기본값
-        channelKey: "channel-key-7ecba580-a8c1-4834-904f-fdc9150a0ce4",
+        channelKey,
         paymentId,
         orderName: `${selectedPlace.place_name} 짐보관 서비스`,
-        totalAmount: totalPrice,
-        currency: "KRW" as any, // 타입 오류 임시 해결
-        payMethod: "CARD",
+        totalAmount: paymentMethod === "paypal" ? Math.ceil(totalPrice / 1300) : totalPrice, // USD 환산 (대략 1300원 = 1달러)
+        currency: currency as any,
+        payMethod: payMethodType as any,
+        ...payMethodConfig,
+        windowType,
+        redirectUrl: `${window.location.origin}/payment-complete`,
         customer: {
-          fullName: user?.name || "고객",
+          fullName: user?.name || t('customer'),
           email: user?.email || "",
         },
         customData: {
@@ -3345,6 +3884,10 @@ const Map = () => {
       }
 
       console.log("=== 결제 성공, 검증 시작 ===");
+      
+      // 결제 성공 시 paymentId 상태에 저장
+      setPortonePaymentId(payment.paymentId);
+      console.log("PaymentId 상태 저장:", payment.paymentId);
 
       // 결제 성공 시 백엔드에 결제 완료 요청
       const completeResponse = await fetch("/api/payment/portone/complete", {
@@ -3354,6 +3897,7 @@ const Map = () => {
         },
         body: JSON.stringify({
           paymentId: payment.paymentId,
+          payMethod: paymentMethod === "paypal" ? "paypal" : "card",
         }),
       });
 
@@ -3366,10 +3910,38 @@ const Map = () => {
 
           // 결제 검증 성공 후에만 예약 정보 저장
           console.log("=== 예약 정보 저장 시작 ===");
-          const reservationResult = await submitReservation();
+          const reservationResult = await submitReservation(payment.paymentId);
           console.log("예약 저장 결과:", reservationResult);
           if (reservationResult) {
-            console.log("=== 예약 저장 성공, 결제 완료 ===");
+            console.log("=== 예약 저장 성공, PaymentId 업데이트 시작 ===");
+
+            // 예약 저장 성공 후 paymentId 업데이트
+            if (submittedReservation?.reservationNumber && payment.paymentId) {
+              try {
+                console.log("PaymentId 업데이트 요청:", {
+                  reservationNumber: submittedReservation.reservationNumber,
+                  paymentId: payment.paymentId
+                });
+                
+                const updateResponse = await fetch(`/api/reservations/${submittedReservation.reservationNumber}/payment-id`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    paymentId: payment.paymentId
+                  }),
+                });
+
+                if (updateResponse.ok) {
+                  console.log("PaymentId 업데이트 성공");
+                } else {
+                  console.error("PaymentId 업데이트 실패:", await updateResponse.text());
+                }
+              } catch (updateError) {
+                console.error("PaymentId 업데이트 중 오류:", updateError);
+              }
+            }
 
             setIsPaymentComplete(true);
             setIsPaymentOpen(false);
@@ -3430,8 +4002,7 @@ const Map = () => {
 
   return (
     <>
-      <Navbar />
-      {/* 지도 전체 영역 - Box 헤더와 함께 제거 */}
+      {/* 지도 전체 영역 */}
       <div
         id="map"
         style={{
@@ -3468,15 +4039,15 @@ const Map = () => {
           zIndex: 100,
           display: "flex",
           flexDirection: "column",
-          borderRadius: "24px",
+          borderRadius: "16px",
           transition: "height 0.2s ease-out", // 높이 변화에 대한 부드러운 애니메이션
 
           // 데스크톱
           "@media (min-width: 768px)": {
-            top: "90px",
+            top: "16px",
             left: "16px",
             width: "400px",
-            maxHeight: (selectedPlace || isReservationOpen) ? "calc(100vh - 100px)" : "calc(90vh - 60px)", // 매장 선택 시 검색 영역이 없으므로 더더더 길게
+            maxHeight: (selectedPlace || isReservationOpen) ? "calc(100vh - 32px)" : "calc(90vh - 16px)",
           },
 
           // 모바일
@@ -3485,20 +4056,121 @@ const Map = () => {
             right: 0,
             bottom: 0,
             width: "100%",
-            maxHeight: (selectedPlace || isReservationOpen) ? "98vh" : "75vh", // 매장 선택 시 검색 영역이 없으므로 더더더 길게
-            borderTopLeftRadius: "24px",
-            borderTopRightRadius: "24px",
+            maxHeight: (selectedPlace || isReservationOpen) ? "98vh" : "75vh",
+            borderTopLeftRadius: "16px",
+            borderTopRightRadius: "16px",
           },
         }}
       >
-        {/* 검색 영역 - 매장 선택 시 숨김 */}
-        {!selectedPlace && (
+        {/* 헤더 섹션 - 항상 표시 */}
+        <Box
+          sx={{
+            px: 2,
+            py: 1.5,
+            backgroundColor: "primary.main",
+            borderRadius: "16px 16px 0 0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+            boxShadow: "0 2px 8px rgba(25, 118, 210, 0.15)"
+          }}
+        >
+          {/* 로고 및 브랜드 */}
+          <Box 
+            sx={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: 1,
+              cursor: "pointer",
+              "&:hover": {
+                opacity: 0.8
+              }
+            }}
+            onClick={() => navigate('/')}
+          >
+            <LuggageIcon sx={{ color: "white", fontSize: 28 }} />
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                color: "white",
+                fontSize: "20px"
+              }}
+            >
+              Travelight
+            </Typography>
+          </Box>
+
+          {/* 오른쪽 메뉴들 */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            {/* 예약 목록 버튼 */}
+            {isAuthenticated && (
+              <IconButton
+                onClick={handleReservationsClick}
+                size="small"
+                sx={{ 
+                  color: "white",
+                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" }
+                }}
+              >
+                <BookmarkIcon fontSize="small" />
+              </IconButton>
+            )}
+            
+            {/* 언어 선택 버튼 */}
+            <IconButton
+              onClick={handleLangMenuOpen}
+              size="small"
+              sx={{ 
+                color: "white",
+                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" }
+              }}
+            >
+              <TranslateIcon fontSize="small" />
+            </IconButton>
+
+            {/* 사용자 메뉴 버튼 */}
+            {isAuthenticated ? (
+              <Button
+                onClick={handleProfileMenuOpen}
+                endIcon={<ArrowDropDownIcon />}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: "medium",
+                  color: "white",
+                  minWidth: "auto",
+                  padding: "4px 8px",
+                  fontSize: "14px",
+                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" }
+                }}
+              >
+                {user?.name}님
+              </Button>
+            ) : (
+              <IconButton
+                onClick={handleProfileMenuOpen}
+                size="small"
+                sx={{ 
+                  color: "white",
+                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" }
+                }}
+              >
+                <AccountCircleIcon fontSize="small" />
+              </IconButton>
+            )}
+          </Box>
+        </Box>
+
+        {/* 검색 영역 - 매장 선택 시나 예약 목록 화면, 예약 상세보기에서 숨김 */}
+        {!selectedPlace && !showReservations && !selectedReservation && (
           <Box
             sx={{
-              p: 3,
+              px: 3,
+              py: 2,
               borderBottom: shouldShowResultArea() ? "1px solid rgba(0, 0, 0, 0.06)" : "none",
               backgroundColor: "rgba(255, 255, 255, 0.98)",
-              borderRadius: shouldShowResultArea() ? "24px 24px 0 0" : "24px",
+              borderRadius: shouldShowResultArea() ? "0" : "0 0 16px 16px", // 결과 영역이 없으면 하단 모서리 둥글게
               transition: "all 0.2s ease-out", // 부드러운 전환
             }}
           >
@@ -3512,9 +4184,11 @@ const Map = () => {
                   if (e.key === "Enter" && !isPaymentComplete) searchPlaces();
                 }}
                 disabled={isPaymentComplete}
+                size="small"
                 sx={{
                   "& .MuiOutlinedInput-root": {
-                    borderRadius: "16px",
+                    height: "40px",
+                    borderRadius: "12px",
                     backgroundColor: "#f8f9fa",
                     "& fieldset": {
                       border: "none",
@@ -3533,6 +4207,10 @@ const Map = () => {
                       backgroundColor: "#f0f0f0",
                     },
                   },
+                  "& .MuiInputBase-input": {
+                    padding: "8px 12px",
+                    fontSize: "14px",
+                  },
                 }}
               />
               <Button
@@ -3540,12 +4218,14 @@ const Map = () => {
                 onClick={searchPlaces}
                 disableRipple
                 disabled={isPaymentComplete}
+                size="small"
                 sx={{
-                  minWidth: "80px",
-                  height: "56px",
-                  borderRadius: "16px",
+                  minWidth: "60px",
+                  height: "40px",
+                  borderRadius: "12px",
                   boxShadow: "none",
-                  padding: "0 16px",
+                  padding: "0 12px",
+                  fontSize: "14px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -3569,13 +4249,14 @@ const Map = () => {
             </Box>
 
             {/* 시간 선택 영역 */}
-            <Box sx={{ mt: 2, display: "flex", gap: 2 }}>
-              <FormControl sx={{ flex: 1 }}>
-                <InputLabel id="start-time-label">{t("start")}</InputLabel>
+            <Box sx={{ mt: 1.5, display: "flex", gap: 1.5 }}>
+              <FormControl sx={{ flex: 1 }} size="small">
+                <InputLabel id="start-time-label" sx={{ fontSize: "14px" }}>{t("start")}</InputLabel>
                 <Select
                   labelId="start-time-label"
                   value={startTime}
                   label={t("start")}
+                  size="small"
                   onChange={(e) => {
                     const newStartTime = e.target.value;
                     setStartTime(newStartTime);
@@ -3586,8 +4267,10 @@ const Map = () => {
                     }
                   }}
                   sx={{
-                    borderRadius: "16px",
+                    height: "40px",
+                    borderRadius: "12px",
                     backgroundColor: "#f8f9fa",
+                    fontSize: "14px",
                     "& .MuiOutlinedInput-notchedOutline": {
                       border: "none",
                     },
@@ -3601,6 +4284,7 @@ const Map = () => {
                       },
                     },
                     "& .MuiSelect-select": {
+                      padding: "8px 12px",
                       paddingRight: "32px !important",
                     },
                   }}
@@ -3642,12 +4326,13 @@ const Map = () => {
                   ))}
                 </Select>
               </FormControl>
-              <FormControl sx={{ flex: 1 }}>
-                <InputLabel id="end-time-label">{t("end")}</InputLabel>
+              <FormControl sx={{ flex: 1 }} size="small">
+                <InputLabel id="end-time-label" sx={{ fontSize: "14px" }}>{t("end")}</InputLabel>
                 <Select
                   labelId="end-time-label"
                   value={endTime}
                   label={t("end")}
+                  size="small"
                   onChange={(e) => {
                     setEndTime(e.target.value);
                     if (searchResults.length > 0) {
@@ -3655,8 +4340,10 @@ const Map = () => {
                     }
                   }}
                   sx={{
-                    borderRadius: "16px",
+                    height: "40px",
+                    borderRadius: "12px",
                     backgroundColor: "#f8f9fa",
+                    fontSize: "14px",
                     "& .MuiOutlinedInput-notchedOutline": {
                       border: "none",
                     },
@@ -3670,6 +4357,7 @@ const Map = () => {
                       },
                     },
                     "& .MuiSelect-select": {
+                      padding: "8px 12px",
                       paddingRight: "32px !important",
                     },
                   }}
@@ -3726,8 +4414,8 @@ const Map = () => {
               : shouldShowResultArea() ? "calc(90vh - 200px)" : "0px",
             opacity: shouldShowResultArea() ? 1 : 0,
             borderRadius: (selectedPlace || isReservationOpen)
-              ? "24px 24px 0 0" // 하단에 버튼이 있을 때 아래쪽 모서리는 둥글지 않게
-              : shouldShowResultArea() ? "0 0 24px 24px" : "0",
+              ? "0" // 하단에 버튼이 있을 때 모서리는 둥글지 않게
+              : shouldShowResultArea() ? "0 0 24px 24px" : "0", // 검색 결과만 있을 때 하단 모서리 둥글게
             "@media (max-width: 767px)": {
               maxHeight: (selectedPlace || isReservationOpen)
                 ? "calc(98vh - 120px)" // 하단 버튼 공간 확보
@@ -3754,7 +4442,552 @@ const Map = () => {
               },
             }}
           >
-          {selectedPlace ? (
+          {selectedReservation ? (
+            // 선택된 예약의 상세 정보 - 영수증 스타일
+            <Box sx={{ px: 1, py: 0 }}>
+              {/* 헤더 */}
+              <Box sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                mb: 3,
+                pb: 1,
+                borderBottom: "1px solid #f0f0f0"
+              }}>
+                <IconButton
+                  onClick={() => setSelectedReservation(null)}
+                  size="small"
+                  sx={{
+                    p: 0.5,
+                    color: "#666",
+                    "&:hover": { backgroundColor: "#f5f5f5" }
+                  }}
+                >
+                  <ArrowBackIcon fontSize="small" />
+                </IconButton>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: "#1a1a1a" }}>
+                  예약 상세 정보
+                </Typography>
+              </Box>
+
+              {/* 영수증 스타일의 상세 정보 */}
+              <Box sx={{
+                backgroundColor: "#fafafa",
+                borderRadius: "8px",
+                overflow: "hidden",
+                border: "2px solid #e0e0e0"
+              }}>
+                {/* 티켓 상단 - 헤더 */}
+                <Box sx={{
+                  px: 1.5,
+                  py: 1,
+                  borderBottom: "1px solid #ddd",
+                  backgroundColor: "#f5f5f5"
+                }}>
+                  {/* 예약번호와 상태 */}
+                  <Box sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 1
+                  }}>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        fontWeight: 700,
+                        color: "#333",
+                        fontSize: "14px",
+                        fontFamily: "monospace",
+                        letterSpacing: "1px"
+                      }}
+                    >
+                      TRAVEL LIGHT
+                    </Typography>
+                    <Typography variant="caption" sx={{
+                      color: "#666",
+                      fontWeight: 500,
+                      fontSize: '11px',
+                      px: 1,
+                      py: 0.5,
+                      backgroundColor: "#eee",
+                      borderRadius: "4px",
+                      border: "1px solid #ddd"
+                    }}>
+                      {getStatusText(selectedReservation.status)}
+                    </Typography>
+                  </Box>
+
+                  {/* 예약번호 */}
+                  <Box sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1
+                  }}>
+                    <Typography variant="caption" sx={{
+                      color: "#888",
+                      fontSize: "9px",
+                      fontWeight: 600,
+                      letterSpacing: "0.5px",
+                      textTransform: "uppercase"
+                    }}>
+                      NO.
+                    </Typography>
+                    <Typography variant="body2" sx={{
+                      fontWeight: 700,
+                      color: "#333",
+                      fontFamily: "monospace",
+                      fontSize: "13px"
+                    }}>
+                      {selectedReservation.reservationNumber}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* 티켓 본문 */}
+                <Box sx={{ px: 1.5, py: 1 }}>
+                  {/* 매장 정보 */}
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body1" sx={{
+                      fontWeight: 600,
+                      mb: 0.5,
+                      color: "#333",
+                      fontSize: "14px"
+                    }}>
+                      {selectedReservation.placeName}
+                    </Typography>
+                    <Typography variant="body2" sx={{
+                      color: "#666",
+                      fontSize: "12px"
+                    }}>
+                      {selectedReservation.placeAddress}
+                    </Typography>
+                  </Box>
+
+                  {/* 예약 세부 정보 */}
+                  <Box sx={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 1,
+                    mb: 1.5,
+                    py: 0.5,
+                    px: 1,
+                    backgroundColor: "#f0f0f0",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd"
+                  }}>
+                    <Box>
+                      <Typography variant="caption" sx={{
+                        color: "#777",
+                        display: "block",
+                        fontSize: "9px",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        mb: 0.5
+                      }}>
+                        날짜
+                      </Typography>
+                      <Typography variant="body2" sx={{
+                        fontWeight: 600,
+                        color: "#333",
+                        fontSize: "12px"
+                      }}>
+                        {formatDate(selectedReservation.storageDate)}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" sx={{
+                        color: "#777",
+                        display: "block",
+                        fontSize: "9px",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        mb: 0.5
+                      }}>
+                        시간
+                      </Typography>
+                      <Typography variant="body2" sx={{
+                        fontWeight: 600,
+                        color: "#333",
+                        fontSize: "12px"
+                      }}>
+                        {formatTimeForReservation(selectedReservation.storageStartTime)} - {formatTimeForReservation(selectedReservation.storageEndTime)}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* 가방 정보 - 영수증 스타일 */}
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography variant="caption" sx={{
+                      color: "#777",
+                      fontSize: "9px",
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      mb: 0.5,
+                      display: "block"
+                    }}>
+                      품목
+                    </Typography>
+                    <Box sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0.5
+                    }}>
+                      {selectedReservation.smallBags > 0 && (
+                        <Box sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Typography variant="body2" sx={{
+                              color: "#555",
+                              fontSize: "11px"
+                            }}>
+                              • {t('small')} 가방
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{
+                            fontWeight: 600,
+                            color: "#333",
+                            fontSize: "11px"
+                          }}>
+                            {selectedReservation.smallBags}개
+                          </Typography>
+                        </Box>
+                      )}
+                      {selectedReservation.mediumBags > 0 && (
+                        <Box sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Typography variant="body2" sx={{
+                              color: "#555",
+                              fontSize: "11px"
+                            }}>
+                              • 중형 가방
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{
+                            fontWeight: 600,
+                            color: "#333",
+                            fontSize: "11px"
+                          }}>
+                            {selectedReservation.mediumBags}개
+                          </Typography>
+                        </Box>
+                      )}
+                      {selectedReservation.largeBags > 0 && (
+                        <Box sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Typography variant="body2" sx={{
+                              color: "#555",
+                              fontSize: "11px"
+                            }}>
+                              • 대형 가방
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{
+                            fontWeight: 600,
+                            color: "#333",
+                            fontSize: "11px"
+                          }}>
+                            {selectedReservation.largeBags}개
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+
+                  {/* 총 금액 */}
+                  <Box sx={{
+                    pt: 1,
+                    borderTop: "1px dashed #ccc",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <Typography variant="body2" sx={{
+                      color: "#555",
+                      fontWeight: 600,
+                      fontSize: "12px"
+                    }}>
+                      합계
+                    </Typography>
+                    <Typography variant="h6" sx={{
+                      fontWeight: 700,
+                      color: "#333",
+                      fontSize: "16px",
+                      fontFamily: "monospace"
+                    }}>
+                      {selectedReservation.totalPrice.toLocaleString()}{t('won')}
+                    </Typography>
+                  </Box>
+
+                  {/* 보관 상태 표시 */}
+                  {renderStorageStatus(selectedReservation)}
+
+                  {/* 예약 중인 경우 버튼들 추가 */}
+                  {selectedReservation.status === 'RESERVED' && (
+                    <Box sx={{
+                      pt: 1.5,
+                      borderTop: "1px solid #e0e0e0",
+                      mt: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 1
+                    }}>
+                      {/* 예약 취소 버튼 */}
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        onClick={() => handleCancelReservation(selectedReservation)}
+                        disabled={cancellingReservation === selectedReservation.reservationNumber}
+                        sx={{
+                          borderColor: '#f44336',
+                          color: '#f44336',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          py: 1,
+                          borderRadius: '6px',
+                          '&:hover': {
+                            backgroundColor: 'rgba(244, 67, 54, 0.04)',
+                            borderColor: '#d32f2f'
+                          },
+                          '&:disabled': {
+                            borderColor: '#ccc',
+                            color: '#999'
+                          }
+                        }}
+                      >
+                        {cancellingReservation === selectedReservation.reservationNumber ? '취소 중...' : '예약 취소'}
+                      </Button>
+
+                      {/* 네이버맵 길찾기 버튼 */}
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={() => openNaverMap(selectedReservation)}
+                        sx={{
+                          backgroundColor: '#03C75A',
+                          color: 'white',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          py: 1,
+                          borderRadius: '6px',
+                          '&:hover': {
+                            backgroundColor: '#029B4A'
+                          }
+                        }}
+                      >
+                        🗺️ 네이버맵 길찾기
+                      </Button>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          ) : showReservations ? (
+            // 예약 목록 화면
+            <Box sx={{ px: 1, py: 0 }}>
+              {/* 헤더 */}
+              <Box sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                mb: 3,
+                pb: 1,
+                borderBottom: "1px solid #f0f0f0"
+              }}>
+                <IconButton
+                  onClick={handleBackToSearch}
+                  size="small"
+                  sx={{
+                    p: 0.5,
+                    color: "#666",
+                    "&:hover": { backgroundColor: "#f5f5f5" }
+                  }}
+                >
+                  <ArrowBackIcon fontSize="small" />
+                </IconButton>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: "#1a1a1a" }}>
+                  내 예약 목록
+                </Typography>
+              </Box>
+
+              {/* 예약 목록 */}
+              {loadingReservations ? (
+                <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                  <Typography variant="body2" sx={{ color: "#666" }}>
+                    예약 목록을 불러오는 중...
+                  </Typography>
+                </Box>
+              ) : myReservations.length === 0 ? (
+                <Box sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  py: 6,
+                  textAlign: "center"
+                }}>
+                  <BookmarkIcon sx={{ fontSize: 48, color: "#e0e0e0", mb: 2 }} />
+                  <Typography variant="h6" sx={{ color: "#666", mb: 1 }}>
+                    예약 내역이 없습니다
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "#999" }}>
+                    새로운 보관소를 예약해보세요
+                  </Typography>
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                  {myReservations.map((reservation) => (
+                    <Box
+                      key={reservation.id}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedReservation(reservation);
+                      }}
+                      sx={{
+                        p: 2,
+                        backgroundColor: "#fff",
+                        borderRadius: "8px",
+                        border: "1px solid #e0e0e0",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          borderColor: "#1976d2",
+                          boxShadow: "0 2px 8px rgba(25, 118, 210, 0.1)"
+                        }
+                      }}
+                    >
+                      {/* 헤더 */}
+                      <Box sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        mb: 1.5
+                      }}>
+                        <Box>
+                          <Typography variant="h6" sx={{
+                            fontWeight: 600,
+                            fontSize: "16px",
+                            color: "#333",
+                            mb: 0.5
+                          }}>
+                            {reservation.placeName}
+                          </Typography>
+                          <Typography variant="body2" sx={{
+                            color: "#666",
+                            fontSize: "13px"
+                          }}>
+                            {reservation.reservationNumber}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={getStatusText(reservation.status)}
+                          size="small"
+                          sx={{
+                            backgroundColor: reservation.status === 'RESERVED' ? '#e3f2fd' :
+                                           reservation.status === 'COMPLETED' ? '#f3e5f5' : '#fff3e0',
+                            color: reservation.status === 'RESERVED' ? '#1976d2' :
+                                   reservation.status === 'COMPLETED' ? '#7b1fa2' : '#ed6c02',
+                            fontWeight: 500,
+                            fontSize: '11px'
+                          }}
+                        />
+                      </Box>
+
+                      {/* 날짜와 시간 */}
+                      <Box sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        mb: 1
+                      }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <AccessTimeIcon sx={{ fontSize: 16, color: "#666" }} />
+                          <Typography variant="body2" sx={{ color: "#666" }}>
+                            {formatDate(reservation.storageDate)}
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ color: "#999" }}>
+                          {formatTimeForReservation(reservation.storageStartTime)} - {formatTimeForReservation(reservation.storageEndTime)}
+                        </Typography>
+                      </Box>
+
+                      {/* 가방 요약 */}
+                      <Box sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between"
+                      }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <LuggageIcon sx={{ fontSize: 16, color: "#666" }} />
+                          <Typography variant="body2" sx={{ color: "#666" }}>
+                            {[
+                              reservation.smallBags > 0 && `${t('small')} ${reservation.smallBags}${t('pieces')}`,
+                              reservation.mediumBags > 0 && `${t('medium')} ${reservation.mediumBags}${t('pieces')}`,
+                              reservation.largeBags > 0 && `${t('large')} ${reservation.largeBags}${t('pieces')}`
+                            ].filter(Boolean).join(', ')}
+                          </Typography>
+                        </Box>
+                        <Typography variant="body1" sx={{
+                          fontWeight: 600,
+                          color: "#333"
+                        }}>
+                          {reservation.totalPrice.toLocaleString()}{t('won')}
+                        </Typography>
+                      </Box>
+
+                      {/* 보관 상태 인디케이터 */}
+                      {storageStatuses[reservation.reservationNumber] && (
+                        <Box sx={{ mt: 1 }}>
+                          {storageStatuses[reservation.reservationNumber].hasStorage ? (
+                            <Chip
+                              icon={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                    <CheckCircleIcon sx={{ fontSize: 14 }} /> :
+                                    <QrCodeIcon sx={{ fontSize: 14 }} />}
+                              label={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                     '보관 중' : '이용 완료'}
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                backgroundColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                                '#e8f5e8' : '#f3e5f5',
+                                borderColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                            '#4caf50' : '#9c27b0',
+                                color: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                       '#2e7d32' : '#7b1fa2',
+                                fontSize: '10px'
+                              }}
+                            />
+                          ) : (
+                            <Chip
+                              label={t('waitingForStoreVisit')}
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                backgroundColor: '#fff3e0',
+                                borderColor: '#ff9800',
+                                color: '#e65100',
+                                fontSize: '10px'
+                              }}
+                            />
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          ) : selectedPlace ? (
             // 선택된 장소 상세 정보 - Bounce 스타일
             <>
               {!isReservationOpen ? (
@@ -3762,8 +4995,8 @@ const Map = () => {
                   {/* 헤더 */}
                   <Box
                     sx={{
-                      px: 1,
-                      py: 2,
+                      px: 0,
+                      pb: 2,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
@@ -3790,7 +5023,7 @@ const Map = () => {
                       
                       <Chip
                         icon={<StorefrontIcon sx={{ fontSize: 14 }} />}
-                        label={selectedPlace.business_type || "보관소"}
+                        label={selectedPlace.business_type || t('storageLocation')}
                         size="small"
                         sx={{ 
                           backgroundColor: "#e3f2fd",
@@ -3889,11 +5122,11 @@ const Map = () => {
                           color: isCurrentlyOpen(selectedPlace) ? "#4caf50" : "#f44336", 
                           fontWeight: 600 
                         }}>
-                          {isCurrentlyOpen(selectedPlace) ? "영업중" : "휴무"}
+                          {isCurrentlyOpen(selectedPlace) ? t('operating') : t('closed')}
                         </Typography>
                         <Typography variant="body2" sx={{ color: "#666" }}>•</Typography>
                         <Typography variant="body2" sx={{ color: "#666" }}>
-                          도보 5분
+                          {t('walkMinutes')}
                         </Typography>
                       </Box>
 
@@ -3909,7 +5142,7 @@ const Map = () => {
                         mb: 1,
                         fontSize: "16px"
                       }}>
-                        보관 요금
+                        {t('availableStorage')}
                       </Typography>
                       
                       <Box sx={{ 
@@ -3919,15 +5152,15 @@ const Map = () => {
                         overflow: "hidden"
                       }}>
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1.5, borderBottom: "1px solid #f0f0f0" }}>
-                          <Typography variant="body2" sx={{ color: "#333" }}>소형</Typography>
+                          <Typography variant="body2" sx={{ color: "#333" }}>{t('small')}</Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>₩3,000</Typography>
                         </Box>
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1.5, borderBottom: "1px solid #f0f0f0" }}>
-                          <Typography variant="body2" sx={{ color: "#333" }}>중형</Typography>
+                          <Typography variant="body2" sx={{ color: "#333" }}>{t('medium')}</Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>₩5,000</Typography>
                         </Box>
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1.5 }}>
-                          <Typography variant="body2" sx={{ color: "#333" }}>대형</Typography>
+                          <Typography variant="body2" sx={{ color: "#333" }}>{t('large')}</Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>₩8,000</Typography>
                         </Box>
                       </Box>
@@ -3938,7 +5171,7 @@ const Map = () => {
                         display: "block",
                         fontSize: "11px"
                       }}>
-                        1일 기준 요금
+                        {t('dailyRate')}
                       </Typography>
                     </Box>
 
@@ -3949,12 +5182,12 @@ const Map = () => {
                         mb: 1.5,
                         fontSize: "16px"
                       }}>
-                        편의시설
+                        {t('facilities')}
                       </Typography>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                         <Chip
                           icon={<SecurityIcon sx={{ fontSize: 16 }} />}
-                          label="24시간 보안"
+                          label={t('security24Hours')}
                           size="small"
                           variant="outlined"
                           sx={{ 
@@ -3964,7 +5197,7 @@ const Map = () => {
                         />
                         <Chip
                           icon={<ShieldIcon sx={{ fontSize: 16 }} />}
-                          label="손해배상보험"
+                          label={t('damageInsurance')}
                           size="small"
                           variant="outlined"
                           sx={{ 
@@ -3974,7 +5207,7 @@ const Map = () => {
                         />
                         <Chip
                           icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
-                          label="즉시 이용"
+                          label={t('immediateUse')}
                           size="small"
                           variant="outlined"
                           sx={{ 
@@ -3985,7 +5218,7 @@ const Map = () => {
                         {selectedPlace.phone && (
                           <Chip
                             icon={<PhoneIcon sx={{ fontSize: 16 }} />}
-                            label="전화 가능"
+                            label={t('phoneAvailable')}
                             size="small"
                             variant="outlined"
                             sx={{ 
@@ -3997,105 +5230,158 @@ const Map = () => {
                       </Box>
                     </Box>
 
-                    {/* 매장 정보 */}
+                    {/* 탭 네비게이션 */}
                     <Box sx={{ mb: 2 }}>
-                      <Typography variant="h6" sx={{ 
-                        fontWeight: 600, 
-                        mb: 1.5,
-                        fontSize: "16px"
+                      <Box sx={{ 
+                        display: "flex", 
+                        borderBottom: 1, 
+                        borderColor: 'divider',
+                        mb: 2
                       }}>
-                        매장 정보
-                      </Typography>
-                      
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                          <AccessTimeIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                              영업시간
-                            </Typography>
-                            <Box>
-                              {(() => {
-                                // 영업시간 배열 생성
-                                let hoursArray: string[] = [];
-                                
-                                if (selectedPlace.opening_hours) {
-                                  // 제휴점인 경우 businessHours에서 배열로 가져오기
-                                  const partnership = partnerships.find(p => 
-                                    p.businessName === selectedPlace.place_name &&
-                                    p.address === selectedPlace.address_name
-                                  );
-                                  
-                                  if (partnership && partnership.businessHours) {
-                                    hoursArray = formatBusinessHoursArray(partnership.businessHours);
-                                  } else {
-                                    hoursArray = [selectedPlace.opening_hours];
-                                  }
-                                } else {
-                                  // 기본값
-                                  hoursArray = selectedPlace.category_group_code === "BK9"
-                                    ? ["평일 09:00-16:00"]
-                                    : ["매일 09:00-22:00"];
-                                }
-                                
-                                return hoursArray.map((hour, index) => (
-                                  <Typography 
-                                    key={index} 
-                                    variant="body2" 
-                                    sx={{ color: "#666", lineHeight: 1.4 }}
-                                  >
-                                    {hour}
+                        <Button
+                          onClick={() => setSelectedTab('info')}
+                          sx={{
+                            flex: 1,
+                            py: 1,
+                            px: 2,
+                            borderRadius: 0,
+                            color: selectedTab === 'info' ? 'primary.main' : 'text.secondary',
+                            borderBottom: selectedTab === 'info' ? 2 : 0,
+                            borderColor: selectedTab === 'info' ? 'primary.main' : 'transparent',
+                            fontWeight: selectedTab === 'info' ? 600 : 400,
+                            '&:hover': {
+                              backgroundColor: 'action.hover'
+                            }
+                          }}
+                        >
+                          {t('storeInfo')}
+                        </Button>
+                        <Button
+                          onClick={() => setSelectedTab('reviews')}
+                          sx={{
+                            flex: 1,
+                            py: 1,
+                            px: 2,
+                            borderRadius: 0,
+                            color: selectedTab === 'reviews' ? 'primary.main' : 'text.secondary',
+                            borderBottom: selectedTab === 'reviews' ? 2 : 0,
+                            borderColor: selectedTab === 'reviews' ? 'primary.main' : 'transparent',
+                            fontWeight: selectedTab === 'reviews' ? 600 : 400,
+                            '&:hover': {
+                              backgroundColor: 'action.hover'
+                            }
+                          }}
+                        >
+                          {t('reviews')}
+                        </Button>
+                      </Box>
+
+                      {/* 매장 정보 탭 */}
+                      {selectedTab === 'info' && (
+                        <Box>
+                          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                              <AccessTimeIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                                  {t('operatingHours')}
+                                </Typography>
+                                <Box>
+                                  {(() => {
+                                    // 영업시간 배열 생성
+                                    let hoursArray: string[] = [];
+                                    
+                                    if (selectedPlace.opening_hours) {
+                                      // 제휴점인 경우 businessHours에서 배열로 가져오기
+                                      const partnership = partnerships.find(p => 
+                                        p.businessName === selectedPlace.place_name &&
+                                        p.address === selectedPlace.address_name
+                                      );
+                                      
+                                      if (partnership && partnership.businessHours) {
+                                        hoursArray = formatBusinessHoursArray(partnership.businessHours);
+                                      } else {
+                                        hoursArray = [selectedPlace.opening_hours];
+                                      }
+                                    } else {
+                                      // 기본값
+                                      hoursArray = selectedPlace.category_group_code === "BK9"
+                                        ? [t('weekdaysHours')]
+                                        : [t('dailyHours')];
+                                    }
+                                    
+                                    return hoursArray.map((hour, index) => (
+                                      <Typography 
+                                        key={index} 
+                                        variant="body2" 
+                                        sx={{ color: "#666", lineHeight: 1.4 }}
+                                      >
+                                        {hour}
+                                      </Typography>
+                                    ));
+                                  })()}
+                                </Box>
+                              </Box>
+                            </Box>
+
+                            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                              <LocationOnIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                                  {t('location')}
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: "#666" }}>
+                                  {selectedPlace.address_name}
+                                </Typography>
+                              </Box>
+                            </Box>
+
+                            {selectedPlace.phone && (
+                              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                                <PhoneIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
+                                <Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                                    {t('contact')}
                                   </Typography>
-                                ));
-                              })()}
-                            </Box>
+                                  <Typography variant="body2" sx={{ color: "#666" }}>
+                                    {selectedPlace.phone}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            )}
                           </Box>
-                        </Box>
 
-                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                          <LocationOnIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                              위치
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: "#666" }}>
-                              {selectedPlace.address_name}
-                            </Typography>
-                          </Box>
-                        </Box>
-
-                        {selectedPlace.phone && (
-                          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                            <PhoneIcon sx={{ color: "#666", fontSize: 18, mt: 0.2 }} />
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                                연락처
-                              </Typography>
-                              <Typography variant="body2" sx={{ color: "#666" }}>
-                                {selectedPlace.phone}
+                          {/* 안전 보장 */}
+                          <Box sx={{
+                            backgroundColor: "#e8f5e8",
+                            borderRadius: "8px",
+                            p: 2,
+                            mt: 2
+                          }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                              <CheckCircleIcon sx={{ color: "#4caf50", fontSize: 18 }} />
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: "#2e7d32" }}>
+                                {t('safetyGuarantee')}
                               </Typography>
                             </Box>
+                            <Typography variant="body2" sx={{ color: "#388e3c", fontSize: "13px" }}>
+                              {t('safetyGuaranteeDescription')}
+                            </Typography>
                           </Box>
-                        )}
-                      </Box>
-                    </Box>
+                        </Box>
+                      )}
 
-                    {/* 안전 보장 */}
-                    <Box sx={{ 
-                      backgroundColor: "#e8f5e8",
-                      borderRadius: "8px",
-                      p: 2,
-                      mb: 2
-                    }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                        <CheckCircleIcon sx={{ color: "#4caf50", fontSize: 18 }} />
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: "#2e7d32" }}>
-                          안전 보장
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" sx={{ color: "#388e3c", fontSize: "13px" }}>
-                        모든 짐은 보안이 유지되며 손해배상보험에 의해 보호됩니다.
-                      </Typography>
+                      {/* 리뷰 탭 */}
+                      {selectedTab === 'reviews' && (
+                        <Box sx={{ maxHeight: '400px', overflow: 'auto' }}>
+                          <ReviewsList
+                            placeName={selectedPlace.place_name}
+                            placeAddress={selectedPlace.address_name}
+                            currentUserId={user?.id}
+                            canWriteReview={false}
+                          />
+                        </Box>
+                      )}
                     </Box>
                   </Box>
                 </Box>
@@ -4197,7 +5483,7 @@ const Map = () => {
                             mb: 2,
                           }}
                         >
-                          결제 처리 중입니다
+                          {t('processingPayment')}
                         </Typography>
 
                         {/* 보안 메시지 */}
@@ -4225,7 +5511,7 @@ const Map = () => {
                               <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z" />
                             </svg>
                           </Box>
-                          결제 정보는 암호화되어 안전하게 처리됩니다
+                          {t('paymentSecurityMessage')}
                         </Box>
 
                         {/* 애니메이션 키프레임 정의 */}
@@ -4322,7 +5608,7 @@ const Map = () => {
                         fontSize: "16px",
                       }}
                     >
-                      예약 내용을 다시 한번 확인해주세요
+                      {t('confirmReservationDetails')}
                     </Typography>
                     <Typography
                       sx={{
@@ -4331,9 +5617,63 @@ const Map = () => {
                         lineHeight: 1.5,
                       }}
                     >
-                      카드, 계좌이체, 간편결제 등<br />
-                      다양한 결제 수단을 지원합니다
+                      {t('paymentMethodsSupported')}
                     </Typography>
+                  </Box>
+
+                  {/* 결제 수단 선택 */}
+                  <Box
+                    sx={{
+                      mb: 3,
+                      p: 2,
+                      border: "1px solid rgba(0, 0, 0, 0.1)",
+                      borderRadius: "12px",
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        mb: 2,
+                        color: "#333",
+                      }}
+                    >
+                      {t('selectPaymentMethod')}
+                    </Typography>
+                    
+                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                      <Button
+                        variant={paymentMethod === "card" ? "contained" : "outlined"}
+                        size="small"
+                        onClick={() => setPaymentMethod("card")}
+                        sx={{
+                          minHeight: "40px",
+                          fontSize: "13px",
+                          borderRadius: "8px",
+                        }}
+                      >
+                        💳 {t('card')}
+                      </Button>
+                      
+                      <Button
+                        variant={paymentMethod === "paypal" ? "contained" : "outlined"}
+                        size="small"
+                        onClick={() => setPaymentMethod("paypal")}
+                        sx={{
+                          minHeight: "40px",
+                          fontSize: "13px",
+                          borderRadius: "8px",
+                          backgroundColor: paymentMethod === "paypal" ? "#0070ba" : "transparent",
+                          borderColor: paymentMethod === "paypal" ? "#0070ba" : "#0070ba",
+                          color: paymentMethod === "paypal" ? "white" : "#0070ba",
+                          "&:hover": {
+                            backgroundColor: paymentMethod === "paypal" ? "#005ea6" : "rgba(0, 112, 186, 0.1)",
+                          }
+                        }}
+                      >
+                        💙 PayPal
+                      </Button>
+                    </Box>
                   </Box>
 
                   {/* 결제 정보 요약 */}
@@ -4353,7 +5693,7 @@ const Map = () => {
                         color: "#333",
                       }}
                     >
-                      예약 내용을 확인해주세요
+                      {t('confirmReservationContent')}
                     </Typography>
 
                     <Box
@@ -4366,7 +5706,7 @@ const Map = () => {
                       <Typography
                         sx={{ fontSize: "13px", color: "text.secondary" }}
                       >
-                        보관 장소
+                        {t('storageLocation')}
                       </Typography>
                       <Typography sx={{ fontSize: "13px", fontWeight: 500 }}>
                         {selectedPlace.place_name}
@@ -4383,7 +5723,7 @@ const Map = () => {
                       <Typography
                         sx={{ fontSize: "13px", color: "text.secondary" }}
                       >
-                        보관 기간
+                        {t('storageDuration')}
                       </Typography>
                       <Typography sx={{ fontSize: "13px", fontWeight: 500 }}>
                         {calculateStorageTimeText()}
@@ -4400,7 +5740,7 @@ const Map = () => {
                       <Typography
                         sx={{ fontSize: "13px", color: "text.secondary" }}
                       >
-                        보관 짐
+                        {t('storedItems')}
                       </Typography>
                       <Typography sx={{ fontSize: "13px", fontWeight: 500 }}>
                         {getBagSummary()}
@@ -4417,7 +5757,7 @@ const Map = () => {
                       }}
                     >
                       <Typography sx={{ fontSize: "14px", fontWeight: 600 }}>
-                        총 결제금액
+                        {t('totalPaymentAmount')}
                       </Typography>
                       <Typography
                         sx={{
@@ -4426,7 +5766,7 @@ const Map = () => {
                           color: "#1a73e8",
                         }}
                       >
-                        {totalPrice.toLocaleString()}원
+                        {totalPrice.toLocaleString()}{t('won')}
                       </Typography>
                     </Box>
                   </Box>
@@ -4491,7 +5831,7 @@ const Map = () => {
                         </Box>
                         
                         <Typography sx={{ fontWeight: 600, fontSize: "16px" }}>
-                          안전하게 결제 중입니다
+                          {t('processingPaymentSecurely')}
                         </Typography>
                         
                         {/* 점진적 점들 */}
@@ -4540,7 +5880,7 @@ const Map = () => {
                           <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
                         </svg>
                         <Typography sx={{ fontWeight: 500, fontSize: "16px" }}>
-                          {totalPrice.toLocaleString()}원 결제하기
+                          {t('payWithAmount', { amount: `${totalPrice.toLocaleString()}${t('won')}` })}
                         </Typography>
                       </Box>
                     )}
@@ -4791,16 +6131,17 @@ const Map = () => {
                     transition: "all 0.2s ease",
                   }}
                 >
+                  {/* 헤더 - 탭 네비게이션 포함 */}
                   <Box
                     sx={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      mb: 3,
+                      mb: 2,
                     }}
                   >
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {t("luggageStorageReservation")}
+                      {reservationStep === 'bag-selection' ? t('bagSelectionTitle') : t('dateTimeSelection')}
                     </Typography>
                     <Button
                       sx={{
@@ -4816,10 +6157,64 @@ const Map = () => {
                           outline: "none",
                         },
                       }}
-                      onClick={() => setIsReservationOpen(false)}
+                      onClick={() => {
+                        setIsReservationOpen(false);
+                        setReservationStep('bag-selection'); // 단계 초기화
+                      }}
                     >
                       ×
                     </Button>
+                  </Box>
+
+                  {/* 단계 표시 인디케이터 */}
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                      <Box sx={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        backgroundColor: reservationStep === 'bag-selection' ? "#1976d2" : "#4caf50",
+                        color: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "12px",
+                        fontWeight: "600"
+                      }}>
+                        {reservationStep === 'bag-selection' ? '1' : '✓'}
+                      </Box>
+                      <Typography sx={{ 
+                        fontSize: "13px", 
+                        fontWeight: reservationStep === 'bag-selection' ? 600 : 400,
+                        color: reservationStep === 'bag-selection' ? "#1976d2" : "#4caf50"
+                      }}>
+                        {t('bagSelectionTitle')}
+                      </Typography>
+                      
+                      <Box sx={{ width: "20px", height: "2px", backgroundColor: reservationStep === 'datetime-selection' ? "#4caf50" : "#e0e0e0", mx: 1 }} />
+                      
+                      <Box sx={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        backgroundColor: reservationStep === 'datetime-selection' ? "#1976d2" : "#e0e0e0",
+                        color: reservationStep === 'datetime-selection' ? "white" : "#999",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "12px",
+                        fontWeight: "600"
+                      }}>
+                        2
+                      </Box>
+                      <Typography sx={{ 
+                        fontSize: "13px", 
+                        fontWeight: reservationStep === 'datetime-selection' ? 600 : 400,
+                        color: reservationStep === 'datetime-selection' ? "#1976d2" : "#999"
+                      }}>
+                         {t('dateTimeTitle')}
+                      </Typography>
+                    </Box>
                   </Box>
 
                   <Typography sx={{ fontWeight: 500, mb: 1 }}>
@@ -4831,11 +6226,14 @@ const Map = () => {
                     {selectedPlace.address_name}
                   </Typography>
 
-                  <Typography sx={{ fontWeight: 500, mb: 2 }}>
-                    {t("selectLuggage")}
-                  </Typography>
+                  {/* 가방 선택 탭 */}
+                  {reservationStep === 'bag-selection' && (
+                    <>
+                      <Typography sx={{ fontWeight: 500, mb: 2 }}>
+                        {t("selectLuggage")}
+                      </Typography>
 
-                  {/* 소형 가방 */}
+                  {/* {t('small')} 가방 */}
                   <Box
                     sx={{
                       display: "flex",
@@ -5222,7 +6620,58 @@ const Map = () => {
                     </Box>
                   </Box>
 
-                  {/* 보관 기간 설정 섹션 추가 */}
+                  {/* 선택된 가방 요약 표시 */}
+                  {(bagSizes.small > 0 || bagSizes.medium > 0 || bagSizes.large > 0) && (
+                    <Box sx={{
+                      mt: 3,
+                      p: 2,
+                      backgroundColor: "#f8f9fa",
+                      borderRadius: "12px",
+                      border: "1px solid #e9ecef"
+                    }}>
+                      <Typography sx={{ fontWeight: 600, mb: 1, fontSize: "14px" }}>
+                        {t('selectedBags')}
+                      </Typography>
+                      <Typography sx={{ fontSize: "13px", color: "text.secondary" }}>
+                        {getBagSummary()}
+                      </Typography>
+                      <Typography sx={{ 
+                        fontSize: "16px", 
+                        fontWeight: 600, 
+                        color: "#1976d2", 
+                        mt: 1 
+                      }}>
+                        {t('estimatedPrice')}: {totalPrice.toLocaleString()}{t('won')}
+                      </Typography>
+                    </Box>
+                  )}
+                    </>
+                  )}
+
+                  {/* 날짜 및 시간 선택 탭 */}
+                  {reservationStep === 'datetime-selection' && (
+                    <>
+                      <Typography sx={{ fontWeight: 500, mb: 2 }}>
+                        {t('selectDateAndTime')}
+                      </Typography>
+
+                      {/* 선택된 가방 요약 - 상단에 표시 */}
+                      <Box sx={{
+                        mb: 3,
+                        p: 2,
+                        backgroundColor: "#f8f9fa",
+                        borderRadius: "12px",
+                        border: "1px solid #e9ecef"
+                      }}>
+                        <Typography sx={{ fontWeight: 600, mb: 1, fontSize: "14px" }}>
+                          {t('selectedBags')}
+                        </Typography>
+                        <Typography sx={{ fontSize: "13px", color: "text.secondary" }}>
+                          {getBagSummary()}
+                        </Typography>
+                      </Box>
+
+                      {/* 보관 기간 설정 섹션 추가 */}
                   <Box sx={{ mb: 3 }}>
                     <Box
                       sx={{
@@ -5372,7 +6821,7 @@ const Map = () => {
                           >
                             <path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z" />
                           </svg>
-                          선택한 날짜는 매장 휴무일입니다
+                          {t('selectedDateClosed')}
                         </Typography>
                       )}
                     </Box>
@@ -5457,7 +6906,7 @@ const Map = () => {
                             >
                               <path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z" />
                             </svg>
-                            선택한 종료일은 매장 휴무일입니다
+                            {t('selectedEndDateClosed')}
                           </Typography>
                         )}
                       </Box>
@@ -5658,13 +7107,13 @@ const Map = () => {
                       }}
                     >
                       {selectedPlace
-                        ? `운영시간: ${getPlaceOperatingHours(selectedPlace).start} - ${getPlaceOperatingHours(selectedPlace).end}`
+                        ? t('operatingHoursFormat', { start: getPlaceOperatingHours(selectedPlace).start, end: getPlaceOperatingHours(selectedPlace).end })
                         : t("operatingHoursDefault")}
                       {!isTimeValid &&
                         (isClosedOnDate(storageDate) ||
                         (storageDuration === "period" &&
                           isClosedOnDate(storageEndDate))
-                          ? " (선택한 날짜는 휴무일입니다)"
+                          ? t('closedOnSelectedDateWarning')
                           : t("operatingHoursWarning"))}
                     </Typography>
                   </Box>
@@ -5751,6 +7200,8 @@ const Map = () => {
                       {t("won")}
                     </Typography>
                   </Box>
+                    </>
+                  )}
                 </Box>
               )}
             </>
@@ -5785,6 +7236,7 @@ const Map = () => {
                     }
 
                     setSelectedPlace(place);
+                    setShowReservations(false); // 예약목록 숨기기
                     const moveLatLng = new window.naver.maps.LatLng(
                       place.y,
                       place.x
@@ -5853,6 +7305,7 @@ const Map = () => {
                 fontSize: "16px",
                 fontWeight: 600,
                 backgroundColor: "#1976d2",
+                color: "white",
                 boxShadow: "0 2px 8px rgba(25, 118, 210, 0.3)",
                 "&:hover": {
                   backgroundColor: "#1565c0",
@@ -5860,17 +7313,22 @@ const Map = () => {
                 },
               }}
               onClick={() => {
-                setIsReservationOpen(true);
-                // 초기화
-                setBagSizes({
-                  small: 0,
-                  medium: 0,
-                  large: 0,
-                });
-                setTotalPrice(0);
+                if (isAuthenticated) {
+                  setIsReservationOpen(true);
+                  setReservationStep('bag-selection'); // 단계 초기화
+                  // 초기화
+                  setBagSizes({
+                    small: 0,
+                    medium: 0,
+                    large: 0,
+                  });
+                  setTotalPrice(0);
+                } else {
+                  navigate('/login');
+                }
               }}
             >
-              예약하기
+              {isAuthenticated ? t('makeReservation') : t('loginToReserve')}
             </Button>
           </Box>
         )}
@@ -5882,25 +7340,52 @@ const Map = () => {
               borderTop: "1px solid rgba(0, 0, 0, 0.06)",
               backgroundColor: "white",
               borderRadius: "0 0 24px 24px",
+              display: "flex",
+              gap: 2
             }}
           >
+            {/* 뒤로가기 버튼 - 날짜/시간 선택 탭에서만 표시 */}
+            {reservationStep === 'datetime-selection' && (
+              <Button
+                variant="outlined"
+                sx={{
+                  backgroundColor: "white",
+                  color: "#1976d2",
+                  borderColor: "#1976d2",
+                  borderRadius: "12px",
+                  p: 1.5,
+                  minWidth: "100px",
+                  "&:hover": { 
+                    backgroundColor: "#f5f5f5",
+                    borderColor: "#1565c0"
+                  },
+                  "&:focus": {
+                    outline: "none",
+                  },
+                  transition: "all 0.2s ease",
+                }}
+                onClick={() => setReservationStep('bag-selection')}
+              >
+                {t('previous')}
+              </Button>
+            )}
+
             <Button
               variant="contained"
               fullWidth
               disabled={
-                (bagSizes.small === 0 &&
-                  bagSizes.medium === 0 &&
-                  bagSizes.large === 0) ||
-                !storageDate ||
-                !storageStartTime ||
-                !storageEndTime ||
-                (storageDuration === "period" && !storageEndDate) ||
-                !selectedPlace ||
-                !isTimeValid ||
-                isClosedOnDate(storageDate) ||
-                (storageDuration === "period" &&
-                  storageEndDate &&
-                  isClosedOnDate(storageEndDate))
+                reservationStep === 'bag-selection' 
+                  ? (bagSizes.small === 0 && bagSizes.medium === 0 && bagSizes.large === 0)
+                  : (!storageDate ||
+                     !storageStartTime ||
+                     !storageEndTime ||
+                     (storageDuration === "period" && !storageEndDate) ||
+                     !selectedPlace ||
+                     !isTimeValid ||
+                     isClosedOnDate(storageDate) ||
+                     (storageDuration === "period" &&
+                       storageEndDate &&
+                       isClosedOnDate(storageEndDate)))
               }
               sx={{
                 backgroundColor: "#1a73e8",
@@ -5920,43 +7405,53 @@ const Map = () => {
                 transition: "background-color 0.2s ease",
               }}
               onClick={() => {
-                if (
-                  totalPrice > 0 &&
-                  isTimeValid &&
-                  storageDate &&
-                  storageStartTime &&
-                  storageEndTime &&
-                  (storageDuration !== "period" || storageEndDate) &&
-                  !isClosedOnDate(storageDate) &&
-                  !(
-                    storageDuration === "period" &&
-                    storageEndDate &&
-                    isClosedOnDate(storageEndDate)
-                  )
-                ) {
-                  if (!isAuthenticated) {
-                    setReservationError(t("loginRequiredMessage"));
-                  } else {
-                    setIsPaymentOpen(true);
+                if (reservationStep === 'bag-selection') {
+                  // 가방 선택 단계에서는 다음 단계로
+                  setReservationStep('datetime-selection');
+                } else {
+                  // 날짜/시간 선택 단계에서는 결제로
+                  if (
+                    totalPrice > 0 &&
+                    isTimeValid &&
+                    storageDate &&
+                    storageStartTime &&
+                    storageEndTime &&
+                    (storageDuration !== "period" || storageEndDate) &&
+                    !isClosedOnDate(storageDate) &&
+                    !(
+                      storageDuration === "period" &&
+                      storageEndDate &&
+                      isClosedOnDate(storageEndDate)
+                    )
+                  ) {
+                    if (!isAuthenticated) {
+                      setReservationError(t("loginRequiredMessage"));
+                    } else {
+                      setIsPaymentOpen(true);
+                    }
                   }
                 }
               }}
             >
-              {!isAuthenticated
-                ? t("loginRequired")
-                : isClosedOnDate(storageDate) ||
-                  (storageDuration === "period" &&
-                    storageEndDate &&
-                    isClosedOnDate(storageEndDate))
-                ? "선택한 날짜는 휴무일입니다"
-                : !isTimeValid
-                ? t("setWithinOperatingHours")
-                : !storageDate ||
-                  !storageStartTime ||
-                  !storageEndTime ||
-                  (storageDuration === "period" && !storageEndDate)
-                ? t("selectAllDateAndTime")
-                : t("pay")}
+              {reservationStep === 'bag-selection' 
+                ? (bagSizes.small === 0 && bagSizes.medium === 0 && bagSizes.large === 0)
+                  ? t('selectBagsPlease')
+                  : t('nextStep')
+                : !isAuthenticated
+                  ? t("loginRequired")
+                  : isClosedOnDate(storageDate) ||
+                    (storageDuration === "period" &&
+                      storageEndDate &&
+                      isClosedOnDate(storageEndDate))
+                  ? t('closedOnSelectedDate')
+                  : !isTimeValid
+                  ? t("setWithinOperatingHours")
+                  : !storageDate ||
+                    !storageStartTime ||
+                    !storageEndTime ||
+                    (storageDuration === "period" && !storageEndDate)
+                  ? t("selectAllDateAndTime")
+                  : t("pay")}
             </Button>
           </Box>
         )}
@@ -5980,12 +7475,44 @@ const Map = () => {
         </Alert>
       </Snackbar>
 
+      {/* 예약 취소 에러 메시지 스낵바 */}
+      <Snackbar
+        open={!!cancelError}
+        autoHideDuration={6000}
+        onClose={() => setCancelError("")}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setCancelError("")}
+          severity="error"
+          sx={{ width: "100%" }}
+        >
+          {cancelError}
+        </Alert>
+      </Snackbar>
+
+      {/* 예약 취소 성공 메시지 스낵바 */}
+      <Snackbar
+        open={!!cancelSuccess}
+        autoHideDuration={3000}
+        onClose={() => setCancelSuccess("")}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setCancelSuccess("")}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          {cancelSuccess}
+        </Alert>
+      </Snackbar>
+
       {!selectedPlace &&
         !isReservationOpen &&
         !isPaymentOpen &&
         !isPaymentComplete &&
         searchResults.length > 0 && (
-          <Box>
+          <Box sx={{ pb: 2 }}> {/* 하단 여백 추가 */}
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               {t("searchResultTitle", { count: searchResults.length })}
             </Typography>
@@ -5993,7 +7520,10 @@ const Map = () => {
               {searchResults.map((place, index) => (
                 <Box
                   key={index}
-                  onClick={() => setSelectedPlace(place)}
+                  onClick={() => {
+                    setSelectedPlace(place);
+                    setShowReservations(false); // 예약목록 숨기기
+                  }}
                   sx={{
                     borderRadius: "12px",
                     backgroundColor: "white",
@@ -6065,7 +7595,7 @@ const Map = () => {
                           key={index}
                           variant="body2"
                           sx={{
-                            color: hour.includes("24시간")
+                            color: hour.includes(t('open24Hours'))
                               ? "success.main"
                               : "text.secondary",
                             lineHeight: 1.4,
@@ -6081,6 +7611,156 @@ const Map = () => {
             </Stack>
           </Box>
         )}
+
+      {/* 사용자 메뉴 */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        sx={{
+          '& .MuiPaper-root': {
+            borderRadius: '12px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+            border: '1px solid #f3f4f6',
+            minWidth: '160px',
+            marginTop: '8px',
+          },
+          '& .MuiMenuItem-root': {
+            padding: '10px 16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#1a1a1a',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            '&:hover': {
+              backgroundColor: '#f9fafb',
+              color: '#2563eb',
+            },
+            '&:first-of-type': {
+              marginTop: '4px',
+            },
+            '&:last-of-type': {
+              marginBottom: '4px',
+            },
+            '& .MuiSvgIcon-root': {
+              fontSize: '18px',
+            },
+          },
+          '& .MuiDivider-root': {
+            margin: '6px 0',
+            borderColor: '#f3f4f6',
+          },
+        }}
+      >
+        {isAuthenticated ? (
+          [
+            <MenuItem key="profile" onClick={() => { handleMenuClose(); window.location.href = '/mypage'; }}>
+              <PersonIcon />
+              마이페이지
+            </MenuItem>,
+            <MenuItem key="settings" onClick={() => { handleMenuClose(); window.location.href = '/settings'; }}>
+              <SettingsIcon />
+              설정
+            </MenuItem>,
+            <Divider key="divider" />,
+            <MenuItem 
+              key="logout" 
+              onClick={() => { 
+                handleMenuClose(); 
+                logout();
+                navigate('/');
+              }}
+              sx={{
+                color: '#dc2626 !important',
+                '&:hover': {
+                  backgroundColor: '#fee2e2 !important',
+                  color: '#dc2626 !important',
+                },
+              }}
+            >
+              <LogoutIcon />
+              로그아웃
+            </MenuItem>
+          ]
+        ) : (
+          [
+            <MenuItem key="login" onClick={() => { handleMenuClose(); window.location.href = '/login'; }}>
+              <LoginIcon />
+              로그인
+            </MenuItem>,
+            <MenuItem key="register" onClick={() => { handleMenuClose(); window.location.href = '/register'; }}>
+              <PersonAddIcon />
+              회원가입
+            </MenuItem>
+          ]
+        )}
+      </Menu>
+
+      {/* 언어 선택 메뉴 */}
+      <Menu
+        anchorEl={langMenuAnchorEl}
+        open={Boolean(langMenuAnchorEl)}
+        onClose={handleLangMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        sx={{
+          '& .MuiPaper-root': {
+            borderRadius: '12px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+            border: '1px solid #f3f4f6',
+            minWidth: '160px',
+            marginTop: '8px',
+          },
+          '& .MuiMenuItem-root': {
+            padding: '10px 16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#1a1a1a',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            '&:hover': {
+              backgroundColor: '#f9fafb',
+              color: '#2563eb',
+            },
+            '&:first-of-type': {
+              marginTop: '4px',
+            },
+            '&:last-of-type': {
+              marginBottom: '4px',
+            },
+            '& .MuiSvgIcon-root': {
+              fontSize: '18px',
+            },
+          },
+        }}
+      >
+        <MenuItem onClick={() => changeLanguage('ko')}>
+          <LanguageIcon />
+          한국어
+        </MenuItem>
+        <MenuItem onClick={() => changeLanguage('en')}>
+          <LanguageIcon />
+          English
+        </MenuItem>
+      </Menu>
     </>
   );
 };
