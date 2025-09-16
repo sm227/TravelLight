@@ -13,7 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserJwtService {
@@ -96,8 +99,14 @@ public class UserJwtService {
      */
     @Transactional
     public void cleanExpiredTokens() {
-        userRefreshTokenRepository.findByExpireAtBefore(LocalDateTime.now())
-                .forEach(userRefreshTokenRepository::delete);
+        List<UserRefreshToken> expiredTokens = userRefreshTokenRepository.findByExpireAtBefore(LocalDateTime.now());
+        
+        if (!expiredTokens.isEmpty()) {
+            userRefreshTokenRepository.deleteAll(expiredTokens);
+            log.info("Deleted {} expired refresh tokens from database", expiredTokens.size());
+        } else {
+            log.debug("No expired refresh tokens found for cleanup");
+        }
     }
 
     /**
