@@ -13,9 +13,7 @@ services:
       - SPRING_DATASOURCE_URL=${DB_URL:-jdbc:postgresql://travel-light.czgyiuy6s6zy.ap-northeast-2.rds.amazonaws.com:5432/travellight}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-postgres}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-TravelLight4-1}
-      - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
-      - REDIS_HOST=redis
       - REDIS_PORT=6379
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     volumes:
