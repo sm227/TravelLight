@@ -38,6 +38,19 @@ public class UserDto {
         private String email;
         private Role role;
     }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserLoginResponse {
+        private Long id;
+        private String name;
+        private String email;
+        private Role role;
+        private String accessToken;
+        private String refreshToken;
+    }
     
     @Data
     @Builder

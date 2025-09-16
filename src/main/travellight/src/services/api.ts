@@ -3,20 +3,80 @@ import axios from 'axios';
 // 프록시 설정을 사용하므로 기본 URL은 상대 경로로 설정
 const API_BASE_URL = '/api';
 
+// Access Token을 메모리에 저장
+let accessToken: string | null = null;
+
+// Access Token 관리 함수들
+export const setAccessToken = (token: string | null) => {
+  accessToken = token;
+};
+
+export const getAccessToken = (): string | null => {
+  return accessToken;
+};
+
+export const clearAccessToken = () => {
+  accessToken = null;
+};
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // 쿠키 포함하여 요청
 });
 
-// 응답 인터셉터 추가 - API 호출 디버깅을 위해
+// 요청 인터셉터 - Access Token을 Authorization 헤더에 추가
+api.interceptors.request.use(
+  (config) => {
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// 응답 인터셉터 - 토큰 만료 시 자동 갱신
 api.interceptors.response.use(
   (response) => {
     console.log('API 응답 성공:', response);
     return response;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // 401 에러이고 아직 재시도하지 않은 경우
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        // 토큰 갱신 요청
+        const refreshResponse = await axios.post('/api/auth/refresh', {}, {
+          withCredentials: true,
+          baseURL: API_BASE_URL
+        });
+        
+        if (refreshResponse.data.success) {
+          const newAccessToken = refreshResponse.data.data.accessToken;
+          setAccessToken(newAccessToken);
+          
+          // 원래 요청에 새 토큰으로 재시도
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        // 토큰 갱신 실패 시 로그아웃 처리
+        clearAccessToken();
+        // AuthContext의 logout 함수를 호출하기 위해 이벤트 발생
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+        return Promise.reject(refreshError);
+      }
+    }
+    
     console.error('API 응답 오류:', error);
     return Promise.reject(error);
   }
@@ -32,6 +92,16 @@ export interface RegisterRequest {
 export interface LoginRequest {
   email: string;
   password: string;
+}
+
+export interface LoginResponse extends UserResponse {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface TokenResponse {
+  accessToken: string;
+  refreshToken: string;
 }
 
 export interface PasswordChangeRequest {
@@ -119,25 +189,47 @@ export interface DeliveryResponse {
   estimatedDeliveryTime?: string;
 }
 
+export const authService = {
+  register: async (data: RegisterRequest): Promise<ApiResponse<LoginResponse>> => {
+    const response = await api.post<ApiResponse<LoginResponse>>('/auth/register', data);
+    return response.data;
+  },
+  
+  login: async (data: LoginRequest): Promise<ApiResponse<LoginResponse>> => {
+    const response = await api.post<ApiResponse<LoginResponse>>('/auth/login', data);
+    return response.data;
+  },
+  
+  logout: async (): Promise<ApiResponse<void>> => {
+    const response = await api.post<ApiResponse<void>>('/auth/logout');
+    return response.data;
+  },
+  
+  getCurrentUser: async (): Promise<ApiResponse<UserResponse>> => {
+    const response = await api.get<ApiResponse<UserResponse>>('/auth/me');
+    return response.data;
+  },
+  
+  refreshToken: async (): Promise<ApiResponse<TokenResponse>> => {
+    const response = await api.post<ApiResponse<TokenResponse>>('/auth/refresh');
+    return response.data;
+  },
+};
+
 export const userService = {
-  register: async (data: RegisterRequest): Promise<ApiResponse<UserResponse>> => {
-    const response = await api.post<ApiResponse<UserResponse>>('/users/register', data);
-    return response.data;
-  },
-  
-  login: async (data: LoginRequest): Promise<ApiResponse<UserResponse>> => {
-    const response = await api.post<ApiResponse<UserResponse>>('/users/login', data);
-    return response.data;
-  },
-  
-  adminLogin: async (data: LoginRequest): Promise<ApiResponse<UserResponse>> => {
-    const response = await api.post<ApiResponse<UserResponse>>('/users/login', data);
-    return response.data;
-  },
   
   getUserInfo: async (userId: number): Promise<ApiResponse<UserResponse>> => {
     const response = await api.get<ApiResponse<UserResponse>>(`/users/${userId}`);
     return response.data;
+  },
+  
+  // 호환성을 위한 레거시 메소드들 (authService 사용 권장)
+  login: async (data: LoginRequest): Promise<ApiResponse<LoginResponse>> => {
+    return authService.login(data);
+  },
+  
+  adminLogin: async (data: LoginRequest): Promise<ApiResponse<LoginResponse>> => {
+    return authService.login(data);
   },
   
   changePassword: async (userId: number, data: PasswordChangeRequest): Promise<ApiResponse<void>> => {

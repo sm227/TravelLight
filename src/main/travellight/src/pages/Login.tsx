@@ -182,12 +182,10 @@ const Login = () => {
     if (isValid) {
       setIsLoading(true);
       try {
-        const response = await userService.login({
+        await login({
           email,
           password,
         });
-
-        login(response.data);
         setLoginSuccess(true);
 
         setTimeout(() => {
