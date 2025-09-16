@@ -29,9 +29,11 @@ import {
   Notifications as NotificationsIcon,
   History as HistoryIcon,
   Timeline as TimelineIcon,
-  RateReview as RateReviewIcon
+  RateReview as RateReviewIcon,
+  Logout as LogoutIcon
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../services/AuthContext';
 
 // 전문적인 ERP 색상 정의
 const COLORS = {
@@ -53,7 +55,14 @@ const COLORS = {
 const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+
+  // 로그아웃 핸들러
+  const handleLogout = () => {
+    logout();
+    navigate('/admin/login');
+  };
 
   // 섹션별로 구조화된 메뉴 항목
   const menuSections = [
@@ -373,7 +382,8 @@ const AdminLayout = () => {
               gap: 1,
               p: 1.5,
               bgcolor: COLORS.backgroundCard,
-              borderRadius: 1
+              borderRadius: 1,
+              mb: 2
             }}>
               <Box sx={{ 
                 width: 8, 
@@ -401,6 +411,56 @@ const AdminLayout = () => {
                 </Typography>
               </Box>
             </Box>
+
+            {/* 관리자 정보 및 로그아웃 */}
+            {user && (
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: 'column',
+                gap: 1
+              }}>
+
+                <ListItemButton
+                  onClick={handleLogout}
+                  sx={{
+                    minHeight: 36,
+                    px: 1.5,
+                    py: 0.75,
+                    borderRadius: 1,
+                    justifyContent: 'flex-start',
+                    color: '#ef4444',
+                    backgroundColor: 'transparent',
+                    border: `1px solid #ef4444`,
+                    '&:hover': {
+                      backgroundColor: alpha('#ef4444', 0.1),
+                      color: '#ef4444'
+                    },
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <ListItemIcon 
+                    sx={{ 
+                      minWidth: 'unset',
+                      color: 'inherit',
+                      mr: 1.5,
+                      '& .MuiSvgIcon-root': {
+                        fontSize: '1rem'
+                      }
+                    }}
+                  >
+                    <LogoutIcon />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="로그아웃" 
+                    primaryTypographyProps={{
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      color: 'inherit'
+                    }}
+                  />
+                </ListItemButton>
+              </Box>
+            )}
           </Box>
         )}
       </Box>
