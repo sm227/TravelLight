@@ -55,7 +55,7 @@ api.interceptors.response.use(
       
       try {
         // 토큰 갱신 요청
-        const refreshResponse = await axios.post('/api/auth/refresh', {}, {
+        const refreshResponse = await axios.post('/auth/refresh', {}, {
           withCredentials: true,
           baseURL: API_BASE_URL
         });
@@ -212,6 +212,11 @@ export const authService = {
   
   refreshToken: async (): Promise<ApiResponse<TokenResponse>> => {
     const response = await api.post<ApiResponse<TokenResponse>>('/auth/refresh');
+    return response.data;
+  },
+
+  ssoLogin: async (data: { providerType: string; authorizationCode: string; redirectUri: string }): Promise<ApiResponse<LoginResponse>> => {
+    const response = await api.post<ApiResponse<LoginResponse>>('/auth/sso/login', data);
     return response.data;
   },
 };

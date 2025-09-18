@@ -7,11 +7,18 @@ springdoc:
   packages-to-scan: org.example.travellight.controller
   paths-to-match: /**
 
-spring:
-  # 기존 설정들...
-
 # 포트원 V2 설정
 portone:
   secret:
     api: ${PORTONE_API_SECRET:EUna17acg6mJXjs30Jw8wthqoPd73ZKBkOqfnVGcIgrjOu5LeXvDqo91ltKHB0jBcqE7Ap2hdq8vSddZ}
-    # webhook: ${PORTONE_WEBHOOK_SECRET:your_webhook_secret_here}  # 웹훅 비활성화 
+    # webhook: ${PORTONE_WEBHOOK_SECRET:your_webhook_secret_here}  # 웹훅 비활성화
+
+# OAuth 설정
+# 유정환 계정 (장기 운영 시 변경 필요)
+oauth:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:735762277920-tg4beceni06gador3r06mhr9e0hmdm7m.apps.googleusercontent.com}
+    client-secret: ${GOOGLE_CLIENT_SECRET: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}
+    redirect-uri: ${GOOGLE_REDIRECT_URI:/auth/callback/google}
+    token-uri: https://oauth2.googleapis.com/token
+    user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo 

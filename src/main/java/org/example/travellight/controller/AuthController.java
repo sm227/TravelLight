@@ -13,6 +13,7 @@ import org.example.travellight.dto.ApiResponse;
 import org.example.travellight.dto.TokenResponse;
 import org.example.travellight.dto.UserDto;
 import org.example.travellight.service.AuthService;
+import org.example.travellight.service.UserSsoService;
 import org.example.travellight.service.UserJwtService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,7 @@ import jakarta.servlet.http.HttpServletResponse;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserSsoService userSsoService;
     private final UserJwtService userJwtService;
     private final JwtConfig jwtConfig;
 
@@ -165,6 +167,28 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("유효하지 않은 Refresh Token입니다."));
         }
+    }
+
+    @Operation(summary = "소셜 로그인", description = "소셜 로그인을 처리합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @PostMapping("/sso/login")
+    public ResponseEntity<ApiResponse<UserDto.UserLoginResponse>> ssoLogin(
+            @Parameter(description = "소셜 로그인 정보", required = true)
+            @RequestBody UserDto.SsoLoginRequest request,
+            HttpServletResponse response) {
+        UserDto.UserLoginResponse userResponse = userSsoService.login(request);
+
+        // Refresh Token 쿠키 설정
+        setRefreshTokenCookie(response, userResponse.getRefreshToken());
+
+        return ResponseEntity.ok(ApiResponse.success("소셜 로그인이 완료되었습니다.", userResponse));
     }
 
     /**

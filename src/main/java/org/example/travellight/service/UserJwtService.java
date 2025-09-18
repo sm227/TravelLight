@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -100,7 +101,7 @@ public class UserJwtService {
     @Transactional
     public void cleanExpiredTokens() {
         List<UserRefreshToken> expiredTokens = userRefreshTokenRepository.findByExpireAtBefore(LocalDateTime.now());
-        
+
         if (!expiredTokens.isEmpty()) {
             userRefreshTokenRepository.deleteAll(expiredTokens);
             log.info("Deleted {} expired refresh tokens from database", expiredTokens.size());

@@ -31,6 +31,8 @@ import { useAuth } from '../services/AuthContext';
 import { styled } from '@mui/material/styles';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
+import { SsoProviderType } from '../types/auth';
+import { GoogleAuthService } from '../services/googleAuth';
 
 // 대한항공 스타일 TextField
 const KoreanAirTextField = styled(TextField)(({ theme }) => ({
@@ -130,7 +132,7 @@ const SocialLoginButton = styled(Button)(({ theme }) => ({
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, ssoLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -208,6 +210,10 @@ const Login = () => {
         setIsLoading(false);
       }
     }
+  };
+
+  const handleGoogleLogin = () => {
+    GoogleAuthService.redirectToGoogleAuth();
   };
 
   return (
@@ -400,6 +406,8 @@ const Login = () => {
                   <Stack spacing={2} sx={{ mb: 3 }}>
                     <SocialLoginButton
                       fullWidth
+                      onClick={handleGoogleLogin}
+                      disabled={isLoading}
                     >
                       Google로 계속하기
                     </SocialLoginButton>

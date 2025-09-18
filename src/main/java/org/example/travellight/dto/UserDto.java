@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.example.travellight.entity.Role;
+import org.example.travellight.entity.SsoProviderType;
 
 public class UserDto {
 
@@ -59,5 +60,15 @@ public class UserDto {
     public static class PasswordChangeRequest {
         private String currentPassword;
         private String newPassword;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SsoLoginRequest {
+        private SsoProviderType providerType;
+        private String authorizationCode;
+        private String redirectUri;
     }
 } 

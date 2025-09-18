@@ -15,6 +15,7 @@ import {
   clearAccessToken,
   getAccessToken
 } from "./api";
+import { SsoProviderType } from "../types/auth";
 
 // UserResponse 인터페이스 확장
 interface ExtendedUserResponse extends UserResponse {
@@ -33,6 +34,7 @@ export interface AuthContextType {
   logout: () => void;
   adminLogin: (credentials: LoginRequest) => Promise<void>;
   refreshUserData: () => Promise<void>;
+  ssoLogin: (providerType: SsoProviderType, authorizationCode: string, redirectUri: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -246,6 +248,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const ssoLogin = async (providerType: SsoProviderType, authorizationCode: string, redirectUri: string) => {
+    try {
+      const response = await authService.ssoLogin({
+        providerType,
+        authorizationCode,
+        redirectUri
+      });
+
+      if (response.success && response.data) {
+        // Access Token을 메모리에 저장
+        setAccessToken(response.data.accessToken);
+        
+        // 사용자 정보 설정
+        const userData: ExtendedUserResponse = {
+          id: response.data.id,
+          name: response.data.name,
+          email: response.data.email,
+          role: response.data.role,
+          isAdmin: response.data.role === "ADMIN",
+        };
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        setIsAdmin(userData.isAdmin || false);
+        setIsPartner(userData.role === "PARTNER");
+        setIsWaiting(userData.role === "WAIT");
+      } else {
+        throw new Error(response.message || '소셜 로그인에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('SSO Login error:', error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -260,6 +297,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         logout,
         adminLogin,
         refreshUserData,
+        ssoLogin,
       }}
     >
       {children}
