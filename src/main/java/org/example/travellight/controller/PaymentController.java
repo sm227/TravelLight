@@ -1,6 +1,6 @@
 package org.example.travellight.controller;
 
-import org.example.travellight.dto.ApiResponse;
+import org.example.travellight.dto.CommonApiResponse;
 import org.example.travellight.service.PortOnePaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -82,8 +82,8 @@ public class PaymentController {
     }
     
     @PostMapping("/{paymentId}/cancel")
-    public ResponseEntity<ApiResponse> cancelPayment(@PathVariable String paymentId, 
-                                                    @RequestBody Map<String, String> request) {
+    public ResponseEntity<CommonApiResponse> cancelPayment(@PathVariable String paymentId,
+                                                           @RequestBody Map<String, String> request) {
         try {
             String reason = request.getOrDefault("reason", "고객 요청");
             
@@ -94,12 +94,12 @@ public class PaymentController {
             
             log.info("결제 취소 완료: paymentId = {}", paymentId);
             
-            return ResponseEntity.ok(ApiResponse.success("결제가 성공적으로 취소되었습니다.", null));
+            return ResponseEntity.ok(CommonApiResponse.success("결제가 성공적으로 취소되었습니다.", null));
             
         } catch (Exception e) {
             log.error("결제 취소 처리 중 오류 발생: paymentId = {}", paymentId, e);
             return ResponseEntity.badRequest()
-                .body(ApiResponse.error("결제 취소 중 오류가 발생했습니다: " + e.getMessage()));
+                .body(CommonApiResponse.error("결제 취소 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
     
