@@ -10,6 +10,7 @@ import org.example.travellight.repository.UserRepository;
 import org.example.travellight.repository.UserSsoAttributeRepository;
 import org.example.travellight.repository.UserSsoProviderRepository;
 import org.example.travellight.service.sso.GoogleSsoProviderService;
+import org.example.travellight.service.sso.KakaoSsoProviderService;
 import org.example.travellight.service.sso.AbstractSsoProviderService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import java.util.Optional;
 public class UserSsoService {
 
     private final GoogleSsoProviderService googleSsoProvider;
+    private final KakaoSsoProviderService kakaoSsoProvider;
     private final UserRepository userRepository;
     private final UserSsoProviderRepository userSsoProviderRepository;
     private final UserSsoAttributeRepository userSsoAttributeRepository;
@@ -31,7 +33,7 @@ public class UserSsoService {
     private AbstractSsoProviderService getSsoProvider(SsoProviderType providerType) {
         return switch (providerType) {
             case GOOGLE -> googleSsoProvider;
-            case KAKAO -> throw new UnsupportedOperationException("카카오 로그인은 아직 지원되지 않습니다");
+            case KAKAO -> kakaoSsoProvider;
         };
     }
 

@@ -312,6 +312,7 @@ function App() {
             
             {/* OAuth 콜백 */}
             <Route path="/auth/callback/google" element={<AuthCallback />} />
+            <Route path="/auth/callback/kakao" element={<AuthCallback />} />
 
             {/* 관리자 라우트 */}
             <Route path="/admin/login" element={<AdminLogin />} />

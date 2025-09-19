@@ -88,3 +88,46 @@ naver:
 gemini:
   model:
     name: ${GEMINI_MODEL_NAME:gemini-2.0-flash-exp}
+
+# Swagger 설정
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  api-docs:
+    path: /api-docs
+  packages-to-scan: org.example.travellight.controller
+  paths-to-match: /**
+
+# 포트원 V2 설정
+portone:
+  secret:
+    api: ${PORTONE_API_SECRET:EUna17acg6mJXjs30Jw8wthqoPd73ZKBkOqfnVGcIgrjOu5LeXvDqo91ltKHB0jBcqE7Ap2hdq8vSddZ}
+    # webhook: ${PORTONE_WEBHOOK_SECRET:your_webhook_secret_here}  # 웹훅 비활성화
+
+# JWT 설정
+jwt:
+  secret: 572fb1515fa3d3fcb3245a70d7aa01f2a782acacc957acaf7ad346bb659949bd
+  secure: true
+  access-token:
+    cookie-name: AT
+    expiration: 600
+  refresh-token:
+    cookie-name: RT
+    expiration: 40320000
+
+# OAuth 설정
+# 유정환 계정 (장기 운영 시 변경 필요)
+oauth:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:735762277920-tg4beceni06gador3r06mhr9e0hmdm7m.apps.googleusercontent.com}
+    client-secret: ${GOOGLE_CLIENT_SECRET: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}
+    redirect-uri: ${GOOGLE_REDIRECT_URI:/auth/callback/google}
+    token-uri: https://oauth2.googleapis.com/token
+    user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
+  kakao:
+    client-id: ${KAKAO_CLIENT_ID:your_kakao_client_id}
+    client-secret: ${KAKAO_CLIENT_SECRET:your_kakao_client_secret}
+    redirect-uri: ${KAKAO_REDIRECT_URI:/auth/callback/kakao}
+    token-uri: https://kauth.kakao.com/oauth/token
+    user-info-uri: https://kapi.kakao.com/v2/user/me

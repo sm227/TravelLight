@@ -33,6 +33,7 @@ import axios from 'axios';
 import Navbar from '../components/Navbar';
 import { SsoProviderType } from '../types/auth';
 import { GoogleAuthService } from '../services/googleAuth';
+import { KakaoAuthService } from '../services/kakaoAuth';
 
 // 대한항공 스타일 TextField
 const KoreanAirTextField = styled(TextField)(({ theme }) => ({
@@ -214,6 +215,10 @@ const Login = () => {
 
   const handleGoogleLogin = () => {
     GoogleAuthService.redirectToGoogleAuth();
+  };
+
+  const handleKakaoLogin = () => {
+    KakaoAuthService.redirectToKakaoAuth();
   };
 
   return (
@@ -413,8 +418,10 @@ const Login = () => {
                     </SocialLoginButton>
                     <SocialLoginButton
                       fullWidth
+                      onClick={handleKakaoLogin}
+                      disabled={isLoading}
                     >
-                      Apple로 계속하기
+                      카카오로 계속하기
                     </SocialLoginButton>
                   </Stack>
 
