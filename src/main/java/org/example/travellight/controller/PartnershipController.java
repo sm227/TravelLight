@@ -4,9 +4,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.example.travellight.dto.ApiResponse;
+import org.example.travellight.dto.CommonApiResponse;
 import org.example.travellight.dto.PartnershipDto;
 import org.example.travellight.entity.Partnership;
 import org.example.travellight.service.PartnershipService;
@@ -33,30 +34,30 @@ public class PartnershipController {
 
     @Operation(summary = "모든 제휴점 조회", description = "등록된 모든 제휴점의 정보를 조회합니다.")
     @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+        @ApiResponse(responseCode = "200", description = "조회 성공",
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "500", description = "서버 오류", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @GetMapping
     public ResponseEntity<?> getAllPartnerships() {
         try {
             List<Partnership> partnerships = partnershipService.getAllPartnerships();
-            return ResponseEntity.ok(ApiResponse.success("모든 제휴점 정보를 조회했습니다.", partnerships));
+            return ResponseEntity.ok(CommonApiResponse.success("모든 제휴점 정보를 조회했습니다.", partnerships));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("제휴점 정보 조회 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(CommonApiResponse.error("제휴점 정보 조회 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 
     @Operation(summary = "제휴점 신청", description = "새로운 제휴점 신청을 등록합니다.")
     @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "신청 성공", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+        @ApiResponse(responseCode = "200", description = "신청 성공", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "500", description = "서버 오류", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @PostMapping
     public ResponseEntity<?> createPartnership(
@@ -70,7 +71,7 @@ public class PartnershipController {
                     !partnershipDto.isAgreeTerms()) {
 
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("필수 항목이 누락되었습니다."));
+                        .body(CommonApiResponse.error("필수 항목이 누락되었습니다."));
             }
 
             // 서비스를 통해 데이터 저장
@@ -81,21 +82,21 @@ public class PartnershipController {
             data.put("id", savedPartnership.getId());
             data.put("submissionId", savedPartnership.getSubmissionId());
 
-            return ResponseEntity.ok(ApiResponse.success("제휴 신청이 성공적으로 접수되었습니다.", data));
+            return ResponseEntity.ok(CommonApiResponse.success("제휴 신청이 성공적으로 접수되었습니다.", data));
         } catch (Exception e) {
             System.out.println("제휴 신청 처리 중 오류 발생: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("제출 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(CommonApiResponse.error("제출 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 
     @Operation(summary = "제휴점 신청 조회", description = "제출 ID로 제휴점 신청 정보를 조회합니다.")
     @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "신청 정보를 찾을 수 없음", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+        @ApiResponse(responseCode = "200", description = "조회 성공", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "404", description = "신청 정보를 찾을 수 없음", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @GetMapping("/{submissionId}")
     public ResponseEntity<?> getPartnershipBySubmissionId(
@@ -103,21 +104,21 @@ public class PartnershipController {
             @PathVariable String submissionId) {
         try {
             Partnership partnership = partnershipService.getPartnershipBySubmissionId(submissionId);
-            return ResponseEntity.ok(ApiResponse.success("제휴 신청 정보를 찾았습니다.", partnership));
+            return ResponseEntity.ok(CommonApiResponse.success("제휴 신청 정보를 찾았습니다.", partnership));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(CommonApiResponse.error(e.getMessage()));
         }
     }
 
     @Operation(summary = "제휴점 상태 업데이트", description = "제휴점 신청의 상태를 승인 또는 거절로 업데이트합니다.")
     @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "상태 업데이트 성공", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 상태 값", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+        @ApiResponse(responseCode = "200", description = "상태 업데이트 성공", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "400", description = "잘못된 상태 값", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "500", description = "서버 오류", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updatePartnershipStatus(
@@ -129,7 +130,7 @@ public class PartnershipController {
             String newStatus = statusUpdate.get("status");
             if (newStatus == null || !List.of("APPROVED", "REJECTED").contains(newStatus)) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("유효하지 않은 상태입니다. APPROVED 또는 REJECTED만 가능합니다."));
+                        .body(CommonApiResponse.error("유효하지 않은 상태입니다. APPROVED 또는 REJECTED만 가능합니다."));
             }
 
             Partnership updatedPartnership = partnershipService.updatePartnershipStatus(id, newStatus);
@@ -138,10 +139,10 @@ public class PartnershipController {
                 ? "제휴점이 승인되었습니다. 해당 사용자의 권한이 파트너로 업데이트되었습니다." 
                 : "제휴 신청이 거절되었습니다.";
                 
-            return ResponseEntity.ok(ApiResponse.success(successMessage, updatedPartnership));
+            return ResponseEntity.ok(CommonApiResponse.success(successMessage, updatedPartnership));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("상태 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(CommonApiResponse.error("상태 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 
@@ -161,10 +162,10 @@ public class PartnershipController {
                 partnership.setLargeBagsAvailable(storageUpdate.get("largeBagsAvailable"));
             }
             partnershipService.save(partnership);
-            return ResponseEntity.ok(ApiResponse.success("보관 용량이 성공적으로 수정되었습니다.", null));
+            return ResponseEntity.ok(CommonApiResponse.success("보관 용량이 성공적으로 수정되었습니다.", null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("보관 용량 수정 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(CommonApiResponse.error("보관 용량 수정 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 
@@ -190,10 +191,10 @@ public class PartnershipController {
                 "largeBags", Math.max(0, (partnership.getLargeBagsAvailable() != null ? partnership.getLargeBagsAvailable() : 0) - currentUsage.get("largeBags"))
             ));
             
-            return ResponseEntity.ok(ApiResponse.success("현재 사용량 조회 성공", response));
+            return ResponseEntity.ok(CommonApiResponse.success("현재 사용량 조회 성공", response));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("현재 사용량 조회 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(CommonApiResponse.error("현재 사용량 조회 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 
@@ -208,7 +209,7 @@ public class PartnershipController {
             Partnership partnership = partnershipService.findByBusinessNameAndAddress(businessName, address);
             if (partnership == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.error("해당 매장을 찾을 수 없습니다."));
+                        .body(CommonApiResponse.error("해당 매장을 찾을 수 없습니다."));
             }
             
             // 2. 정리 후 정확한 용량 계산
@@ -227,10 +228,10 @@ public class PartnershipController {
                 "largeBags", Math.max(0, (partnership.getLargeBagsAvailable() != null ? partnership.getLargeBagsAvailable() : 0) - currentUsage.get("largeBags"))
             ));
             
-            return ResponseEntity.ok(ApiResponse.success("사용 가능한 용량 조회 성공", response));
+            return ResponseEntity.ok(CommonApiResponse.success("사용 가능한 용량 조회 성공", response));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("사용 가능한 용량 조회 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(CommonApiResponse.error("사용 가능한 용량 조회 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 
@@ -239,10 +240,10 @@ public class PartnershipController {
     public ResponseEntity<?> getAllStorageStatus() {
         try {
             List<Map<String, Object>> storageStatusList = partnershipService.getAllStorageStatus();
-            return ResponseEntity.ok(ApiResponse.success("전체 보관함 현황 조회 성공", storageStatusList));
+            return ResponseEntity.ok(CommonApiResponse.success("전체 보관함 현황 조회 성공", storageStatusList));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("보관함 현황 조회 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(CommonApiResponse.error("보관함 현황 조회 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 
@@ -327,13 +328,13 @@ public class PartnershipController {
             // 저장
             partnershipService.save(partnership);
 
-            return ResponseEntity.ok(ApiResponse.success("영업시간이 성공적으로 업데이트되었습니다.", null));
+            return ResponseEntity.ok(CommonApiResponse.success("영업시간이 성공적으로 업데이트되었습니다.", null));
         } catch (Exception e) {
             // 상세 에러 로깅
             System.err.println("영업시간 업데이트 중 오류 발생: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("영업시간 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(CommonApiResponse.error("영업시간 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 }
