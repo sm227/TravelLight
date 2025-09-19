@@ -2,21 +2,21 @@ spring:
   application:
     name: TravelLight
 
-  # 데이터베이스 설정
+  # RDS 데이터베이스 설정 (환경변수로 오버라이드됨)
   datasource:
-    url: jdbc:postgresql://localhost:5432/travellight
+    url: jdbc:postgresql://travel-light.czgyiuy6s6zy.ap-northeast-2.rds.amazonaws.com:5432/travellight
     username: postgres
-    password: tmdals
+    password: TravelLight4-1
     driver-class-name: org.postgresql.Driver
 
   # JPA 설정
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   # 이메일 설정
@@ -57,7 +57,7 @@ spring:
   # Redis 캐싱 설정
   data:
     redis:
-      url: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
+      url: redis://${REDIS_HOST:redis}:${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       timeout: 2000ms
       lettuce:
@@ -70,11 +70,12 @@ spring:
 server:
   port: 8080
 
-# 로깅 설정
+# 로깅 설정 (운영환경용 - DEBUG 제거)
 logging:
   level:
-    org.springframework.security: DEBUG
-    org.example.travellight: DEBUG
+    org.springframework.security: INFO
+    org.example.travellight: INFO
+    org.springframework.web: INFO
 
 # Naver Maps API
 naver:
@@ -87,29 +88,3 @@ naver:
 gemini:
   model:
     name: ${GEMINI_MODEL_NAME:gemini-2.0-flash-exp}
-
-# Swagger 설정
-springdoc:
-  swagger-ui:
-    path: /swagger-ui.html
-    operationsSorter: method
-  api-docs:
-    path: /api-docs
-  packages-to-scan: org.example.travellight.controller
-  paths-to-match: /**
-
-# 포트원 V2 설정
-portone:
-  secret:
-    api: ${PORTONE_API_SECRET:EUna17acg6mJXjs30Jw8wthqoPd73ZKBkOqfnVGcIgrjOu5LeXvDqo91ltKHB0jBcqE7Ap2hdq8vSddZ}
-    # webhook: ${PORTONE_WEBHOOK_SECRET:your_webhook_secret_here}  # 웹훅 비활성화
-
-# OAuth 설정
-# 유정환 계정 (장기 운영 시 변경 필요)
-oauth:
-  google:
-    client-id: ${GOOGLE_CLIENT_ID:735762277920-tg4beceni06gador3r06mhr9e0hmdm7m.apps.googleusercontent.com}
-    client-secret: ${GOOGLE_CLIENT_SECRET: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}
-    redirect-uri: ${GOOGLE_REDIRECT_URI:/auth/callback/google}
-    token-uri: https://oauth2.googleapis.com/token
-    user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo 

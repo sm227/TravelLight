@@ -1,0 +1,72 @@
+spring:
+  application:
+    name: TravelLight
+
+  # 도커용 데이터베이스 설정
+  datasource:
+    url: jdbc:postgresql://db:5432/travellight
+    username: travellight
+    password: password
+    driver-class-name: org.postgresql.Driver
+
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # 이메일 설정 (기존과 동일)
+  mail:
+    enabled: true
+    host: smtp.gmail.com
+    port: 587
+    username: haveagoodtrip.travellight@gmail.com
+    password: cnyg lbpx ruvw tskl
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          ssl:
+            trust: smtp.gmail.com
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+  # 날짜/시간 설정
+  jackson:
+    date-format: yyyy-MM-dd
+    time-zone: Asia/Seoul
+
+  # 파일 업로드 설정
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # 메시지 설정
+  messages:
+    basename: messages
+    encoding: UTF-8
+
+# 서버 포트 설정
+server:
+  port: 8080
+
+# 로깅 설정
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.example.travellight: DEBUG
+
+# Naver Maps API
+naver:
+  maps:
+    client:
+      id: r23gqqq271
+      secret: nCrtgfs2DRdDzKV3bqYDM8djDxPIEJEUyZ6Hv7b4
