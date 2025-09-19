@@ -2,11 +2,11 @@ spring:
   application:
     name: TravelLight
 
-  # 데이터베이스 설정
+  # 도커용 데이터베이스 설정
   datasource:
-    url: jdbc:postgresql://localhost:5432/travellight
-    username: postgres
-    password: tmdals
+    url: jdbc:postgresql://db:5432/travellight
+    username: travellight
+    password: password
     driver-class-name: org.postgresql.Driver
 
   # JPA 설정
@@ -19,7 +19,7 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  # 이메일 설정
+  # 이메일 설정 (기존과 동일)
   mail:
     enabled: true
     host: smtp.gmail.com
@@ -54,18 +54,6 @@ spring:
     basename: messages
     encoding: UTF-8
 
-  # Redis 캐싱 설정
-  data:
-    redis:
-      url: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      timeout: 2000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
-
 # 서버 포트 설정
 server:
   port: 8080
@@ -82,24 +70,3 @@ naver:
     client:
       id: r23gqqq271
       secret: nCrtgfs2DRdDzKV3bqYDM8djDxPIEJEUyZ6Hv7b4
-
-# Google Gemini API 설정
-gemini:
-  model:
-    name: ${GEMINI_MODEL_NAME:gemini-2.0-flash-exp}
-
-# Swagger 설정
-springdoc:
-  swagger-ui:
-    path: /swagger-ui.html
-    operationsSorter: method
-  api-docs:
-    path: /api-docs
-  packages-to-scan: org.example.travellight.controller
-  paths-to-match: /**
-
-# 포트원 V2 설정
-portone:
-  secret:
-    api: ${PORTONE_API_SECRET:EUna17acg6mJXjs30Jw8wthqoPd73ZKBkOqfnVGcIgrjOu5LeXvDqo91ltKHB0jBcqE7Ap2hdq8vSddZ}
-    # webhook: ${PORTONE_WEBHOOK_SECRET:your_webhook_secret_here}  # 웹훅 비활성화 
