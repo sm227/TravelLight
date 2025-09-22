@@ -81,10 +81,10 @@ public class UserController {
     })
     @GetMapping("/admin/all")
     // TODO: 추후 인증 시스템 구현 후 @PreAuthorize("hasRole('ADMIN')") 재적용
-    public ResponseEntity<ApiResponse<List<UserDto.AdminUserResponse>>> getAllUsers() {
+    public ResponseEntity<CommonApiResponse<List<UserDto.AdminUserResponse>>> getAllUsers() {
         log.info("관리자용 모든 사용자 목록 조회 요청");
         List<UserDto.AdminUserResponse> users = userService.getAllUsers();
-        return ResponseEntity.ok(ApiResponse.success("사용자 목록을 조회했습니다.", users));
+        return ResponseEntity.ok(CommonApiResponse.success("사용자 목록을 조회했습니다.", users));
     }
     
     @Operation(summary = "사용자 삭제", description = "관리자가 사용자를 삭제합니다.")
@@ -98,11 +98,11 @@ public class UserController {
     })
     @DeleteMapping("/admin/{userId}")
     // TODO: 추후 인증 시스템 구현 후 @PreAuthorize("hasRole('ADMIN')") 재적용
-    public ResponseEntity<ApiResponse<Void>> deleteUser(
+    public ResponseEntity<CommonApiResponse<Void>> deleteUser(
             @Parameter(description = "사용자 ID", required = true)
             @PathVariable Long userId) {
         log.info("사용자 삭제 요청 - 사용자 ID: {}", userId);
         userService.deleteUser(userId);
-        return ResponseEntity.ok(ApiResponse.success("사용자가 삭제되었습니다.", null));
+        return ResponseEntity.ok(CommonApiResponse.success("사용자가 삭제되었습니다.", null));
     }
 } 
