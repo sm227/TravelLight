@@ -1,16 +1,14 @@
 package org.example.travellight.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.example.travellight.dto.ApiResponse;
+import org.example.travellight.dto.CommonApiResponse;
 import org.example.travellight.dto.EventStorageDto;
 import org.example.travellight.service.EventStorageService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -21,7 +19,7 @@ public class EventStorageController {
     private final EventStorageService eventStorageService;
 
     @PostMapping("/EventStorage")
-    public ResponseEntity<ApiResponse> createEventStorageRequest(@RequestBody Map<String, Object> requestMap) {
+    public ResponseEntity<CommonApiResponse> createEventStorageRequest(@RequestBody Map<String, Object> requestMap) {
         try {
             // 날짜/시간 데이터 변환
             LocalDate eventDate = null;
@@ -86,7 +84,7 @@ public class EventStorageController {
 
             // 유효성 검증
             if (!eventStorageService.validateSubmission(dto)) {
-                return ResponseEntity.badRequest().body(ApiResponse.builder()
+                return ResponseEntity.badRequest().body(CommonApiResponse.builder()
                         .success(false)
                         .message("필수 항목을 모두 입력해주세요.")
                         .build());
@@ -99,7 +97,7 @@ public class EventStorageController {
             Map<String, Object> data = new HashMap<>();
             data.put("submissionId", submissionId);
 
-            return ResponseEntity.ok(ApiResponse.builder()
+            return ResponseEntity.ok(CommonApiResponse.builder()
                     .success(true)
                     .message("이동식 짐보관 서비스 신청이 완료되었습니다.")
                     .data(data)
@@ -107,7 +105,7 @@ public class EventStorageController {
 
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
+            return ResponseEntity.badRequest().body(CommonApiResponse.builder()
                     .success(false)
                     .message("서버 오류가 발생했습니다: " + e.getMessage())
                     .build());
@@ -115,7 +113,7 @@ public class EventStorageController {
     }
 
     @GetMapping("/EventStorage/{submissionId}")
-    public ResponseEntity<ApiResponse> getEventStorageRequest(@PathVariable String submissionId) {
+    public ResponseEntity<CommonApiResponse> getEventStorageRequest(@PathVariable String submissionId) {
         try {
             var eventStorage = eventStorageService.getEventStorageBySubmissionId(submissionId);
 
@@ -123,13 +121,13 @@ public class EventStorageController {
                 return ResponseEntity.notFound().build();
             }
 
-            return ResponseEntity.ok(ApiResponse.builder()
+            return ResponseEntity.ok(CommonApiResponse.builder()
                     .success(true)
                     .data(eventStorage)
                     .build());
 
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
+            return ResponseEntity.badRequest().body(CommonApiResponse.builder()
                     .success(false)
                     .message("조회 중 오류가 발생했습니다: " + e.getMessage())
                     .build());
@@ -137,17 +135,17 @@ public class EventStorageController {
     }
 
     @GetMapping("/admin/EventStorage")
-    public ResponseEntity<ApiResponse> getAllEventStorages() {
+    public ResponseEntity<CommonApiResponse> getAllEventStorages() {
         try {
             var eventStorages = eventStorageService.getAllEventStorages();
             
-            return ResponseEntity.ok(ApiResponse.builder()
+            return ResponseEntity.ok(CommonApiResponse.builder()
                     .success(true)
                     .data(eventStorages)
                     .build());
                     
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
+            return ResponseEntity.badRequest().body(CommonApiResponse.builder()
                     .success(false)
                     .message("이벤트 보관 목록 조회 중 오류가 발생했습니다: " + e.getMessage())
                     .build());
@@ -155,13 +153,13 @@ public class EventStorageController {
     }
     
     @PutMapping("/admin/EventStorage/{id}/status")
-    public ResponseEntity<ApiResponse> updateEventStorageStatus(
+    public ResponseEntity<CommonApiResponse> updateEventStorageStatus(
             @PathVariable Long id,
             @RequestBody Map<String, String> statusMap) {
         try {
             String newStatus = statusMap.get("status");
             if (newStatus == null || newStatus.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(ApiResponse.builder()
+                return ResponseEntity.badRequest().body(CommonApiResponse.builder()
                         .success(false)
                         .message("상태 값이 제공되지 않았습니다.")
                         .build());
@@ -173,13 +171,13 @@ public class EventStorageController {
                 return ResponseEntity.notFound().build();
             }
             
-            return ResponseEntity.ok(ApiResponse.builder()
+            return ResponseEntity.ok(CommonApiResponse.builder()
                     .success(true)
                     .message("이벤트 보관 신청 상태가 업데이트되었습니다.")
                     .build());
                     
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
+            return ResponseEntity.badRequest().body(CommonApiResponse.builder()
                     .success(false)
                     .message("상태 업데이트 중 오류가 발생했습니다: " + e.getMessage())
                     .build());
