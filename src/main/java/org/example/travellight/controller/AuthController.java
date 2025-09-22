@@ -4,29 +4,25 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.example.travellight.config.JwtConfig;
-import org.example.travellight.dto.ApiResponse;
-import org.example.travellight.dto.TokenResponse;
-import org.example.travellight.dto.UserDto;
-import org.example.travellight.service.AuthService;
-import org.example.travellight.service.UserSsoService;
-import org.example.travellight.service.UserJwtService;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.example.travellight.dto.CustomUserDetails;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.example.travellight.config.JwtConfig;
+import org.example.travellight.dto.CommonApiResponse;
+import org.example.travellight.dto.CustomUserDetails;
+import org.example.travellight.dto.TokenResponse;
+import org.example.travellight.dto.UserDto;
+import org.example.travellight.service.AuthService;
+import org.example.travellight.service.UserJwtService;
+import org.example.travellight.service.UserSsoService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @Tag(name = "인증 관리", description = "사용자 회원가입, 로그인, 현재 사용자 정보 조회, 토큰 갱신 및 로그아웃 API")
@@ -42,15 +38,15 @@ public class AuthController {
 
     @Operation(summary = "회원가입", description = "새로운 사용자를 등록합니다.")
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "회원가입 성공",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 존재하는 사용자",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+            @ApiResponse(responseCode = "200", description = "회원가입 성공",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "409", description = "이미 존재하는 사용자",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<UserDto.UserLoginResponse>> register(
+    public ResponseEntity<CommonApiResponse<UserDto.UserLoginResponse>> register(
             @Parameter(description = "회원가입 정보", required = true)
             @RequestBody UserDto.RegisterRequest request,
             HttpServletResponse response) {
@@ -59,20 +55,20 @@ public class AuthController {
         // Refresh Token 쿠키 설정
         setRefreshTokenCookie(response, userResponse.getRefreshToken());
 
-        return ResponseEntity.ok(ApiResponse.success("회원가입이 완료되었습니다.", userResponse));
+        return ResponseEntity.ok(CommonApiResponse.success("회원가입이 완료되었습니다.", userResponse));
     }
 
     @Operation(summary = "로그인", description = "사용자 로그인을 처리합니다.")
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+            @ApiResponse(responseCode = "200", description = "로그인 성공",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<UserDto.UserLoginResponse>> login(
+    public ResponseEntity<CommonApiResponse<UserDto.UserLoginResponse>> login(
             @Parameter(description = "로그인 정보", required = true)
             @RequestBody UserDto.LoginRequest request,
             HttpServletResponse response) {
@@ -81,18 +77,18 @@ public class AuthController {
         // Refresh Token 쿠키 설정
         setRefreshTokenCookie(response, userResponse.getRefreshToken());
 
-        return ResponseEntity.ok(ApiResponse.success("로그인이 완료되었습니다.", userResponse));
+        return ResponseEntity.ok(CommonApiResponse.success("로그인이 완료되었습니다.", userResponse));
     }
 
     @Operation(summary = "로그아웃", description = "Refresh Token을 무효화하고 로그아웃 처리합니다.")
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그아웃 성공",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+            @ApiResponse(responseCode = "200", description = "로그아웃 성공",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "500", description = "서버 오류",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<CommonApiResponse<Void>> logout(HttpServletRequest request, HttpServletResponse response) {
         try {
             String refreshToken = userJwtService.extractRefreshToken(request);
 
@@ -103,28 +99,28 @@ public class AuthController {
             // 쿠키 삭제
             clearRefreshTokenCookie(response);
 
-            return ResponseEntity.ok(ApiResponse.success("로그아웃이 완료되었습니다.", null));
+            return ResponseEntity.ok(CommonApiResponse.success("로그아웃이 완료되었습니다.", null));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("로그아웃 처리 중 오류가 발생했습니다."));
+                    .body(CommonApiResponse.error("로그아웃 처리 중 오류가 발생했습니다."));
         }
     }
 
     @Operation(summary = "현재 사용자 정보 조회", description = "현재 인증된 사용자의 정보를 조회합니다.")
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증되지 않은 사용자",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<UserDto.UserResponse>> me() {
+    public ResponseEntity<CommonApiResponse<UserDto.UserResponse>> me() {
         CustomUserDetails userDetails = authService.getCurrentUser();
 
         if (userDetails == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("인증되지 않은 사용자입니다."));
+                    .body(CommonApiResponse.error("인증되지 않은 사용자입니다."));
         }
 
         UserDto.UserResponse userResponse = UserDto.UserResponse.builder()
@@ -134,25 +130,25 @@ public class AuthController {
                 .role(userDetails.getRole())
                 .build();
 
-        return ResponseEntity.ok(ApiResponse.success("사용자 정보를 조회했습니다.", userResponse));
+        return ResponseEntity.ok(CommonApiResponse.success("사용자 정보를 조회했습니다.", userResponse));
     }
 
     @Operation(summary = "Access Token 갱신", description = "Refresh Token을 사용하여 새로운 Access Token을 발급합니다.")
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "토큰 갱신 성공",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "유효하지 않은 Refresh Token",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+            @ApiResponse(responseCode = "200", description = "토큰 갱신 성공",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "401", description = "유효하지 않은 Refresh Token",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<TokenResponse>> refresh(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<CommonApiResponse<TokenResponse>> refresh(HttpServletRequest request, HttpServletResponse response) {
         try {
             // 요청에서 Refresh Token 추출
             String refreshToken = userJwtService.extractRefreshToken(request);
 
             if (refreshToken == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponse.error("Refresh Token이 없습니다."));
+                        .body(CommonApiResponse.error("Refresh Token이 없습니다."));
             }
 
             // 새로운 Access Token 발급
@@ -161,25 +157,25 @@ public class AuthController {
             // 항상 쿠키 설정 (앱에서는 무시됨)
             setRefreshTokenCookie(response, tokens.getRefreshToken());
 
-            return ResponseEntity.ok(ApiResponse.success("토큰이 갱신되었습니다.", tokens));
+            return ResponseEntity.ok(CommonApiResponse.success("토큰이 갱신되었습니다.", tokens));
 
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("유효하지 않은 Refresh Token입니다."));
+                    .body(CommonApiResponse.error("유효하지 않은 Refresh Token입니다."));
         }
     }
 
     @Operation(summary = "소셜 로그인", description = "소셜 로그인을 처리합니다.")
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+            @ApiResponse(responseCode = "200", description = "로그인 성공",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @PostMapping("/sso/login")
-    public ResponseEntity<ApiResponse<UserDto.UserLoginResponse>> ssoLogin(
+    public ResponseEntity<CommonApiResponse<UserDto.UserLoginResponse>> ssoLogin(
             @Parameter(description = "소셜 로그인 정보", required = true)
             @RequestBody UserDto.SsoLoginRequest request,
             HttpServletResponse response) {
@@ -188,7 +184,7 @@ public class AuthController {
         // Refresh Token 쿠키 설정
         setRefreshTokenCookie(response, userResponse.getRefreshToken());
 
-        return ResponseEntity.ok(ApiResponse.success("소셜 로그인이 완료되었습니다.", userResponse));
+        return ResponseEntity.ok(CommonApiResponse.success("소셜 로그인이 완료되었습니다.", userResponse));
     }
 
     /**
