@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.example.travellight.entity.Role;
+import java.time.LocalDateTime;
 import org.example.travellight.entity.SsoProviderType;
 
 public class UserDto {
@@ -52,7 +53,21 @@ public class UserDto {
         private String accessToken;
         private String refreshToken;
     }
-    
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AdminUserResponse {
+        private Long id;
+        private String name;
+        private String email;
+        private Role role;
+        private LocalDateTime createdAt;
+        private LocalDateTime updatedAt;
+        private String status; // 활성/비활성 상태를 위해 추가
+    }
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -71,4 +86,4 @@ public class UserDto {
         private String authorizationCode;
         private String redirectUri;
     }
-} 
+}

@@ -98,4 +98,29 @@ public class UserServiceImpl implements UserService {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
     }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<UserDto.AdminUserResponse> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(user -> UserDto.AdminUserResponse.builder()
+                        .id(user.getId())
+                        .name(user.getName())
+                        .email(user.getEmail())
+                        .role(user.getRole())
+                        .createdAt(user.getCreatedAt())
+                        .updatedAt(user.getUpdatedAt())
+                        .status("활성") // 현재는 모든 사용자를 활성 상태로 설정
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
+    }
+    
+    @Override
+    @Transactional
+    public void deleteUser(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new CustomException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
+        }
+        userRepository.deleteById(userId);
+    }
 } 

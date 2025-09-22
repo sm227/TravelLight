@@ -14,6 +14,7 @@ import './App.css';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
+import UserDetail from './pages/admin/UserDetail';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminEventStorage from './pages/admin/AdminEventStorage';
@@ -323,6 +324,7 @@ function App() {
             }>
               <Route index element={<AdminDashboard />} />
               <Route path="users" element={<AdminUsers />} />
+              <Route path="users/:userId" element={<UserDetail />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="event-storage" element={<AdminEventStorage />} />

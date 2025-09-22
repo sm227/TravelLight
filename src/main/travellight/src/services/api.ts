@@ -116,6 +116,16 @@ export interface UserResponse {
   role?: string;
 }
 
+export interface AdminUserResponse {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+  status: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -247,6 +257,19 @@ export const userService = {
       console.error('비밀번호 변경 중 오류 발생:', error);
       throw error;
     }
+  },
+};
+
+// 관리자용 사용자 관리 서비스
+export const adminUserService = {
+  getAllUsers: async (): Promise<ApiResponse<AdminUserResponse[]>> => {
+    const response = await api.get<ApiResponse<AdminUserResponse[]>>('/users/admin/all');
+    return response.data;
+  },
+  
+  deleteUser: async (userId: number): Promise<ApiResponse<void>> => {
+    const response = await api.delete<ApiResponse<void>>(`/users/admin/${userId}`);
+    return response.data;
   },
 };
 
