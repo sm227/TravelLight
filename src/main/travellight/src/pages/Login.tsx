@@ -117,14 +117,14 @@ const KoreanAirButton = styled(Button)(({ theme }) => ({
 
 // 구글 로그인 버튼
 const GoogleLoginButton = styled(Button)(({ theme }) => ({
-  borderRadius: '8px',
+  borderRadius: '4px',
   padding: '12px 16px',
   fontSize: '14px',
   fontWeight: 500,
   textTransform: 'none',
   backgroundColor: '#FFFFFF',
   color: '#1F2937',
-  border: '1px solid #D1D5DB',
+  border: '2px solid #E5E7EB',
   minHeight: '48px',
   transition: 'all 0.2s ease',
   display: 'flex',
@@ -142,7 +142,7 @@ const GoogleLoginButton = styled(Button)(({ theme }) => ({
 
 // 카카오 로그인 버튼
 const KakaoLoginButton = styled(Button)(({ theme }) => ({
-  borderRadius: '8px',
+  borderRadius: '4px',
   padding: '12px 16px',
   fontSize: '14px',
   fontWeight: 600,
