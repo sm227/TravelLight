@@ -4,11 +4,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.travellight.dto.ApiResponse;
+import org.example.travellight.dto.CommonApiResponse;
 import org.example.travellight.dto.DeliveryDto;
 import org.example.travellight.dto.ReservationDto;
 import org.example.travellight.dto.UserDto;
@@ -39,15 +40,15 @@ public class DeliveryController {
 
     @Operation(summary = "배달 신청", description = "새로운 배달을 신청합니다.")
     @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "배달 신청 성공", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자 또는 예약을 찾을 수 없음", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+        @ApiResponse(responseCode = "200", description = "배달 신청 성공",
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "404", description = "사용자 또는 예약을 찾을 수 없음", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @PostMapping
-    public ResponseEntity<ApiResponse<DeliveryDto.DeliveryResponse>> createDelivery(
+    public ResponseEntity<CommonApiResponse<DeliveryDto.DeliveryResponse>> createDelivery(
             @Parameter(description = "배달 신청 정보", required = true)
             @RequestBody DeliveryDto.DeliveryRequest request) {
         log.info("배달 신청 요청 - 사용자 ID: {}, 예약 ID: {}", request.getUserId(), request.getReservationId());
@@ -94,18 +95,18 @@ public class DeliveryController {
         DeliveryDto.DeliveryResponse response = convertToResponse(savedDelivery);
 
         log.info("배달 신청 완료 - 배달 ID: {}, 예약 ID: {}", savedDelivery.getId(), savedDelivery.getReservation().getId());
-        return ResponseEntity.ok(ApiResponse.success("배달이 신청되었습니다.", response));
+        return ResponseEntity.ok(CommonApiResponse.success("배달이 신청되었습니다.", response));
     }
 
     @Operation(summary = "예약별 배달 정보 조회", description = "예약 ID로 배달 정보를 조회합니다.")
     @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "예약을 찾을 수 없음", 
-            content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+        @ApiResponse(responseCode = "200", description = "조회 성공", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "404", description = "예약을 찾을 수 없음", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
     })
     @GetMapping("/reservation/{reservationId}")
-    public ResponseEntity<ApiResponse<List<DeliveryDto.DeliveryResponse>>> getDeliveriesByReservationId(
+    public ResponseEntity<CommonApiResponse<List<DeliveryDto.DeliveryResponse>>> getDeliveriesByReservationId(
             @Parameter(description = "예약 ID", required = true)
             @PathVariable Long reservationId) {
         log.info("예약별 배달 정보 조회 요청 - 예약 ID: {}", reservationId);
@@ -116,12 +117,12 @@ public class DeliveryController {
                 .collect(Collectors.toList());
         
         log.info("예약별 배달 정보 조회 완료 - 예약 ID: {}, 배달 수: {}", reservationId, responses.size());
-        return ResponseEntity.ok(ApiResponse.success(responses));
+        return ResponseEntity.ok(CommonApiResponse.success(responses));
     }
 
     @Operation(summary = "배달 목록 조회", description = "모든 배달 목록을 조회합니다.")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<DeliveryDto.DeliveryResponse>>> getAllDeliveries() {
+    public ResponseEntity<CommonApiResponse<List<DeliveryDto.DeliveryResponse>>> getAllDeliveries() {
         log.info("배달 목록 조회 요청");
 
         List<Delivery> deliveries = deliveryService.getAllDeliveries();
@@ -129,12 +130,12 @@ public class DeliveryController {
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(ApiResponse.success(responses));
+        return ResponseEntity.ok(CommonApiResponse.success(responses));
     }
 
     @Operation(summary = "배달 상세 조회", description = "배달 ID로 상세 정보를 조회합니다.")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<DeliveryDto.DeliveryResponse>> getDeliveryById(
+    public ResponseEntity<CommonApiResponse<DeliveryDto.DeliveryResponse>> getDeliveryById(
             @Parameter(description = "배달 ID", required = true)
             @PathVariable Long id) {
         log.info("배달 상세 조회 요청 - 배달 ID: {}", id);
@@ -142,12 +143,12 @@ public class DeliveryController {
         Delivery delivery = deliveryService.getDeliveryById(id);
         DeliveryDto.DeliveryResponse response = convertToResponse(delivery);
 
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(CommonApiResponse.success(response));
     }
 
     @Operation(summary = "배달원 배정", description = "배달에 배달원을 배정합니다.")
     @PutMapping("/{id}/assign")
-    public ResponseEntity<ApiResponse<String>> assignDriver(
+    public ResponseEntity<CommonApiResponse<String>> assignDriver(
             @Parameter(description = "배달 ID", required = true)
             @PathVariable Long id,
             @RequestParam Long driverId) {
@@ -155,12 +156,12 @@ public class DeliveryController {
 
         deliveryService.assignDriver(id, driverId);
 
-        return ResponseEntity.ok(ApiResponse.success("배달원이 배정되었습니다."));
+        return ResponseEntity.ok(CommonApiResponse.success("배달원이 배정되었습니다."));
     }
 
     @Operation(summary = "배달 상태 변경", description = "배달 상태를 변경합니다.")
     @PutMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<String>> updateDeliveryStatus(
+    public ResponseEntity<CommonApiResponse<String>> updateDeliveryStatus(
             @Parameter(description = "배달 ID", required = true)
             @PathVariable Long id,
             @RequestParam DeliveryStatus status) {
@@ -168,12 +169,12 @@ public class DeliveryController {
 
         deliveryService.updateDeliveryStatus(id, status);
 
-        return ResponseEntity.ok(ApiResponse.success("배달 상태가 변경되었습니다."));
+        return ResponseEntity.ok(CommonApiResponse.success("배달 상태가 변경되었습니다."));
     }
 
     @Operation(summary = "배달원별 배달 목록", description = "특정 배달원의 배달 목록을 조회합니다.")
     @GetMapping("/driver/{driverId}")
-    public ResponseEntity<ApiResponse<List<DeliveryDto.DeliveryResponse>>> getDeliveriesByDriver(
+    public ResponseEntity<CommonApiResponse<List<DeliveryDto.DeliveryResponse>>> getDeliveriesByDriver(
             @Parameter(description = "배달원 ID", required = true)
             @PathVariable Long driverId) {
         log.info("배달원별 배달 목록 조회 요청 - 배달원 ID: {}", driverId);
@@ -183,7 +184,7 @@ public class DeliveryController {
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(ApiResponse.success(responses));
+        return ResponseEntity.ok(CommonApiResponse.success(responses));
     }
 
     private DeliveryDto.DeliveryResponse convertToResponse(Delivery delivery) {
