@@ -1,6 +1,6 @@
 export class KakaoAuthService {
     private static readonly CLIENT_ID = import.meta.env.VITE_KAKAO_CLIENT_ID || 'your_kakao_client_id';
-    private static readonly SCOPE = 'profile_nickname account_email';
+    private static readonly SCOPE = import.meta.env.VITE_KAKAO_SCOPE || 'profile_nickname';
 
     static getAuthUrl(redirectUri: string): string {
         const state = this.generateState();

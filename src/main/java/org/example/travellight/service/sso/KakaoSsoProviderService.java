@@ -30,6 +30,9 @@ public class KakaoSsoProviderService implements AbstractSsoProviderService {
     @Value("${oauth.kakao.user-info-uri}")
     private String userInfoUri;
 
+    @Value("${oauth.kakao.scope}")
+    private String scope;
+
     @Override
     public String getAccessToken(String authorizationCode, String redirectUri) {
         try {
@@ -74,10 +77,15 @@ public class KakaoSsoProviderService implements AbstractSsoProviderService {
                 JsonNode kakaoAccount = jsonNode.get("kakao_account");
                 JsonNode profile = kakaoAccount.get("profile");
 
+                String email = "";
+                if (kakaoAccount.has("email") && kakaoAccount.get("email") != null) {
+                    email = kakaoAccount.get("email").asText();
+                }
+
                 return SsoUserInfoDto.builder()
                         .id(jsonNode.get("id").asText())
                         .name(profile.get("nickname").asText())
-                        .email(kakaoAccount.has("email") ? kakaoAccount.get("email").asText() : null)
+                        .email(email)
                         .picture(profile.has("profile_image_url") ? profile.get("profile_image_url").asText() : null)
                         .build();
             } else {
