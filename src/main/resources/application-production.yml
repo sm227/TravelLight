@@ -4,7 +4,7 @@ spring:
 
   # RDS 데이터베이스 설정 (환경변수로 오버라이드됨)
   datasource:
-    url: jdbc:postgresql://travel-light.czgyiuy6s6zy.ap-northeast-2.rds.amazonaws.com:5432/travellight
+    url: jdbc:postgresql://localhost:5432/travellight
     username: postgres
     password: TravelLight4-1
     driver-class-name: org.postgresql.Driver
