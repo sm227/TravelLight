@@ -29,7 +29,6 @@ import {
   PersonAdd
 } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { userService } from '../services/api';
 import { useAuth } from '../services/AuthContext';
 import { styled } from '@mui/material/styles';
 import axios from 'axios';
@@ -115,7 +114,7 @@ const KoreanAirButton = styled(Button)(({ theme }) => ({
 
 const Register = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -226,15 +225,12 @@ const Register = () => {
     if (validateForm()) {
       setIsLoading(true);
       try {
-        const response = await userService.register({
+        await register({
           name: formData.name,
           email: formData.email,
           password: formData.password,
           role: 'USER'
         });
-        
-        // 회원가입 성공 시 로그인 처리
-        login(response.data);
         setRegisterSuccess(true);
 
         // 홈 페이지로 이동

@@ -5,8 +5,6 @@ import org.example.travellight.entity.User;
 import java.util.List;
 
 public interface UserService {
-    UserDto.UserResponse register(UserDto.RegisterRequest request);
-    UserDto.UserResponse login(UserDto.LoginRequest request);
     void changePassword(Long userId, UserDto.PasswordChangeRequest request);
     UserDto.UserResponse getUserById(Long userId);
     boolean isEmailExists(String email);

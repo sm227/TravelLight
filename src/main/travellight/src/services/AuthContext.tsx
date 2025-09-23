@@ -5,17 +5,21 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { UserResponse, userService } from "./api";
+import { 
+  UserResponse, 
+  authService, 
+  userService,
+  LoginRequest,
+  LoginResponse,
+  setAccessToken,
+  clearAccessToken,
+  getAccessToken
+} from "./api";
+import { SsoProviderType } from "../types/auth";
 
 // UserResponse 인터페이스 확장
 interface ExtendedUserResponse extends UserResponse {
-  token?: string;
   isAdmin?: boolean;
-}
-
-// 로컬 스토리지에 저장할 최소한의 정보만 포함하는 인터페이스
-interface StoredUserData {
-  id: number;
 }
 
 export interface AuthContextType {
@@ -25,13 +29,12 @@ export interface AuthContextType {
   isPartner: boolean;
   isWaiting: boolean;
   isInitialLoading: boolean;
-  login: (userData: ExtendedUserResponse) => void;
+  login: (credentials: LoginRequest) => Promise<void>;
+  register: (data: { name: string; email: string; password: string; role?: string }) => Promise<void>;
   logout: () => void;
-  adminLogin: (credentials: {
-    email: string;
-    password: string;
-  }) => Promise<void>;
+  adminLogin: (credentials: LoginRequest) => Promise<void>;
   refreshUserData: () => Promise<void>;
+  ssoLogin: (providerType: SsoProviderType, authorizationCode: string, redirectUri: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,44 +52,59 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // 로컬 스토리지에서 사용자 ID만 불러오기
-    const storedUserData = localStorage.getItem("authData");
-    if (storedUserData) {
-      try {
-        const parsedData: StoredUserData = JSON.parse(storedUserData);
-        // 인증 상태만 설정하고, 나머지는 서버에서 가져온 후 설정
-        setIsAuthenticated(true);
-
-        // 서버에서 전체 사용자 정보 가져오기
-        loadUserFromServer(parsedData.id);
-      } catch (error) {
-        console.error("Failed to parse stored auth data:", error);
-        localStorage.removeItem("authData");
-        setIsInitialLoading(false);
-      }
-    } else {
-      setIsInitialLoading(false);
-    }
+    // 쿠키에 Refresh Token이 있는지 확인하고 사용자 정보 로드
+    checkAuthStatus();
+    
+    // 로그아웃 이벤트 리스너 등록
+    const handleLogout = () => {
+      handleLogoutEvent();
+    };
+    
+    window.addEventListener('auth:logout', handleLogout);
+    
+    return () => {
+      window.removeEventListener('auth:logout', handleLogout);
+    };
   }, []);
 
-  // 서버에서 사용자 정보를 로드하는 함수
-  const loadUserFromServer = async (userId: number) => {
+  // 인증 상태 확인 및 사용자 정보 로드
+  const checkAuthStatus = async () => {
     try {
-      const response = await userService.getUserInfo(userId);
-      if (response.data) {
-        const fullUserData: ExtendedUserResponse = {
+      // Refresh Token으로 새로운 Access Token 발급 시도
+      const tokenResponse = await authService.refreshToken();
+      if (tokenResponse.success && tokenResponse.data.accessToken) {
+        // Access Token을 메모리에 저장
+        setAccessToken(tokenResponse.data.accessToken);
+        
+        // 사용자 정보 로드
+        await loadCurrentUser();
+      } else {
+        setIsInitialLoading(false);
+      }
+    } catch (error) {
+      console.error('Failed to check auth status:', error);
+      setIsInitialLoading(false);
+    }
+  };
+  
+  // 현재 사용자 정보 로드
+  const loadCurrentUser = async () => {
+    try {
+      const response = await authService.getCurrentUser();
+      if (response.success && response.data) {
+        const userData: ExtendedUserResponse = {
           ...response.data,
           isAdmin: response.data.role === "ADMIN",
         };
-        setUser(fullUserData);
-        setIsAdmin(fullUserData.isAdmin || false);
-        setIsPartner(fullUserData.role === "PARTNER");
-        setIsWaiting(fullUserData.role === "WAIT");
+        setUser(userData);
+        setIsAuthenticated(true);
+        setIsAdmin(userData.isAdmin || false);
+        setIsPartner(userData.role === "PARTNER");
+        setIsWaiting(userData.role === "WAIT");
       }
     } catch (error) {
-      console.error("Failed to load user from server:", error);
-      // 서버에서 사용자 정보를 가져올 수 없으면 로그아웃
-      logout();
+      console.error("Failed to load current user:", error);
+      handleLogoutEvent();
     } finally {
       setIsInitialLoading(false);
     }
@@ -94,71 +112,120 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // 사용자 정보 자동 갱신 로직
   useEffect(() => {
-    if (user?.id) {
-      // 페이지 로드/새로고침 시 즉시 사용자 정보 갱신
-      refreshUserData();
-
-      // 1분마다 사용자 정보 갱신
+    if (isAuthenticated && user?.id) {
+      // 5분마다 사용자 정보 갱신 (토큰 만료 전에 갱신)
       const intervalId = setInterval(() => {
         refreshUserData();
-      }, 60000); // 1분 = 60000ms
+      }, 5 * 60 * 1000); // 5분 = 300000ms
 
-      // 컴포넌트 언마운트 또는 user.id 변경 시 인터벌 정리
       return () => clearInterval(intervalId);
     }
-  }, [user?.id]); // user.id가 변경될 때마다 이 useEffect를 재실행
+  }, [isAuthenticated, user?.id]);
 
-  const login = (userData: ExtendedUserResponse) => {
-    setUser(userData);
-    setIsAuthenticated(true);
-    setIsAdmin(!!userData.isAdmin);
-    setIsPartner(userData.role === "PARTNER");
-    setIsWaiting(userData.role === "WAIT");
-
-    // 로컬 스토리지에는 ID만 저장
-    const authData: StoredUserData = {
-      id: userData.id,
-    };
-    localStorage.setItem("authData", JSON.stringify(authData));
-    
+  const login = async (credentials: LoginRequest) => {
+    try {
+      const response = await authService.login(credentials);
+      if (response.success && response.data) {
+        // Access Token을 메모리에 저장
+        setAccessToken(response.data.accessToken);
+        
+        // 사용자 정보 설정
+        const userData: ExtendedUserResponse = {
+          id: response.data.id,
+          name: response.data.name,
+          email: response.data.email,
+          role: response.data.role,
+          isAdmin: response.data.role === "ADMIN",
+        };
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        setIsAdmin(userData.isAdmin || false);
+        setIsPartner(userData.role === "PARTNER");
+        setIsWaiting(userData.role === "WAIT");
+      } else {
+        throw new Error(response.message || '로그인에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  };
+  
+  const register = async (data: { name: string; email: string; password: string; role?: string }) => {
+    try {
+      const response = await authService.register(data);
+      if (response.success && response.data) {
+        // Access Token을 메모리에 저장
+        setAccessToken(response.data.accessToken);
+        
+        // 사용자 정보 설정
+        const userData: ExtendedUserResponse = {
+          id: response.data.id,
+          name: response.data.name,
+          email: response.data.email,
+          role: response.data.role,
+          isAdmin: response.data.role === "ADMIN",
+        };
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        setIsAdmin(userData.isAdmin || false);
+        setIsPartner(userData.role === "PARTNER");
+        setIsWaiting(userData.role === "WAIT");
+      } else {
+        throw new Error(response.message || '회원가입에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Register error:', error);
+      throw error;
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      // 서버에 로그아웃 요청 (쿠키의 Refresh Token 삭제)
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      handleLogoutEvent();
+    }
+  };
+  
+  const handleLogoutEvent = () => {
+    // Access Token 메모리에서 삭제
+    clearAccessToken();
+    
+    // 상태 초기화
     setUser(null);
     setIsAuthenticated(false);
     setIsAdmin(false);
     setIsPartner(false);
     setIsWaiting(false);
     setIsInitialLoading(false);
-    localStorage.removeItem("authData");
   };
 
-  const adminLogin = async (credentials: {
-    email: string;
-    password: string;
-  }) => {
+  const adminLogin = async (credentials: LoginRequest) => {
     try {
-      const response = await userService.adminLogin(credentials);
-      if (response.data && response.data.role === "ADMIN") {
+      const response = await authService.login(credentials);
+      if (response.success && response.data && response.data.role === "ADMIN") {
+        // Access Token을 메모리에 저장
+        setAccessToken(response.data.accessToken);
+        
         const adminData: ExtendedUserResponse = {
           id: response.data.id,
           name: response.data.name,
           email: response.data.email,
           role: response.data.role,
-          token: "admin-token", // 추후 실제 토큰으로 교체
           isAdmin: true,
         };
+        
         setUser(adminData);
         setIsAuthenticated(true);
         setIsAdmin(true);
-        setIsPartner(adminData.role === "PARTNER");
-        setIsWaiting(adminData.role === "WAIT");
-
-        // 로컬 스토리지에는 ID만 저장
-        const authData: StoredUserData = {
-          id: adminData.id,
-        };
-        localStorage.setItem("authData", JSON.stringify(authData));
+        setIsPartner(false);
+        setIsWaiting(false);
       } else {
         throw new Error("관리자 권한이 없습니다.");
       }
@@ -170,27 +237,49 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // 사용자 정보 새로고침 기능
   const refreshUserData = async () => {
-    if (!user || !user.id) return;
+    if (!isAuthenticated || !getAccessToken()) return;
 
     try {
-      const response = await userService.getUserInfo(user.id);
-      if (response.data) {
-        const updatedUser = {
-          ...user,
-          ...response.data,
-          isAdmin: response.data.role === "ADMIN",
-        };
-
-        setUser(updatedUser);
-        setIsAdmin(updatedUser.isAdmin || false);
-        setIsPartner(updatedUser.role === "PARTNER");
-        setIsWaiting(updatedUser.role === "WAIT");
-
-        // 로컬 스토리지에는 ID만 저장 (이미 저장되어 있으므로 업데이트 불필요)
-      }
+      // 현재 사용자 정보 다시 로드
+      await loadCurrentUser();
     } catch (error) {
       console.error("사용자 정보 업데이트 실패:", error);
-      // 오류가 발생해도 기존 세션은 유지
+      // 401 에러인 경우 인터셉터에서 자동으로 처리됨
+    }
+  };
+
+  const ssoLogin = async (providerType: SsoProviderType, authorizationCode: string, redirectUri: string) => {
+    try {
+      const response = await authService.ssoLogin({
+        providerType,
+        authorizationCode,
+        redirectUri
+      });
+
+      if (response.success && response.data) {
+        // Access Token을 메모리에 저장
+        setAccessToken(response.data.accessToken);
+        
+        // 사용자 정보 설정
+        const userData: ExtendedUserResponse = {
+          id: response.data.id,
+          name: response.data.name,
+          email: response.data.email,
+          role: response.data.role,
+          isAdmin: response.data.role === "ADMIN",
+        };
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        setIsAdmin(userData.isAdmin || false);
+        setIsPartner(userData.role === "PARTNER");
+        setIsWaiting(userData.role === "WAIT");
+      } else {
+        throw new Error(response.message || '소셜 로그인에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('SSO Login error:', error);
+      throw error;
     }
   };
 
@@ -204,9 +293,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isWaiting,
         isInitialLoading,
         login,
+        register,
         logout,
         adminLogin,
         refreshUserData,
+        ssoLogin,
       }}
     >
       {children}

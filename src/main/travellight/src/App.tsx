@@ -41,6 +41,7 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Refund from './pages/Refund';
 import LocationTerms from './pages/LocationTerms';
+import AuthCallback from './pages/AuthCallback';
 
 // 네이버 맵 상태를 위한 전역 타입 확장
 declare global {
@@ -278,7 +279,7 @@ function App() {
       // 언마운트 시 특별한 정리 작업 불필요
     };
   }, []);
-  
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -309,6 +310,10 @@ function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/refund" element={<Refund />} />
             <Route path="/location-terms" element={<LocationTerms />} />
+            
+            {/* OAuth 콜백 */}
+            <Route path="/auth/callback/google" element={<AuthCallback />} />
+            <Route path="/auth/callback/kakao" element={<AuthCallback />} />
 
             {/* 관리자 라우트 */}
             <Route path="/admin/login" element={<AdminLogin />} />
