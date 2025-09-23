@@ -31,6 +31,11 @@ import { useAuth } from '../services/AuthContext';
 import { styled } from '@mui/material/styles';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
+import { SsoProviderType } from '../types/auth';
+import { GoogleAuthService } from '../services/googleAuth';
+import { KakaoAuthService } from '../services/kakaoAuth';
+import googleLogo from '../assets/images/google-logo.svg';
+import kakaoLogo from '../assets/images/kakao-logo.svg';
 
 // 대한항공 스타일 TextField
 const KoreanAirTextField = styled(TextField)(({ theme }) => ({
@@ -110,27 +115,62 @@ const KoreanAirButton = styled(Button)(({ theme }) => ({
   }
 }));
 
-// 소셜 로그인 버튼
-const SocialLoginButton = styled(Button)(({ theme }) => ({
+// 구글 로그인 버튼
+const GoogleLoginButton = styled(Button)(({ theme }) => ({
+  borderRadius: '4px',
+  padding: '12px 16px',
+  fontSize: '14px',
+  fontWeight: 500,
+  textTransform: 'none',
+  backgroundColor: '#FFFFFF',
+  color: '#1F2937',
+  border: '2px solid #E5E7EB',
+  minHeight: '48px',
+  transition: 'all 0.2s ease',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  '&:hover': {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#9CA3AF',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+  },
+  '&:active': {
+    backgroundColor: '#F3F4F6',
+  }
+}));
+
+// 카카오 로그인 버튼
+const KakaoLoginButton = styled(Button)(({ theme }) => ({
   borderRadius: '4px',
   padding: '12px 16px',
   fontSize: '14px',
   fontWeight: 600,
   textTransform: 'none',
-  backgroundColor: '#FFFFFF',
-  color: '#374151',
-  border: '2px solid #E5E7EB',
+  backgroundColor: '#FEE500',
+  color: '#000000',
+  border: 'none',
   minHeight: '48px',
   transition: 'all 0.2s ease',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
   '&:hover': {
-    backgroundColor: '#F9FAFB',
-    borderColor: '#D1D5DB',
+    backgroundColor: '#FDD835',
+    boxShadow: '0 2px 8px rgba(254, 229, 0, 0.3)',
+  },
+  '&:active': {
+    backgroundColor: '#F9C74F',
+  },
+  '&:disabled': {
+    backgroundColor: '#F5F5F5',
+    color: '#BDBDBD',
   }
 }));
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, ssoLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -182,12 +222,10 @@ const Login = () => {
     if (isValid) {
       setIsLoading(true);
       try {
-        const response = await userService.login({
+        await login({
           email,
           password,
         });
-
-        login(response.data);
         setLoginSuccess(true);
 
         setTimeout(() => {
@@ -210,6 +248,14 @@ const Login = () => {
         setIsLoading(false);
       }
     }
+  };
+
+  const handleGoogleLogin = () => {
+    GoogleAuthService.redirectToGoogleAuth();
+  };
+
+  const handleKakaoLogin = () => {
+    KakaoAuthService.redirectToKakaoAuth();
   };
 
   return (
@@ -400,16 +446,32 @@ const Login = () => {
 
                   {/* 소셜 로그인 */}
                   <Stack spacing={2} sx={{ mb: 3 }}>
-                    <SocialLoginButton
+                    <GoogleLoginButton
                       fullWidth
+                      onClick={handleGoogleLogin}
+                      disabled={isLoading}
                     >
+                      <Box
+                        component="img"
+                        src={googleLogo}
+                        alt="Google"
+                        sx={{ width: 20, height: 20 }}
+                      />
                       Google로 계속하기
-                    </SocialLoginButton>
-                    <SocialLoginButton
+                    </GoogleLoginButton>
+                    <KakaoLoginButton
                       fullWidth
+                      onClick={handleKakaoLogin}
+                      disabled={isLoading}
                     >
-                      Apple로 계속하기
-                    </SocialLoginButton>
+                      <Box
+                        component="img"
+                        src={kakaoLogo}
+                        alt="Kakao"
+                        sx={{ width: 20, height: 20 }}
+                      />
+                      카카오로 계속하기
+                    </KakaoLoginButton>
                   </Stack>
 
                   <Divider sx={{ my: 3 }}>

@@ -2,11 +2,11 @@ spring:
   application:
     name: TravelLight
 
-  # 데이터베이스 설정
+  # 도커용 데이터베이스 설정
   datasource:
-    url: jdbc:postgresql://localhost:5432/travellight
-    username: postgres
-    password: tmdals
+    url: jdbc:postgresql://db:5432/travellight
+    username: travellight
+    password: password
     driver-class-name: org.postgresql.Driver
 
   # JPA 설정
@@ -19,7 +19,7 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  # 이메일 설정
+  # 이메일 설정 (기존과 동일)
   mail:
     enabled: true
     host: smtp.gmail.com
@@ -57,7 +57,7 @@ spring:
   # Redis 캐싱 설정
   data:
     redis:
-      url: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
+      url: redis://${REDIS_HOST:redis}:${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       timeout: 2000ms
       lettuce:

@@ -14,6 +14,7 @@ import './App.css';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
+import UserDetail from './pages/admin/UserDetail';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminEventStorage from './pages/admin/AdminEventStorage';
@@ -40,6 +41,7 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Refund from './pages/Refund';
 import LocationTerms from './pages/LocationTerms';
+import AuthCallback from './pages/AuthCallback';
 
 // 네이버 맵 상태를 위한 전역 타입 확장
 declare global {
@@ -277,7 +279,7 @@ function App() {
       // 언마운트 시 특별한 정리 작업 불필요
     };
   }, []);
-  
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -308,6 +310,10 @@ function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/refund" element={<Refund />} />
             <Route path="/location-terms" element={<LocationTerms />} />
+            
+            {/* OAuth 콜백 */}
+            <Route path="/auth/callback/google" element={<AuthCallback />} />
+            <Route path="/auth/callback/kakao" element={<AuthCallback />} />
 
             {/* 관리자 라우트 */}
             <Route path="/admin/login" element={<AdminLogin />} />
@@ -318,6 +324,7 @@ function App() {
             }>
               <Route index element={<AdminDashboard />} />
               <Route path="users" element={<AdminUsers />} />
+              <Route path="users/:userId" element={<UserDetail />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="event-storage" element={<AdminEventStorage />} />

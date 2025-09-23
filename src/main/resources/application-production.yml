@@ -2,21 +2,21 @@ spring:
   application:
     name: TravelLight
 
-  # 데이터베이스 설정
+  # RDS 데이터베이스 설정 (환경변수로 오버라이드됨)
   datasource:
     url: jdbc:postgresql://localhost:5432/travellight
     username: postgres
-    password: tmdals
+    password: TravelLight4-1
     driver-class-name: org.postgresql.Driver
 
   # JPA 설정
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   # 이메일 설정
@@ -57,7 +57,7 @@ spring:
   # Redis 캐싱 설정
   data:
     redis:
-      url: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
+      url: redis://${REDIS_HOST:redis}:${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       timeout: 2000ms
       lettuce:
@@ -70,11 +70,12 @@ spring:
 server:
   port: 8080
 
-# 로깅 설정
+# 로깅 설정 (운영환경용 - DEBUG 제거)
 logging:
   level:
-    org.springframework.security: DEBUG
-    org.example.travellight: DEBUG
+    org.springframework.security: INFO
+    org.example.travellight: INFO
+    org.springframework.web: INFO
 
 # Naver Maps API
 naver:
@@ -107,7 +108,7 @@ portone:
 # JWT 설정
 jwt:
   secret: 572fb1515fa3d3fcb3245a70d7aa01f2a782acacc957acaf7ad346bb659949bd
-  secure: false
+  secure: true
   access-token:
     cookie-name: AT
     expiration: 600
