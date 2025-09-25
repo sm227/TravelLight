@@ -70,6 +70,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // 인증 상태 확인 및 사용자 정보 로드
   const checkAuthStatus = async () => {
     try {
+      // 쿠키에 refresh token이 있는지 확인
+      const hasRefreshToken = document.cookie.includes('refreshToken');
+      
+      if (!hasRefreshToken) {
+        setIsInitialLoading(false);
+        return;
+      }
+
       // Refresh Token으로 새로운 Access Token 발급 시도
       const tokenResponse = await authService.refreshToken();
       if (tokenResponse.success && tokenResponse.data.accessToken) {

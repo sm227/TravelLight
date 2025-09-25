@@ -17,7 +17,9 @@ import org.example.travellight.dto.CommonApiResponse;
 import org.example.travellight.dto.CustomUserDetails;
 import org.example.travellight.dto.TokenResponse;
 import org.example.travellight.dto.UserDto;
+import org.example.travellight.exception.CustomException;
 import org.example.travellight.service.AuthService;
+import org.example.travellight.service.PasswordResetService;
 import org.example.travellight.service.UserJwtService;
 import org.example.travellight.service.UserSsoService;
 import org.springframework.http.HttpStatus;
@@ -34,6 +36,7 @@ public class AuthController {
     private final AuthService authService;
     private final UserSsoService userSsoService;
     private final UserJwtService userJwtService;
+    private final PasswordResetService passwordResetService;
     private final JwtConfig jwtConfig;
 
     @Operation(summary = "회원가입", description = "새로운 사용자를 등록합니다.")
@@ -185,6 +188,82 @@ public class AuthController {
         setRefreshTokenCookie(response, userResponse.getRefreshToken());
 
         return ResponseEntity.ok(CommonApiResponse.success("소셜 로그인이 완료되었습니다.", userResponse));
+    }
+
+    @Operation(summary = "비밀번호 재설정 인증 코드 전송", description = "이메일로 비밀번호 재설정 인증 코드를 전송합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "인증 코드 전송 성공",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "404", description = "등록되지 않은 이메일",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "500", description = "이메일 전송 실패",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
+    })
+    @PostMapping("/password-reset/send-code")
+    public ResponseEntity<CommonApiResponse<Void>> sendPasswordResetCode(
+            @Parameter(description = "인증 코드 전송 요청", required = true)
+            @RequestBody UserDto.PasswordResetSendCodeRequest request) {
+        try {
+            passwordResetService.sendPasswordResetCode(request);
+            return ResponseEntity.ok(CommonApiResponse.success("인증 코드가 이메일로 전송되었습니다.", null));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(CommonApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("비밀번호 재설정 인증 코드 전송 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonApiResponse.error("서버 오류가 발생했습니다."));
+        }
+    }
+
+    @Operation(summary = "비밀번호 재설정 인증 코드 검증", description = "비밀번호 재설정 인증 코드를 검증합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "인증 코드 검증 성공",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "400", description = "인증 코드 불일치 또는 만료",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
+    })
+    @PostMapping("/password-reset/verify-code")
+    public ResponseEntity<CommonApiResponse<Void>> verifyPasswordResetCode(
+            @Parameter(description = "인증 코드 검증 요청", required = true)
+            @RequestBody UserDto.PasswordResetVerifyCodeRequest request) {
+        try {
+            passwordResetService.verifyPasswordResetCode(request);
+            return ResponseEntity.ok(CommonApiResponse.success("인증 코드가 확인되었습니다.", null));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(CommonApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("비밀번호 재설정 인증 코드 검증 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonApiResponse.error("서버 오류가 발생했습니다."));
+        }
+    }
+
+    @Operation(summary = "비밀번호 재설정", description = "새로운 비밀번호로 재설정합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "비밀번호 재설정 성공",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "400", description = "인증 코드 불일치 또는 만료",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+            @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
+    })
+    @PostMapping("/password-reset/confirm")
+    public ResponseEntity<CommonApiResponse<Void>> resetPassword(
+            @Parameter(description = "비밀번호 재설정 요청", required = true)
+            @RequestBody UserDto.PasswordResetConfirmRequest request) {
+        try {
+            passwordResetService.resetPassword(request);
+            return ResponseEntity.ok(CommonApiResponse.success("비밀번호가 성공적으로 재설정되었습니다.", null));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(CommonApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("비밀번호 재설정 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonApiResponse.error("서버 오류가 발생했습니다."));
+        }
     }
 
     /**

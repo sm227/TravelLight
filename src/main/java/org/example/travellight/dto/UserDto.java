@@ -86,4 +86,31 @@ public class UserDto {
         private String authorizationCode;
         private String redirectUri;
     }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PasswordResetSendCodeRequest {
+        private String email;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PasswordResetVerifyCodeRequest {
+        private String email;
+        private String code;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PasswordResetConfirmRequest {
+        private String email;
+        private String code;
+        private String newPassword;
+    }
 }
