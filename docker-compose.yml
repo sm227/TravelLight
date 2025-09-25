@@ -7,10 +7,10 @@ services:
       dockerfile: Dockerfile
     container_name: travellight-app
     ports:
-      - "8080:8080"
+      - "8080:8080" # Nginx가 호스트의 8080 포트를 통해 접근
     environment:
       - SPRING_PROFILES_ACTIVE=production
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/travellight
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/travellight # 컨테이너 이름으로 통신
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-postgres}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-TravelLight4-1}
       - SPRING_REDIS_PORT=6379
@@ -20,17 +20,22 @@ services:
       - ./logs:/app/logs
     depends_on:
       - redis
+      - postgres # postgres에 대한 depends_on 추가
+    networks:
+      - travellight-network # 하나의 네트워크에 속하도록 지정
 
   redis:
     image: redis:7-alpine
     container_name: travellight-redis
     ports:
-      - "6379:6379"
+      - "6379:6379" # Redis도 호스트 포트에 연결
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
+    networks:
+      - travellight-network # 하나의 네트워크에 속하도록 지정
 
-  # PostgreSQL 서비스 추가
+  # PostgreSQL 서비스
   postgres:
     image: postgres:14-alpine
     container_name: travellight-postgres
@@ -41,8 +46,13 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD:-TravelLight4-1}
     volumes:
       - /mnt/data/postgresql:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    networks:
+      - travellight-network # 하나의 네트워크에 속하도록 지정
+
+# 네트워크 정의
+networks:
+  travellight-network:
+    driver: bridge # 기본 브리지 네트워크를 사용
 
 volumes:
   redis_data:
