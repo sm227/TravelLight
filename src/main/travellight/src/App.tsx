@@ -27,6 +27,7 @@ import './i18n'; // i18n 설정 파일 임포트
 import FAQ from './pages/FAQ';
 import Inquiry from './pages/Inquiry';
 import AdminPartnerships from './pages/admin/AdminPartnerships';
+import PartnershipDetail from './pages/admin/PartnershipDetail';
 import AdminServices from './pages/admin/AdminServices';
 import AdminReviews from './pages/admin/AdminReviews';
 import { useTranslation } from 'react-i18next';
@@ -329,6 +330,7 @@ function App() {
               <Route path="orders" element={<AdminOrders />} />
               <Route path="event-storage" element={<AdminEventStorage />} />
               <Route path="partnerships" element={<AdminPartnerships />} />
+              <Route path="partnerships/:partnershipId" element={<PartnershipDetail />} />
               <Route path="services" element={<AdminServices />} />
               <Route path="hr" element={<AdminHR />} />
               <Route path="reviews" element={<AdminReviews />} />
