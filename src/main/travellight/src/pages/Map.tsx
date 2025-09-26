@@ -8229,11 +8229,11 @@ const Map = () => {
       >
         {isAuthenticated ? (
           [
-            <MenuItem key="profile" onClick={() => { handleMenuClose(); window.location.href = '/mypage'; }}>
+            <MenuItem key="profile" onClick={() => { handleMenuClose(); navigate('/profile'); }}>
               <PersonIcon />
-              마이페이지
+              내 프로필
             </MenuItem>,
-            <MenuItem key="settings" onClick={() => { handleMenuClose(); window.location.href = '/settings'; }}>
+            <MenuItem key="settings" onClick={() => { handleMenuClose(); navigate('/settings'); }}>
               <SettingsIcon />
               설정
             </MenuItem>,
@@ -8259,11 +8259,11 @@ const Map = () => {
           ]
         ) : (
           [
-            <MenuItem key="login" onClick={() => { handleMenuClose(); window.location.href = '/login'; }}>
+            <MenuItem key="login" onClick={() => { handleMenuClose(); navigate('/login'); }}>
               <LoginIcon />
               로그인
             </MenuItem>,
-            <MenuItem key="register" onClick={() => { handleMenuClose(); window.location.href = '/register'; }}>
+            <MenuItem key="register" onClick={() => { handleMenuClose(); navigate('/register'); }}>
               <PersonAddIcon />
               회원가입
             </MenuItem>

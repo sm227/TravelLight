@@ -24,7 +24,7 @@ const PaymentComplete: React.FC = () => {
     } else if (paymentId) {
       // 결제 성공 - 백엔드에서 결제 검증 후 예약 완료 처리
       alert('결제가 완료되었습니다!');
-      navigate('/mypage'); // 마이페이지로 이동
+      navigate('/map', { state: { showReservations: true } }); // 예약 조회로 이동
     } else {
       // 잘못된 접근
       alert('잘못된 접근입니다.');

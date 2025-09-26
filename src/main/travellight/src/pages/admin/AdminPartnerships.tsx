@@ -17,13 +17,17 @@ import {
     CircularProgress,
     alpha,
     IconButton,
-    Tooltip
+    Tooltip,
+    TextField,
+    InputAdornment,
+    Stack
 } from '@mui/material';
 import {
     CheckCircle as CheckCircleIcon,
     Cancel as CancelIcon,
     StorefrontOutlined,
-    MoreVert as MoreVertIcon
+    Search as SearchIcon,
+    Refresh as RefreshIcon
 } from '@mui/icons-material';
 
 // AdminDashboard와 동일한 색상 테마
@@ -69,6 +73,7 @@ interface Partnership {
 const AdminPartnerships: React.FC = () => {
     const [partnerships, setPartnerships] = useState<Partnership[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -108,6 +113,27 @@ const AdminPartnerships: React.FC = () => {
             toast.error(errorMessage);
         }
     };
+
+    const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(event.target.value);
+    };
+
+    const handleRefresh = () => {
+        setSearchTerm('');
+        fetchPartnerships();
+    };
+
+    // 제휴점 행 클릭 핸들러
+    const handlePartnershipClick = (partnership: Partnership) => {
+        navigate(`/admin/partnerships/${partnership.id}`);
+    };
+
+    // 검색 필터링
+    const filteredPartnerships = partnerships.filter(partnership => 
+        partnership.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        partnership.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        partnership.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     if (loading) {
         return (
@@ -158,12 +184,13 @@ const AdminPartnerships: React.FC = () => {
                         fontWeight: 500
                     }}>
                         총 {partnerships.length}개 제휴점 신청 현황
+                        {searchTerm && ` (검색결과: ${filteredPartnerships.length}개)`}
                     </Typography>
                 </Box>
                 
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Chip
-                        label={`대기중: ${partnerships.filter(p => p.status === 'PENDING').length}개`}
+                        label={`대기중: ${filteredPartnerships.filter(p => p.status === 'PENDING').length}개`}
                         size="small"
                         sx={{
                             bgcolor: alpha(COLORS.warning, 0.15),
@@ -174,7 +201,7 @@ const AdminPartnerships: React.FC = () => {
                         }}
                     />
                     <Chip
-                        label={`승인됨: ${partnerships.filter(p => p.status === 'APPROVED').length}개`}
+                        label={`승인됨: ${filteredPartnerships.filter(p => p.status === 'APPROVED').length}개`}
                         size="small"
                         sx={{
                             bgcolor: alpha(COLORS.success, 0.15),
@@ -186,6 +213,63 @@ const AdminPartnerships: React.FC = () => {
                     />
                 </Box>
             </Box>
+
+            {/* 검색 및 필터 */}
+            <Paper 
+                elevation={0} 
+                sx={{ 
+                    bgcolor: COLORS.backgroundCard, 
+                    border: `1px solid ${COLORS.borderPrimary}`,
+                    borderRadius: 0,
+                    p: 2,
+                    mb: 2
+                }}
+            >
+                <Stack direction="row" spacing={2} alignItems="center">
+                    <TextField
+                        placeholder="사업체명, 대표자명, 이메일로 검색"
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                        value={searchTerm}
+                        onChange={handleSearch}
+                        sx={{
+                            '& .MuiInputBase-root': {
+                                bgcolor: COLORS.backgroundSurface,
+                                color: COLORS.textPrimary
+                            },
+                            '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: COLORS.borderSecondary
+                            },
+                            '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                color: COLORS.textSecondary
+                            }
+                        }}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+                    <IconButton 
+                        onClick={handleRefresh} 
+                        sx={{ 
+                            color: COLORS.textSecondary,
+                            bgcolor: COLORS.backgroundSurface,
+                            border: `1px solid ${COLORS.borderSecondary}`,
+                            borderRadius: 0,
+                            '&:hover': { 
+                                color: COLORS.accentPrimary,
+                                bgcolor: COLORS.backgroundHover 
+                            }
+                        }}
+                    >
+                        <RefreshIcon />
+                    </IconButton>
+                </Stack>
+            </Paper>
 
             {/* 제휴점 테이블 */}
             <Paper 
@@ -294,9 +378,10 @@ const AdminPartnerships: React.FC = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {partnerships.map((partnership, index) => (
+                            {filteredPartnerships.map((partnership, index) => (
                                 <TableRow 
                                     key={partnership.id}
+                                    onClick={() => handlePartnershipClick(partnership)}
                                     sx={{ 
                                         bgcolor: index % 2 === 0 ? COLORS.backgroundCard : alpha(COLORS.backgroundLight, 0.5),
                                         '&:hover': { 
@@ -422,7 +507,10 @@ const AdminPartnerships: React.FC = () => {
                                             <Tooltip title="승인" arrow>
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => handleStatusChange(partnership.id, 'APPROVED')}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleStatusChange(partnership.id, 'APPROVED');
+                                                    }}
                                                     disabled={partnership.status === 'APPROVED'}
                                                     sx={{
                                                         color: partnership.status === 'APPROVED' ? COLORS.textMuted : COLORS.success,
@@ -442,7 +530,10 @@ const AdminPartnerships: React.FC = () => {
                                             <Tooltip title="거절" arrow>
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => handleStatusChange(partnership.id, 'REJECTED')}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleStatusChange(partnership.id, 'REJECTED');
+                                                    }}
                                                     disabled={partnership.status === 'REJECTED'}
                                                     sx={{
                                                         color: partnership.status === 'REJECTED' ? COLORS.textMuted : COLORS.danger,
@@ -468,7 +559,7 @@ const AdminPartnerships: React.FC = () => {
                 </TableContainer>
             </Paper>
 
-            {partnerships.length === 0 && (
+            {filteredPartnerships.length === 0 && (
                 <Box sx={{ 
                     textAlign: 'center', 
                     py: 8,
@@ -476,10 +567,10 @@ const AdminPartnerships: React.FC = () => {
                 }}>
                     <StorefrontOutlined sx={{ fontSize: '3rem', mb: 2, color: COLORS.textMuted }} />
                     <Typography variant="h6" sx={{ color: COLORS.textSecondary, mb: 1 }}>
-                        제휴점 신청이 없습니다
+                        {searchTerm ? '검색 결과가 없습니다' : '제휴점 신청이 없습니다'}
                     </Typography>
                     <Typography variant="body2" sx={{ color: COLORS.textMuted }}>
-                        새로운 제휴점 신청을 기다리고 있습니다.
+                        {searchTerm ? '다른 검색어로 시도해보세요.' : '새로운 제휴점 신청을 기다리고 있습니다.'}
                     </Typography>
                 </Box>
             )}

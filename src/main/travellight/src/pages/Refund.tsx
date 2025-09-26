@@ -257,7 +257,7 @@ const RefundPage = () => {
                                 환불 신청 채널
                             </Typography>
                             <Box component="ul" sx={{ pl: 3, color: '#64748B', lineHeight: 1.7, margin: 0 }}>
-                                <li>웹사이트: 마이페이지 &gt; 예약관리 &gt; 취소/환불</li>
+                                <li>웹사이트: 지도 페이지 &gt; 내 예약 &gt; 취소/환불</li>
                                 <li>고객센터: 1588-0000 (평일 09:00~18:00)</li>
                                 <li>이메일: refund@travellight.com</li>
                                 <li>1:1 문의: 웹사이트 문의하기 메뉴</li>
