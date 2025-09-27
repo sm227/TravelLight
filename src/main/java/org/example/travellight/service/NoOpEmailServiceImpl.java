@@ -28,4 +28,11 @@ public class NoOpEmailServiceImpl implements EmailService {
                 reservationDto.getUserEmail(), reservationDto.getReservationNumber());
         return true;
     }
+
+    @Override
+    public boolean sendPasswordResetVerificationEmail(String email, String verificationCode) {
+        logger.info("이메일 전송이 비활성화되어 있습니다. 비밀번호 재설정 인증 코드 이메일을 전송하지 않습니다. (사용자: {}, 인증코드: {})",
+                email, verificationCode);
+        return true;
+    }
 } 

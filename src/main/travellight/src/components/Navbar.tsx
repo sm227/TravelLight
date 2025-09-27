@@ -151,6 +151,7 @@ const Navbar: React.FC = () => {
   const changeLanguage = (lng: string) => {
     localStorage.setItem("preferredLanguage", lng);
     handleLangMenuClose();
+    // React Router를 사용하여 현재 페이지를 새로고침 (로그인 상태 유지)
     setTimeout(() => {
       window.location.reload();
     }, 100);
@@ -261,20 +262,11 @@ const Navbar: React.FC = () => {
       <MenuItem
         onClick={() => {
           handleMenuClose();
-          navigate("/mypage");
-        }}
-      >
-        <PersonIcon />
-        {t("myPage")}
-      </MenuItem>
-      <MenuItem
-        onClick={() => {
-          handleMenuClose();
           navigate("/profile");
         }}
       >
-        <AccountCircleIcon />
-        {t("profile")}
+        <PersonIcon />
+        내 프로필
       </MenuItem>
       <MenuItem
         onClick={() => {
@@ -323,8 +315,8 @@ const Navbar: React.FC = () => {
             <Typography
               variant="h6"
               noWrap
-              component="a"
-              href="/"
+              component="div"
+              onClick={() => navigate("/")}
               sx={{
                 mr: 2,
                 display: "flex",
@@ -334,6 +326,10 @@ const Navbar: React.FC = () => {
                 textDecoration: "none",
                 flexGrow: 1,
                 transition: "color 0.3s ease",
+                cursor: "pointer",
+                "&:hover": {
+                  opacity: 0.8,
+                },
               }}
             >
               <LuggageIcon sx={{ mr: 1 }} />
