@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -52,11 +52,19 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
 }) => {
   const [isHelpful, setIsHelpful] = useState(review.isHelpfulByCurrentUser || false);
   const [helpfulCount, setHelpfulCount] = useState(review.helpfulCount);
+  const [isReported, setIsReported] = useState(review.isReportedByCurrentUser || false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportReason, setReportReason] = useState<string>('');
   const [reportDescription, setReportDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // props 변화 감지하여 상태 업데이트
+  useEffect(() => {
+    setIsHelpful(review.isHelpfulByCurrentUser || false);
+    setHelpfulCount(review.helpfulCount);
+    setIsReported(review.isReportedByCurrentUser || false);
+  }, [review.isHelpfulByCurrentUser, review.helpfulCount, review.isReportedByCurrentUser]);
 
   const handleHelpfulToggle = async () => {
     try {
@@ -85,10 +93,19 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
       };
       
       await reviewService.reportReview(review.id, reportRequest);
+      
+      // 신고 성공 후 상태 업데이트
+      setIsReported(true);
       setReportDialogOpen(false);
       setReportReason('');
       setReportDescription('');
+      setError('');
       alert('신고가 접수되었습니다.');
+      
+      // 부모 컴포넌트에 업데이트 알림
+      if (onUpdate) {
+        onUpdate();
+      }
     } catch (error) {
       console.error('신고 실패:', error);
       setError('신고 처리 중 오류가 발생했습니다.');
@@ -172,7 +189,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
                   </IconButton>
                 </>
               )}
-              {currentUserId && !review.canEdit && !review.isReportedByCurrentUser && (
+              {currentUserId && !review.canEdit && !isReported && (
                 <IconButton size="small" onClick={() => setReportDialogOpen(true)}>
                   <Report />
                 </IconButton>
@@ -307,7 +324,18 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
       </Card>
 
       {/* 신고 다이얼로그 */}
-      <Dialog open={reportDialogOpen} onClose={() => setReportDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog 
+        open={reportDialogOpen} 
+        onClose={() => setReportDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            padding: 1,
+          }
+        }}
+      >
         <DialogTitle>
           리뷰 신고
           <IconButton
@@ -318,19 +346,40 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ padding: '20px 24px' }}>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
           
-          <FormControl fullWidth sx={{ mb: 2 }}>
+          <FormControl fullWidth sx={{ mb: 3 }}>
             <InputLabel>신고 사유</InputLabel>
             <Select
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
               label="신고 사유"
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    maxHeight: 300,
+                    '& .MuiMenuItem-root': {
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      minHeight: '48px',
+                      '&:hover': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                      },
+                      '&.Mui-selected': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                        '&:hover': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.16)',
+                        },
+                      },
+                    },
+                  },
+                },
+              }}
             >
               <MenuItem value="SPAM">스팸/광고</MenuItem>
               <MenuItem value="INAPPROPRIATE_CONTENT">부적절한 내용</MenuItem>
@@ -345,15 +394,31 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
           <TextField
             fullWidth
             multiline
-            rows={3}
+            rows={4}
             label="상세 내용 (선택사항)"
             value={reportDescription}
             onChange={(e) => setReportDescription(e.target.value)}
             placeholder="신고 사유에 대한 상세한 설명을 입력해주세요."
+            sx={{ 
+              '& .MuiInputBase-root': {
+                padding: '14px',
+              },
+              '& .MuiInputBase-input': {
+                fontSize: '14px',
+                lineHeight: 1.5,
+              }
+            }}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReportDialogOpen(false)}>
+        <DialogActions sx={{ padding: '16px 24px 20px 24px', gap: 1 }}>
+          <Button 
+            onClick={() => setReportDialogOpen(false)}
+            sx={{ 
+              padding: '8px 20px',
+              fontSize: '14px',
+              minWidth: '80px'
+            }}
+          >
             취소
           </Button>
           <Button 
@@ -361,6 +426,11 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
             variant="contained" 
             color="error"
             disabled={loading || !reportReason}
+            sx={{ 
+              padding: '8px 20px',
+              fontSize: '14px',
+              minWidth: '100px'
+            }}
           >
             신고하기
           </Button>

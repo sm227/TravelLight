@@ -596,6 +596,40 @@ export const reviewService = {
       params: { limit }
     });
     return response.data;
+  },
+
+  // === 관리자용 리뷰 관리 API ===
+  
+  // 관리자 답변 추가
+  addAdminReply: async (reviewId: number, adminReply: string): Promise<ApiResponse<ReviewResponse>> => {
+    const response = await api.post<ApiResponse<ReviewResponse>>(`/reviews/${reviewId}/admin-reply`, {
+      adminReply
+    });
+    return response.data;
+  },
+
+  // 리뷰 상태 변경
+  updateReviewStatus: async (reviewId: number, status: string): Promise<ApiResponse<ReviewResponse>> => {
+    const response = await api.put<ApiResponse<ReviewResponse>>(`/reviews/${reviewId}/status`, null, {
+      params: { status }
+    });
+    return response.data;
+  },
+
+  // 최근 리뷰 조회 (관리자용)
+  getRecentReviews: async (page: number = 0, size: number = 20): Promise<ApiResponse<{content: ReviewResponse[], totalElements: number, totalPages: number}>> => {
+    const response = await api.get<ApiResponse<{content: ReviewResponse[], totalElements: number, totalPages: number}>>('/reviews/admin/recent', {
+      params: { page, size }
+    });
+    return response.data;
+  },
+
+  // 신고 많은 리뷰 조회 (관리자용)
+  getHighReportReviews: async (threshold: number = 3): Promise<ApiResponse<ReviewResponse[]>> => {
+    const response = await api.get<ApiResponse<ReviewResponse[]>>('/reviews/admin/high-reports', {
+      params: { threshold }
+    });
+    return response.data;
   }
 };
 

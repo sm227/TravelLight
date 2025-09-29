@@ -59,11 +59,12 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     Optional<Review> findByUserAndReservationIdAndStatus(User user, Long reservationId, ReviewStatus status);
     
     // 모든 제휴점의 평점별 집계 (상위 평점 제휴점 조회용)
-    @Query("SELECT r.placeName, r.placeAddress, AVG(r.rating) as avgRating, COUNT(r) as reviewCount " +
+    @Query("SELECT r.placeName, r.placeAddress, AVG(r.rating) as avgRating, COUNT(r) as reviewCount, " +
+           "(AVG(r.rating) * 0.8 + LEAST(COUNT(r) / 5.0, 1.0) * 5 * 0.2) as recommendationScore " +
            "FROM Review r WHERE r.status = :status " +
            "GROUP BY r.placeName, r.placeAddress " +
            "HAVING COUNT(r) >= :minReviewCount " +
-           "ORDER BY avgRating DESC, reviewCount DESC")
+           "ORDER BY recommendationScore DESC, avgRating DESC, reviewCount DESC")
     List<Object[]> findTopRatedPlaces(@Param("status") ReviewStatus status, 
                                      @Param("minReviewCount") long minReviewCount);
 }

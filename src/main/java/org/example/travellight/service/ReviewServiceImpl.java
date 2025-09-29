@@ -468,7 +468,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional(readOnly = true)
     public List<ReviewDto.PlaceReviewSummary> getTopRatedPlaces(int limit) {
-        List<Object[]> results = reviewRepository.findTopRatedPlaces(ReviewStatus.ACTIVE, 3); // 최소 3개 리뷰 필요
+        List<Object[]> results = reviewRepository.findTopRatedPlaces(ReviewStatus.ACTIVE, 1); // 최소 1개 리뷰 필요
         
         return results.stream()
                 .limit(limit)
@@ -477,10 +477,7 @@ public class ReviewServiceImpl implements ReviewService {
                     String placeAddress = (String) arr[1];
                     Double avgRating = (Double) arr[2];
                     Long reviewCount = (Long) arr[3];
-                    
-                    // 추천 점수 계산 (평점 * 0.7 + 리뷰수 가중치 * 0.3)
-                    double reviewCountWeight = Math.min(reviewCount / 10.0, 1.0); // 10개 이상이면 최대값
-                    double recommendationScore = (avgRating * 0.7) + (reviewCountWeight * 5 * 0.3);
+                    Double recommendationScore = (Double) arr[4]; // DB에서 계산된 추천 점수
                     
                     return ReviewDto.PlaceReviewSummary.builder()
                             .placeName(placeName)
