@@ -56,6 +56,27 @@ export interface AdminUserResponse {
   status: string;
 }
 
+export interface ClaimResponse {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  assignee: string;
+  content: string;
+  status: string;
+  createdByAdminName: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+  resolution?: string;
+}
+
+export interface ClaimRequest {
+  userId: number;
+  assignee: string;
+  content: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -172,6 +193,44 @@ export const adminUserService = {
   
   deleteUser: async (userId: number): Promise<ApiResponse<void>> => {
     const response = await api.delete<ApiResponse<void>>(`/users/admin/${userId}`);
+    return response.data;
+  },
+};
+
+// 클레임 관리 서비스
+export const claimService = {
+  createClaim: async (data: ClaimRequest): Promise<ApiResponse<ClaimResponse>> => {
+    const response = await api.post<ApiResponse<ClaimResponse>>('/claims', data);
+    return response.data;
+  },
+  
+  getClaimsByUserId: async (userId: number): Promise<ApiResponse<ClaimResponse[]>> => {
+    const response = await api.get<ApiResponse<ClaimResponse[]>>(`/claims/user/${userId}`);
+    return response.data;
+  },
+  
+  getAllClaims: async (): Promise<ApiResponse<ClaimResponse[]>> => {
+    const response = await api.get<ApiResponse<ClaimResponse[]>>('/claims');
+    return response.data;
+  },
+  
+  getClaimById: async (claimId: number): Promise<ApiResponse<ClaimResponse>> => {
+    const response = await api.get<ApiResponse<ClaimResponse>>(`/claims/${claimId}`);
+    return response.data;
+  },
+  
+  updateClaim: async (claimId: number, data: Partial<ClaimRequest>): Promise<ApiResponse<ClaimResponse>> => {
+    const response = await api.put<ApiResponse<ClaimResponse>>(`/claims/${claimId}`, data);
+    return response.data;
+  },
+  
+  deleteClaim: async (claimId: number): Promise<ApiResponse<void>> => {
+    const response = await api.delete<ApiResponse<void>>(`/claims/${claimId}`);
+    return response.data;
+  },
+  
+  resolveClaim: async (claimId: number, resolution: string): Promise<ApiResponse<ClaimResponse>> => {
+    const response = await api.post<ApiResponse<ClaimResponse>>(`/claims/${claimId}/resolve`, resolution);
     return response.data;
   },
 };
