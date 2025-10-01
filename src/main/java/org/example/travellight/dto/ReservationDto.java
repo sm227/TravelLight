@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -36,4 +37,6 @@ public class ReservationDto {
     @Builder.Default
     private String status = "RESERVED"; // RESERVED, COMPLETED, CANCELLED
     private String paymentId; // 포트원 결제 ID
+    
+    private LocalDateTime createdAt; // 예약 생성일
 } 

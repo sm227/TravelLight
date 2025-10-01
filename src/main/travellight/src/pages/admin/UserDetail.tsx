@@ -5,6 +5,8 @@ import {
   CircularProgress
 } from '@mui/material';
 import { adminUserService, AdminUserResponse, claimService, ClaimResponse } from '../../services/api';
+import { getMyReservations } from '../../services/reservationService';
+import { ReservationDto } from '../../types/reservation';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -79,6 +81,14 @@ const UserDetail = () => {
   const [claimText, setClaimText] = useState('');
   const [claims, setClaims] = useState<ClaimResponse[]>([]);
   const [loadingClaims, setLoadingClaims] = useState(false);
+  const [reservations, setReservations] = useState<ReservationDto[]>([]);
+  const [loadingReservations, setLoadingReservations] = useState(false);
+  const [customerStats, setCustomerStats] = useState({
+    totalPurchaseAmount: 0,
+    totalReservations: 0,
+    returnVisits: 0,
+    lastUsedDate: null as string | null
+  });
 
   // 사용자 정보 로드
   const loadUser = async () => {
@@ -115,6 +125,20 @@ const UserDetail = () => {
       loadClaims();
     }
   }, [tabValue, userId]);
+
+  // 예약분석 탭이 활성화될 때 예약 목록 로드
+  useEffect(() => {
+    if (tabValue === 1) {
+      loadReservations();
+    }
+  }, [tabValue, userId]);
+
+  // 사용자 정보가 로드되면 고객 통계 계산
+  useEffect(() => {
+    if (user) {
+      calculateCustomerStats();
+    }
+  }, [user]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -157,6 +181,67 @@ const UserDetail = () => {
       console.error('클레임 목록 로드 중 오류:', error);
     } finally {
       setLoadingClaims(false);
+    }
+  };
+
+  // 예약 목록 로드
+  const loadReservations = async () => {
+    if (!userId) return;
+    
+    try {
+      setLoadingReservations(true);
+      const reservationData = await getMyReservations(parseInt(userId));
+      setReservations(reservationData);
+    } catch (error) {
+      console.error('예약 목록 로드 중 오류:', error);
+    } finally {
+      setLoadingReservations(false);
+    }
+  };
+
+  // 고객 통계 계산
+  const calculateCustomerStats = async () => {
+    if (!userId) return;
+    
+    try {
+      const reservationData = await getMyReservations(parseInt(userId));
+      
+      // 총 구매 금액 계산
+      const totalPurchaseAmount = reservationData.reduce((sum, reservation) => {
+        return sum + reservation.totalPrice;
+      }, 0);
+      
+      // 총 예약 횟수
+      const totalReservations = reservationData.length;
+      
+      // 재방문 횟수 계산 (같은 매장을 여러 번 이용한 경우)
+      const placeVisits = new Map<string, number>();
+      reservationData.forEach(reservation => {
+        const placeKey = `${reservation.placeName}-${reservation.placeAddress}`;
+        placeVisits.set(placeKey, (placeVisits.get(placeKey) || 0) + 1);
+      });
+      
+      const returnVisits = Array.from(placeVisits.values())
+        .filter(count => count > 1)
+        .reduce((sum, count) => sum + (count - 1), 0);
+      
+      // 최근 이용일 계산 (가장 최신 결제일 - created_at 기준)
+      const paidReservations = reservationData
+        .filter(r => r.paymentId && r.paymentId.trim() !== '' && r.createdAt) // 결제가 완료되고 createdAt이 있는 예약만
+        .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+      
+      const lastUsedDate = paidReservations.length > 0 
+        ? paidReservations[0].createdAt 
+        : null;
+      
+      setCustomerStats({
+        totalPurchaseAmount,
+        totalReservations,
+        returnVisits,
+        lastUsedDate
+      });
+    } catch (error) {
+      console.error('고객 통계 계산 중 오류:', error);
     }
   };
 
@@ -543,27 +628,37 @@ const UserDetail = () => {
                 <div>
                   <div style={{ marginBottom: '15px', borderBottom: '1px solid #27272a', paddingBottom: '10px' }}>
                     <div style={{ color: '#a1a1aa', fontSize: '14px', marginBottom: '5px' }}>총 구매 금액</div>
-                    <div style={{ color: '#fafafa', fontSize: '16px' }}>0원</div>
+                    <div style={{ color: '#fafafa', fontSize: '16px' }}>
+                      {customerStats.totalPurchaseAmount.toLocaleString()}원
+                    </div>
                   </div>
 
                   <div style={{ marginBottom: '15px', borderBottom: '1px solid #27272a', paddingBottom: '10px' }}>
                     <div style={{ color: '#a1a1aa', fontSize: '14px', marginBottom: '5px' }}>총 예약 횟수</div>
-                    <div style={{ color: '#fafafa', fontSize: '16px' }}>0회</div>
+                    <div style={{ color: '#fafafa', fontSize: '16px' }}>
+                      {customerStats.totalReservations}회
+                    </div>
                   </div>
 
                   <div style={{ marginBottom: '15px', borderBottom: '1px solid #27272a', paddingBottom: '10px' }}>
                     <div style={{ color: '#a1a1aa', fontSize: '14px', marginBottom: '5px' }}>재방문 횟수</div>
-                    <div style={{ color: '#fafafa', fontSize: '16px' }}>0회</div>
+                    <div style={{ color: '#fafafa', fontSize: '16px' }}>
+                      {customerStats.returnVisits}회
+                    </div>
                   </div>
 
                   <div style={{ marginBottom: '15px', borderBottom: '1px solid #27272a', paddingBottom: '10px' }}>
                     <div style={{ color: '#a1a1aa', fontSize: '14px', marginBottom: '5px' }}>최근 이용일</div>
-                    <div style={{ color: '#fafafa', fontSize: '16px' }}>이용 내역 없음</div>
+                    <div style={{ color: '#fafafa', fontSize: '16px' }}>
+                      {customerStats.lastUsedDate ? formatDate(customerStats.lastUsedDate) : '이용 내역 없음'}
+                    </div>
                   </div>
 
                   <div style={{ marginBottom: '15px' }}>
                     <div style={{ color: '#a1a1aa', fontSize: '14px', marginBottom: '5px' }}>고객 활성도</div>
-                    <div style={{ color: '#fafafa', fontSize: '16px' }}>{`${Math.ceil((new Date().getTime() - new Date(user.createdAt).getTime()) / (1000 * 3600 * 24))}일 전 가입`}</div>
+                    <div style={{ color: '#fafafa', fontSize: '16px' }}>
+                      {customerStats.totalReservations > 0 ? '활성 고객' : '신규 고객'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -590,9 +685,174 @@ const UserDetail = () => {
             }}>
               예약 분석
             </h3>
-            <div style={{ color: '#a1a1aa', fontSize: '14px' }}>
-              예약 내역이 없습니다.
-            </div>
+            
+            {loadingReservations ? (
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px',
+                color: '#a1a1aa',
+                fontSize: '14px'
+              }}>
+                <CircularProgress size={20} />
+                예약 내역을 불러오는 중...
+              </div>
+            ) : reservations.length === 0 ? (
+              <div style={{ color: '#a1a1aa', fontSize: '14px' }}>
+                예약 내역이 없습니다.
+              </div>
+            ) : (
+              <div>
+                {/* 예약 통계 */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                  gap: '15px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ 
+                    padding: '15px',
+                    backgroundColor: '#27272a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '4px'
+                  }}>
+                    <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>총 예약 횟수</div>
+                    <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>{reservations.length}회</div>
+                  </div>
+                  <div style={{ 
+                    padding: '15px',
+                    backgroundColor: '#27272a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '4px'
+                  }}>
+                    <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>총 결제 금액</div>
+                    <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
+                      {reservations.reduce((sum, r) => sum + r.totalPrice, 0).toLocaleString()}원
+                    </div>
+                  </div>
+                  <div style={{ 
+                    padding: '15px',
+                    backgroundColor: '#27272a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '4px'
+                  }}>
+                    <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>완료된 예약</div>
+                    <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
+                      {reservations.filter(r => r.status === 'COMPLETED').length}회
+                    </div>
+                  </div>
+                  <div style={{ 
+                    padding: '15px',
+                    backgroundColor: '#27272a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '4px'
+                  }}>
+                    <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>취소된 예약</div>
+                    <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
+                      {reservations.filter(r => r.status === 'CANCELLED').length}회
+                    </div>
+                  </div>
+                </div>
+
+                {/* 예약 내역 테이블 */}
+                <div style={{ 
+                  backgroundColor: '#27272a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <table style={{ 
+                    width: '100%', 
+                    borderCollapse: 'collapse',
+                    fontSize: '14px',
+                    color: '#fafafa'
+                  }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#1f1f23' }}>
+                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>예약번호</th>
+                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>매장명</th>
+                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>보관 기간</th>
+                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>가방 수량</th>
+                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>결제 금액</th>
+                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>상태</th>
+                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>예약일</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reservations.map((reservation) => (
+                        <tr key={reservation.id}>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <div style={{ 
+                              fontFamily: 'monospace', 
+                              fontSize: '12px',
+                              color: '#3b82f6'
+                            }}>
+                              {reservation.reservationNumber}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
+                              {reservation.placeName}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#a1a1aa' }}>
+                              {reservation.placeAddress}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <div style={{ fontSize: '12px' }}>
+                              {formatDate(reservation.storageDate)} ~ {formatDate(reservation.storageEndDate)}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#a1a1aa' }}>
+                              {reservation.storageStartTime} ~ {reservation.storageEndTime}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <div style={{ fontSize: '12px' }}>
+                              소: {reservation.smallBags}개
+                            </div>
+                            <div style={{ fontSize: '12px' }}>
+                              중: {reservation.mediumBags}개
+                            </div>
+                            <div style={{ fontSize: '12px' }}>
+                              대: {reservation.largeBags}개
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <div style={{ fontWeight: 'bold' }}>
+                              {reservation.totalPrice.toLocaleString()}원
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#a1a1aa' }}>
+                              {reservation.storageType === 'day' ? '일일 보관' : '기간 보관'}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <span style={{
+                              padding: '4px 8px',
+                              backgroundColor: reservation.status === 'COMPLETED' ? '#27272a' : 
+                                              reservation.status === 'CANCELLED' ? '#27272a' : '#27272a',
+                              color: reservation.status === 'COMPLETED' ? '#8c8' : 
+                                     reservation.status === 'CANCELLED' ? '#f87171' : '#fafafa',
+                              border: `1px solid ${reservation.status === 'COMPLETED' ? '#8c8' : 
+                                               reservation.status === 'CANCELLED' ? '#f87171' : '#3f3f46'}`,
+                              borderRadius: '4px',
+                              fontSize: '12px'
+                            }}>
+                              {reservation.status === 'RESERVED' ? '예약됨' : 
+                               reservation.status === 'COMPLETED' ? '완료' : '취소됨'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <div style={{ fontSize: '12px' }}>
+                              {formatDateTime(reservation.storageDate)}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </TabPanel>
 

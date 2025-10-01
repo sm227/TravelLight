@@ -19,4 +19,5 @@ export interface ReservationDto {
     storageType: 'day' | 'period';
     status: 'RESERVED' | 'COMPLETED' | 'CANCELLED';
     paymentId?: string;
+    createdAt?: string;
 } 
