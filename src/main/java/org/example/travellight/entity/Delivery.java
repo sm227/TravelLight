@@ -97,7 +97,7 @@ public class Delivery {
     public void assignToDriver(Driver driver) {
         this.driver = driver;
         this.assignedAt = LocalDateTime.now();
-        this.status = DeliveryStatus.ASSIGNED;
+        this.status = DeliveryStatus.ACCEPTED;
     }
 
     // 픽업 완료
