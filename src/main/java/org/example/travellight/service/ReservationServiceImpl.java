@@ -432,6 +432,7 @@ public class ReservationServiceImpl implements ReservationService {
                 .storageType(reservation.getStorageType())
                 .status(reservation.getStatus())
                 .paymentId(reservation.getPaymentId())
+                .createdAt(reservation.getCreatedAt())
                 .build();
     }
 } 

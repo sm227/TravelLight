@@ -22,9 +22,7 @@ import {
   DialogContent,
   DialogActions,
   Alert,
-  CircularProgress,
-  ThemeProvider,
-  createTheme
+  CircularProgress
 } from '@mui/material';
 import {
   Search,
@@ -34,104 +32,6 @@ import {
   Refresh
 } from '@mui/icons-material';
 import { adminUserService, AdminUserResponse } from '../../services/api';
-
-// AdminLayout과 동일한 색상 정의
-const COLORS = {
-  backgroundDark: '#0f0f11',
-  backgroundLight: '#18181b',
-  backgroundCard: '#1f1f23',
-  backgroundSurface: '#27272a',
-  textPrimary: '#fafafa',
-  textSecondary: '#a1a1aa',
-  textMuted: '#71717a',
-  borderPrimary: '#27272a',
-  borderSecondary: '#3f3f46',
-  accentPrimary: '#3b82f6',
-  backgroundHover: 'rgba(255, 255, 255, 0.05)',
-  backgroundSelected: 'rgba(59, 130, 246, 0.1)',
-  backgroundSelectedHover: 'rgba(59, 130, 246, 0.15)'
-};
-
-// 다크 테마 생성
-const darkTheme = createTheme({
-  palette: {
-    mode: 'dark',
-    background: {
-      default: COLORS.backgroundDark,
-      paper: COLORS.backgroundCard,
-    },
-    text: {
-      primary: COLORS.textPrimary,
-      secondary: COLORS.textSecondary,
-    },
-    primary: {
-      main: COLORS.accentPrimary,
-    },
-  },
-  components: {
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backgroundColor: COLORS.backgroundCard,
-          border: `1px solid ${COLORS.borderPrimary}`,
-        },
-      },
-    },
-    MuiTableHead: {
-      styleOverrides: {
-        root: {
-          backgroundColor: COLORS.backgroundSurface,
-        },
-      },
-    },
-    MuiTableCell: {
-      styleOverrides: {
-        root: {
-          borderColor: COLORS.borderPrimary,
-          color: COLORS.textPrimary,
-        },
-        head: {
-          backgroundColor: COLORS.backgroundSurface,
-          color: COLORS.textPrimary,
-          fontWeight: 600,
-        },
-      },
-    },
-    MuiTableRow: {
-      styleOverrides: {
-        root: {
-          '&:hover': {
-            backgroundColor: COLORS.backgroundHover,
-          },
-        },
-      },
-    },
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          '& .MuiInputBase-root': {
-            backgroundColor: COLORS.backgroundSurface,
-            color: COLORS.textPrimary,
-          },
-          '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: COLORS.borderSecondary,
-          },
-          '& .MuiInputLabel-root': {
-            color: COLORS.textSecondary,
-          },
-        },
-      },
-    },
-    MuiDialog: {
-      styleOverrides: {
-        paper: {
-          backgroundColor: COLORS.backgroundCard,
-          color: COLORS.textPrimary,
-        },
-      },
-    },
-  },
-});
 
 // 역할 표시 함수
 const getRoleDisplayName = (role: string) => {
@@ -182,7 +82,7 @@ const AdminUsers = () => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -277,22 +177,19 @@ const AdminUsers = () => {
   };
 
   return (
-    <ThemeProvider theme={darkTheme}>
-      <Box sx={{ 
-        p: 3, 
-        bgcolor: COLORS.backgroundDark,
-        minHeight: '100vh',
-        color: COLORS.textPrimary
+    <div style={{ 
+      padding: '20px', 
+      backgroundColor: '#0f0f11',
+      minHeight: '100vh'
+    }}>
+      <h1 style={{
+        fontSize: '24px',
+        fontWeight: 'bold',
+        marginBottom: '20px',
+        color: '#fafafa'
       }}>
-        <Typography 
-          variant="h4" 
-          component="h1" 
-          gutterBottom 
-          fontWeight="bold"
-          sx={{ color: COLORS.textPrimary }}
-        >
-          사용자 관리
-        </Typography>
+        사용자 관리
+      </h1>
 
       {alertMessage && (
         <Alert 
@@ -304,262 +201,395 @@ const AdminUsers = () => {
         </Alert>
       )}
 
-      <Paper 
-        sx={{ 
-          p: 2, 
-          mb: 3, 
-          borderRadius: 2,
-          bgcolor: COLORS.backgroundCard,
-          border: `1px solid ${COLORS.borderPrimary}`
-        }} 
-        elevation={3}
-      >
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-          <TextField
+      <div style={{ 
+        padding: '20px', 
+        marginBottom: '20px',
+        backgroundColor: '#1f1f23',
+        border: '1px solid #27272a',
+        borderRadius: '4px'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          gap: '10px', 
+          alignItems: 'center', 
+          marginBottom: '20px' 
+        }}>
+          <input
+            type="text"
             placeholder="이름 또는 이메일로 검색"
-            variant="outlined"
-            size="small"
-            fullWidth
             value={searchTerm}
             onChange={handleSearch}
-            sx={{
-              '& .MuiInputBase-root': {
-                bgcolor: COLORS.backgroundSurface,
-                color: COLORS.textPrimary
-              },
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: COLORS.borderSecondary
-              },
-              '& .MuiInputAdornment-root .MuiSvgIcon-root': {
-                color: COLORS.textSecondary
-              }
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              border: '1px solid #3f3f46',
+              borderRadius: '4px',
+              fontSize: '14px',
+              backgroundColor: '#27272a',
+              color: '#fafafa'
             }}
           />
-          <Button 
-            variant="contained" 
-            startIcon={<PersonAdd />}
-            sx={{ 
-              whiteSpace: 'nowrap', 
-              minWidth: 'auto',
-              bgcolor: COLORS.accentPrimary,
-              color: COLORS.textPrimary,
-              '&:hover': {
-                bgcolor: COLORS.accentPrimary,
-                opacity: 0.8
-              }
-            }}
-          >
-            사용자 추가
-          </Button>
-          <IconButton 
-            onClick={handleRefresh} 
-            sx={{ 
-              color: COLORS.textSecondary,
-              '&:hover': { 
-                color: COLORS.accentPrimary,
-                bgcolor: COLORS.backgroundHover 
-              }
-            }}
-          >
-            <Refresh />
-          </IconButton>
-        </Stack>
+          
+          
+        </div>
 
-        <Typography 
-          variant="body2" 
-          sx={{ 
-            mb: 1,
-            color: COLORS.textSecondary
-          }}
-        >
-          💡 사용자 행을 클릭하면 상세 정보를 확인할 수 있습니다.
-        </Typography>
+        <p style={{ 
+          margin: '0 0 10px 0',
+          color: '#a1a1aa',
+          fontSize: '14px'
+        }}>
+          
+        </p>
 
-        <TableContainer>
-          <Table sx={{ minWidth: 650 }} aria-label="사용자 테이블">
-            <TableHead>
-              <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>이름</TableCell>
-                <TableCell>이메일</TableCell>
-                <TableCell>역할</TableCell>
-                <TableCell>상태</TableCell>
-                <TableCell>가입일</TableCell>
-                <TableCell>수정일</TableCell>
-                <TableCell align="center">작업</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse',
+            backgroundColor: '#1f1f23'
+          }}>
+            <thead>
+              <tr style={{ backgroundColor: '#27272a' }}>
+                <th style={{ 
+                  padding: '12px', 
+                  textAlign: 'left', 
+                  border: '1px solid #27272a',
+                  fontWeight: 'bold',
+                  color: '#fafafa'
+                }}>ID</th>
+                <th style={{ 
+                  padding: '12px', 
+                  textAlign: 'left', 
+                  border: '1px solid #27272a',
+                  fontWeight: 'bold',
+                  color: '#fafafa'
+                }}>이름</th>
+                <th style={{ 
+                  padding: '12px', 
+                  textAlign: 'left', 
+                  border: '1px solid #27272a',
+                  fontWeight: 'bold',
+                  color: '#fafafa'
+                }}>이메일</th>
+                <th style={{ 
+                  padding: '12px', 
+                  textAlign: 'left', 
+                  border: '1px solid #27272a',
+                  fontWeight: 'bold',
+                  color: '#fafafa'
+                }}>역할</th>
+                <th style={{ 
+                  padding: '12px', 
+                  textAlign: 'left', 
+                  border: '1px solid #27272a',
+                  fontWeight: 'bold',
+                  color: '#fafafa'
+                }}>상태</th>
+                <th style={{ 
+                  padding: '12px', 
+                  textAlign: 'left', 
+                  border: '1px solid #27272a',
+                  fontWeight: 'bold',
+                  color: '#fafafa'
+                }}>가입일</th>
+                <th style={{ 
+                  padding: '12px', 
+                  textAlign: 'left', 
+                  border: '1px solid #27272a',
+                  fontWeight: 'bold',
+                  color: '#fafafa'
+                }}>수정일</th>
+                <th style={{ 
+                  padding: '12px', 
+                  textAlign: 'center', 
+                  border: '1px solid #27272a',
+                  fontWeight: 'bold',
+                  color: '#fafafa'
+                }}>작업</th>
+              </tr>
+            </thead>
+            <tbody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
+                <tr>
+                  <td colSpan={8} style={{ 
+                    padding: '40px', 
+                    textAlign: 'center',
+                    border: '1px solid #27272a',
+                    color: '#fafafa'
+                  }}>
                     <CircularProgress size={40} />
-                    <Typography variant="body2" sx={{ mt: 1 }}>로딩 중...</Typography>
-                  </TableCell>
-                </TableRow>
+                    <div style={{ marginTop: '10px' }}>로딩 중...</div>
+                  </td>
+                </tr>
               ) : (
                 <>
                   {filteredUsers
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                     .map((user) => (
-                      <TableRow 
+                      <tr 
                         key={user.id} 
-                        hover 
                         onClick={() => handleUserClick(user)}
-                        sx={{ cursor: 'pointer' }}
+                        style={{ 
+                          cursor: 'pointer',
+                          backgroundColor: '#1f1f23'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#1f1f23';
+                        }}
                       >
-                        <TableCell>{user.id}</TableCell>
-                        <TableCell>{user.name}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={getRoleDisplayName(user.role)} 
-                            size="small"
-                            sx={{
-                              bgcolor: user.role === 'ADMIN' ? COLORS.accentPrimary : COLORS.backgroundSurface,
-                              color: COLORS.textPrimary,
-                              border: `1px solid ${COLORS.borderSecondary}`
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={user.status} 
-                            size="small" 
-                            variant="outlined"
-                            sx={{
-                              color: user.status === '활성' ? '#10b981' : '#ef4444',
-                              borderColor: user.status === '활성' ? '#10b981' : '#ef4444',
-                              bgcolor: 'transparent'
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>{formatDate(user.createdAt)}</TableCell>
-                        <TableCell>{formatDateTime(user.updatedAt)}</TableCell>
-                        <TableCell align="center">
-                          <IconButton 
-                            size="small"
+                        <td style={{ 
+                          padding: '12px', 
+                          border: '1px solid #27272a',
+                          color: '#fafafa'
+                        }}>{user.id}</td>
+                        <td style={{ 
+                          padding: '12px', 
+                          border: '1px solid #27272a',
+                          color: '#fafafa'
+                        }}>{user.name}</td>
+                        <td style={{ 
+                          padding: '12px', 
+                          border: '1px solid #27272a',
+                          color: '#fafafa'
+                        }}>{user.email}</td>
+                        <td style={{ 
+                          padding: '12px', 
+                          border: '1px solid #27272a'
+                        }}>
+                          <span style={{
+                            padding: '4px 8px',
+                            backgroundColor: user.role === 'ADMIN' ? '#3b82f6' : '#6c757d',
+                            color: 'white',
+                            borderRadius: '4px',
+                            fontSize: '12px'
+                          }}>
+                            {getRoleDisplayName(user.role)}
+                          </span>
+                        </td>
+                        <td style={{ 
+                          padding: '12px', 
+                          border: '1px solid #27272a'
+                        }}>
+                          <span style={{
+                            padding: '4px 8px',
+                            color: user.status === '활성' ? '#10b981' : '#ef4444',
+                            border: `1px solid ${user.status === '활성' ? '#10b981' : '#ef4444'}`,
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            backgroundColor: 'transparent'
+                          }}>
+                            {user.status}
+                          </span>
+                        </td>
+                        <td style={{ 
+                          padding: '12px', 
+                          border: '1px solid #27272a',
+                          color: '#fafafa'
+                        }}>{formatDate(user.createdAt)}</td>
+                        <td style={{ 
+                          padding: '12px', 
+                          border: '1px solid #27272a',
+                          color: '#fafafa'
+                        }}>{formatDateTime(user.updatedAt)}</td>
+                        <td style={{ 
+                          padding: '12px', 
+                          border: '1px solid #27272a',
+                          textAlign: 'center'
+                        }}>
+                          <button 
                             onClick={(e) => {
                               e.stopPropagation();
                               // TODO: 편집 기능 구현
                             }}
-                            sx={{
-                              color: COLORS.textSecondary,
-                              '&:hover': {
-                                color: COLORS.accentPrimary,
-                                bgcolor: COLORS.backgroundHover
-                              }
+                            style={{
+                              padding: '4px 8px',
+                              marginRight: '4px',
+                              backgroundColor: '#17a2b8',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px'
                             }}
                           >
-                            <Edit fontSize="small" />
-                          </IconButton>
-                          <IconButton 
-                            size="small"
+                            편집
+                          </button>
+                          <button 
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteClick(user.id);
                             }}
-                            sx={{
-                              color: COLORS.textSecondary,
-                              '&:hover': {
-                                color: '#ef4444',
-                                bgcolor: COLORS.backgroundHover
-                              }
+                            style={{
+                              padding: '4px 8px',
+                              backgroundColor: '#dc3545',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px'
                             }}
                           >
-                            <Delete fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
+                            삭제
+                          </button>
+                        </td>
+                      </tr>
                   ))}
                   {!loading && filteredUsers.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={8} align="center">
+                    <tr>
+                      <td colSpan={8} style={{ 
+                        padding: '40px', 
+                        textAlign: 'center',
+                        border: '1px solid #27272a',
+                        color: '#fafafa'
+                      }}>
                         {searchTerm ? '검색 결과가 없습니다.' : '등록된 사용자가 없습니다.'}
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   )}
                 </>
               )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={filteredUsers.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="페이지당 행 수:"
-          labelDisplayedRows={({ from, to, count }) => `${from}-${to} / 전체 ${count}`}
-        />
-      </Paper>
+            </tbody>
+          </table>
+        </div>
+        
+        <div style={{ 
+          marginTop: '20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '10px 0'
+        }}>
+          <div style={{ fontSize: '14px', color: '#a1a1aa' }}>
+            {`${page * rowsPerPage + 1}-${Math.min((page + 1) * rowsPerPage, filteredUsers.length)} / 전체 ${filteredUsers.length}`}
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <select 
+              value={rowsPerPage} 
+              onChange={handleChangeRowsPerPage}
+              style={{
+                padding: '4px 8px',
+                border: '1px solid #3f3f46',
+                borderRadius: '4px',
+                backgroundColor: '#27272a',
+                color: '#fafafa'
+              }}
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+            </select>
+            <button 
+              onClick={(e) => handleChangePage(e, Math.max(0, page - 1))}
+              disabled={page === 0}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: page === 0 ? '#27272a' : '#3b82f6',
+                color: page === 0 ? '#71717a' : 'white',
+                border: '1px solid #3f3f46',
+                borderRadius: '4px',
+                cursor: page === 0 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              이전
+            </button>
+            <button 
+              onClick={(e) => handleChangePage(e, Math.min(Math.ceil(filteredUsers.length / rowsPerPage) - 1, page + 1))}
+              disabled={page >= Math.ceil(filteredUsers.length / rowsPerPage) - 1}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: page >= Math.ceil(filteredUsers.length / rowsPerPage) - 1 ? '#27272a' : '#3b82f6',
+                color: page >= Math.ceil(filteredUsers.length / rowsPerPage) - 1 ? '#71717a' : 'white',
+                border: '1px solid #3f3f46',
+                borderRadius: '4px',
+                cursor: page >= Math.ceil(filteredUsers.length / rowsPerPage) - 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              다음
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* 삭제 확인 다이얼로그 */}
-      <Dialog
-        open={openDeleteDialog}
-        onClose={!deleting ? handleDeleteCancel : undefined}
-      >
-        <DialogTitle>사용자 삭제</DialogTitle>
-        <DialogContent>
-          <Typography variant="body1">
-            {userToDelete && users.find(u => u.id === userToDelete) && (
-              <>
-                <strong>{users.find(u => u.id === userToDelete)?.name}</strong> 사용자를 정말로 삭제하시겠습니까?
-                <br />
-                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-                  이 작업은 되돌릴 수 없습니다.
-                </Typography>
-              </>
-            )}
-            {(!userToDelete || !users.find(u => u.id === userToDelete)) && (
-              '정말로 이 사용자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'
-            )}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={handleDeleteCancel} 
-            disabled={deleting}
-            sx={{
-              color: COLORS.textSecondary,
-              '&:hover': {
-                color: COLORS.textPrimary,
-                bgcolor: COLORS.backgroundHover
-              }
-            }}
-          >
-            취소
-          </Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            variant="contained"
-            disabled={deleting}
-            startIcon={deleting ? <CircularProgress size={20} /> : null}
-            sx={{
-              bgcolor: '#ef4444',
-              color: COLORS.textPrimary,
-              '&:hover': {
-                bgcolor: '#dc2626'
-              }
-            }}
-          >
-            {deleting ? '삭제 중...' : '삭제'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {openDeleteDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#1f1f23',
+            padding: '20px',
+            borderRadius: '4px',
+            minWidth: '400px',
+            maxWidth: '500px',
+            border: '1px solid #27272a'
+          }}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#fafafa' }}>사용자 삭제</h3>
+            <div style={{ marginBottom: '20px', color: '#a1a1aa' }}>
+              {userToDelete && users.find(u => u.id === userToDelete) && (
+                <>
+                  <strong>{users.find(u => u.id === userToDelete)?.name}</strong> 사용자를 정말로 삭제하시겠습니까?
+                  <br />
+                  <div style={{ marginTop: '10px', color: '#dc3545', fontSize: '14px' }}>
+                    이 작업은 되돌릴 수 없습니다.
+                  </div>
+                </>
+              )}
+              {(!userToDelete || !users.find(u => u.id === userToDelete)) && (
+                '정말로 이 사용자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={handleDeleteCancel} 
+                disabled={deleting}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: deleting ? 'not-allowed' : 'pointer',
+                  opacity: deleting ? 0.6 : 1
+                }}
+              >
+                취소
+              </button>
+              <button 
+                onClick={handleDeleteConfirm} 
+                disabled={deleting}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: deleting ? 'not-allowed' : 'pointer',
+                  opacity: deleting ? 0.6 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                {deleting && <CircularProgress size={16} style={{ color: 'white' }} />}
+                {deleting ? '삭제 중...' : '삭제'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      </Box>
-    </ThemeProvider>
+    </div>
   );
 };
 
