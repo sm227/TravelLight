@@ -45,3 +45,5 @@ src/main/travellight/node_modules
 uploads/
 api-docs.json
 api-docs.yaml
+
+/logs
