@@ -692,4 +692,57 @@ export const reviewService = {
   }
 };
 
+// ==================== Activity Log API ====================
+
+export interface ActivityLogDto {
+  timestamp: string;
+  action: string;
+  actionCategory: string;
+  userId: number;
+  userEmail: string;
+  userName: string;
+  clientIp: string;
+  httpMethod: string;
+  requestUri: string;
+  level: string;
+  message: string;
+  details: string;
+  httpStatus: string;
+  errorType: string;
+}
+
+export interface ActivityLogSearchParams {
+  userId?: number;
+  actionCategory?: string;
+  action?: string;
+  level?: string;
+  days?: number;
+  page?: number;
+  size?: number;
+}
+
+export const activityLogService = {
+  // 활동 로그 조회
+  getActivityLogs: async (params: ActivityLogSearchParams): Promise<ApiResponse<ActivityLogDto[]>> => {
+    const response = await api.get<ApiResponse<ActivityLogDto[]>>('/admin/activity-logs', {
+      params
+    });
+    return response.data;
+  },
+
+  // 특정 사용자의 최근 활동 조회
+  getRecentUserActivity: async (userId: number): Promise<ApiResponse<ActivityLogDto[]>> => {
+    const response = await api.get<ApiResponse<ActivityLogDto[]>>(`/admin/activity-logs/user/${userId}/recent`);
+    return response.data;
+  },
+
+  // 특정 사용자의 에러 로그 조회
+  getUserErrors: async (userId: number, days: number = 30): Promise<ApiResponse<ActivityLogDto[]>> => {
+    const response = await api.get<ApiResponse<ActivityLogDto[]>>(`/admin/activity-logs/user/${userId}/errors`, {
+      params: { days }
+    });
+    return response.data;
+  }
+};
+
 export default api;

@@ -74,13 +74,36 @@ public class AuthController {
     public ResponseEntity<CommonApiResponse<UserDto.UserLoginResponse>> login(
             @Parameter(description = "로그인 정보", required = true)
             @RequestBody UserDto.LoginRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse response) {
-        UserDto.UserLoginResponse userResponse = authService.login(request);
+        try {
+            UserDto.UserLoginResponse userResponse = authService.login(request);
 
-        // Refresh Token 쿠키 설정
-        setRefreshTokenCookie(response, userResponse.getRefreshToken());
+            // 로그인 성공 로그 (ELK 전용 - DB 저장 안 함)
+            org.slf4j.MDC.put("action", "LOGIN_SUCCESS");
+            org.slf4j.MDC.put("userId", userResponse.getId().toString());
+            org.slf4j.MDC.put("email", userResponse.getEmail());
+            org.slf4j.MDC.put("userName", userResponse.getName());
+            org.slf4j.MDC.put("clientIp", getClientIP(httpRequest));
+            org.slf4j.MDC.put("userAgent", httpRequest.getHeader("User-Agent"));
+            log.info("LOGIN_SUCCESS - User: {}, IP: {}", userResponse.getEmail(), getClientIP(httpRequest));
+            org.slf4j.MDC.clear();
 
-        return ResponseEntity.ok(CommonApiResponse.success("로그인이 완료되었습니다.", userResponse));
+            // Refresh Token 쿠키 설정
+            setRefreshTokenCookie(response, userResponse.getRefreshToken());
+
+            return ResponseEntity.ok(CommonApiResponse.success("로그인이 완료되었습니다.", userResponse));
+        } catch (Exception e) {
+            // 로그인 실패 로그
+            org.slf4j.MDC.put("action", "LOGIN_FAIL");
+            org.slf4j.MDC.put("attemptedEmail", request.getEmail());
+            org.slf4j.MDC.put("clientIp", getClientIP(httpRequest));
+            org.slf4j.MDC.put("reason", e.getMessage());
+            log.warn("LOGIN_FAIL - Email: {}, IP: {}, Reason: {}",
+                request.getEmail(), getClientIP(httpRequest), e.getMessage());
+            org.slf4j.MDC.clear();
+            throw e;
+        }
     }
 
     @Operation(summary = "로그아웃", description = "Refresh Token을 무효화하고 로그아웃 처리합니다.")
@@ -99,12 +122,17 @@ public class AuthController {
                 userJwtService.revokeToken(refreshToken);
             }
 
+            // 로그아웃 로그 (ELK 전용)
+            org.slf4j.MDC.put("action", "LOGOUT");
+            log.info("LOGOUT - Session ended");
+
             // 쿠키 삭제
             clearRefreshTokenCookie(response);
 
             return ResponseEntity.ok(CommonApiResponse.success("로그아웃이 완료되었습니다.", null));
 
         } catch (Exception e) {
+            log.error("LOGOUT_ERROR - Error during logout: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonApiResponse.error("로그아웃 처리 중 오류가 발생했습니다."));
         }
@@ -291,5 +319,35 @@ public class AuthController {
         cookie.setMaxAge(0); // 즉시 만료
 
         response.addCookie(cookie);
+    }
+
+    /**
+     * Client IP 주소 추출 (Proxy 고려)
+     */
+    private String getClientIP(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("HTTP_CLIENT_IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("HTTP_X_FORWARDED_FOR");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+
+        // 여러 IP가 있을 경우 첫 번째 IP 사용
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+
+        return ip;
     }
 }

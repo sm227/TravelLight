@@ -69,6 +69,11 @@ dependencies {
     // Logstash Logback Encoder - ELK 스택 로그 연동
     implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
 
+    // Elasticsearch Java Client - 로그 조회용 (7.17.x 버전으로 통일)
+    implementation 'co.elastic.clients:elasticsearch-java:7.17.22'
+    implementation 'org.elasticsearch.client:elasticsearch-rest-client:7.17.22'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+
 }
 
 tasks.named('test') {

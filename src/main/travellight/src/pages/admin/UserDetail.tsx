@@ -4,7 +4,7 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import { adminUserService, AdminUserResponse, claimService, ClaimResponse } from '../../services/api';
+import { adminUserService, AdminUserResponse, claimService, ClaimResponse, activityLogService, ActivityLogDto } from '../../services/api';
 import { getMyReservations } from '../../services/reservationService';
 import { ReservationDto } from '../../types/reservation';
 
@@ -89,6 +89,9 @@ const UserDetail = () => {
     returnVisits: 0,
     lastUsedDate: null as string | null
   });
+  const [activityLogs, setActivityLogs] = useState<ActivityLogDto[]>([]);
+  const [loadingActivityLogs, setLoadingActivityLogs] = useState(false);
+  const [activityLogFilter, setActivityLogFilter] = useState<string>('ALL');
 
   // 사용자 정보 로드
   const loadUser = async () => {
@@ -132,6 +135,13 @@ const UserDetail = () => {
       loadReservations();
     }
   }, [tabValue, userId]);
+
+  // 활동로그 탭이 활성화될 때 로그 목록 로드
+  useEffect(() => {
+    if (tabValue === 5) {
+      loadActivityLogs();
+    }
+  }, [tabValue, userId, activityLogFilter]);
 
   // 사용자 정보가 로드되면 고객 통계 계산
   useEffect(() => {
@@ -187,7 +197,7 @@ const UserDetail = () => {
   // 예약 목록 로드
   const loadReservations = async () => {
     if (!userId) return;
-    
+
     try {
       setLoadingReservations(true);
       const reservationData = await getMyReservations(parseInt(userId));
@@ -196,6 +206,35 @@ const UserDetail = () => {
       console.error('예약 목록 로드 중 오류:', error);
     } finally {
       setLoadingReservations(false);
+    }
+  };
+
+  // 활동 로그 목록 로드
+  const loadActivityLogs = async () => {
+    if (!userId) return;
+
+    try {
+      setLoadingActivityLogs(true);
+      const params: any = {
+        userId: parseInt(userId),
+        days: 30,
+        page: 0,
+        size: 100
+      };
+
+      // 필터 적용
+      if (activityLogFilter !== 'ALL') {
+        params.actionCategory = activityLogFilter;
+      }
+
+      const response = await activityLogService.getActivityLogs(params);
+      if (response.success) {
+        setActivityLogs(response.data);
+      }
+    } catch (error) {
+      console.error('활동 로그 로드 중 오류:', error);
+    } finally {
+      setLoadingActivityLogs(false);
     }
   };
 
@@ -502,7 +541,7 @@ const UserDetail = () => {
           borderBottom: '1px solid #27272a',
           display: 'flex'
         }}>
-          {['고객정보', '예약분석', '결제분석', '마케팅', '클레임내역'].map((label, index) => (
+          {['고객정보', '예약분석', '결제분석', '마케팅', '클레임내역', '활동로그'].map((label, index) => (
             <button
               key={index}
               onClick={() => setTabValue(index)}
@@ -1169,6 +1208,170 @@ const UserDetail = () => {
                 </div>
               )}
             </div>
+          </div>
+        </TabPanel>
+
+        {/* 활동로그 탭 */}
+        <TabPanel value={tabValue} index={5}>
+          <div style={{
+            backgroundColor: '#1f1f23',
+            border: '1px solid #27272a',
+            borderRadius: '4px',
+            padding: '20px'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '15px',
+              borderBottom: '1px solid #27272a',
+              paddingBottom: '10px'
+            }}>
+              <h3 style={{
+                margin: 0,
+                color: '#fafafa',
+                fontSize: '16px',
+                fontWeight: 'bold'
+              }}>
+                활동 로그 (최근 30일)
+              </h3>
+
+              {/* 필터 버튼 */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {['ALL', 'LOGIN', 'RESERVATION', 'PAYMENT', 'ERROR'].map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => setActivityLogFilter(filter)}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: activityLogFilter === filter ? '#3b82f6' : '#27272a',
+                      color: '#fafafa',
+                      border: '1px solid #3f3f46',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: activityLogFilter === filter ? 'bold' : 'normal'
+                    }}
+                  >
+                    {filter === 'ALL' ? '전체' :
+                     filter === 'LOGIN' ? '로그인' :
+                     filter === 'RESERVATION' ? '예약' :
+                     filter === 'PAYMENT' ? '결제' : '에러'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {loadingActivityLogs ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: '#a1a1aa',
+                fontSize: '14px'
+              }}>
+                <CircularProgress size={20} />
+                활동 로그를 불러오는 중...
+              </div>
+            ) : activityLogs.length === 0 ? (
+              <div style={{ color: '#a1a1aa', fontSize: '14px' }}>
+                활동 로그가 없습니다.
+              </div>
+            ) : (
+              <div style={{
+                backgroundColor: '#27272a',
+                border: '1px solid #3f3f46',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }}>
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  fontSize: '14px',
+                  color: '#fafafa'
+                }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#1f1f23' }}>
+                      <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>시간</th>
+                      <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>카테고리</th>
+                      <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>액션</th>
+                      <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>상세</th>
+                      <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>IP 주소</th>
+                      <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>레벨</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activityLogs.map((log, index) => (
+                      <tr key={index}>
+                        <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                          <div style={{ fontSize: '12px' }}>
+                            {formatDateTime(log.timestamp)}
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                          <span style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#1f1f23',
+                            color: log.actionCategory === 'LOGIN' ? '#3b82f6' :
+                                   log.actionCategory === 'RESERVATION' ? '#8b5cf6' :
+                                   log.actionCategory === 'PAYMENT' ? '#10b981' :
+                                   log.actionCategory === 'ERROR' ? '#ef4444' : '#fafafa',
+                            border: `1px solid ${log.actionCategory === 'LOGIN' ? '#3b82f6' :
+                                                  log.actionCategory === 'RESERVATION' ? '#8b5cf6' :
+                                                  log.actionCategory === 'PAYMENT' ? '#10b981' :
+                                                  log.actionCategory === 'ERROR' ? '#ef4444' : '#3f3f46'}`,
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 'bold'
+                          }}>
+                            {log.actionCategory}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                          <div style={{ fontSize: '12px', fontFamily: 'monospace' }}>
+                            {log.action}
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                          <div style={{ fontSize: '12px' }}>
+                            {log.message}
+                          </div>
+                          {log.details && (
+                            <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '4px' }}>
+                              {log.details}
+                            </div>
+                          )}
+                          {log.errorType && (
+                            <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>
+                              에러: {log.errorType}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                          <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#a1a1aa' }}>
+                            {log.clientIp}
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                          <span style={{
+                            padding: '2px 6px',
+                            backgroundColor: log.level === 'ERROR' ? '#27272a' : '#27272a',
+                            color: log.level === 'ERROR' ? '#ef4444' :
+                                   log.level === 'WARN' ? '#f59e0b' : '#10b981',
+                            border: `1px solid ${log.level === 'ERROR' ? '#ef4444' :
+                                                  log.level === 'WARN' ? '#f59e0b' : '#10b981'}`,
+                            borderRadius: '4px',
+                            fontSize: '10px'
+                          }}>
+                            {log.level}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </TabPanel>
       </div>
