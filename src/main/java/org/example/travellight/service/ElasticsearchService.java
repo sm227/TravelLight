@@ -46,11 +46,16 @@ public class ElasticsearchService {
             // 쿼리 빌드
             BoolQuery.Builder boolQuery = new BoolQuery.Builder();
 
+            // 필수: action 필드가 존재하는 로그만 조회 (활동 로그만)
+            boolQuery.must(Query.of(q -> q
+                    .exists(e -> e.field("action"))
+            ));
+
             // 사용자 ID 필터
             if (searchRequest.getUserId() != null) {
                 boolQuery.must(Query.of(q -> q
                         .term(t -> t
-                                .field("mdc_userId")
+                                .field("userId")
                                 .value(searchRequest.getUserId().toString())
                         )
                 ));
@@ -60,7 +65,7 @@ public class ElasticsearchService {
             if (searchRequest.getActionCategory() != null) {
                 boolQuery.must(Query.of(q -> q
                         .term(t -> t
-                                .field("action_category.keyword")
+                                .field("actionCategory.keyword")
                                 .value(searchRequest.getActionCategory())
                         )
                 ));
@@ -70,7 +75,7 @@ public class ElasticsearchService {
             if (searchRequest.getAction() != null) {
                 boolQuery.must(Query.of(q -> q
                         .term(t -> t
-                                .field("mdc_action.keyword")
+                                .field("action.keyword")
                                 .value(searchRequest.getAction())
                         )
                 ));
@@ -148,47 +153,47 @@ public class ElasticsearchService {
         }
 
         // 기본 필드
-        builder.action((String) source.get("mdc_action"))
-                .actionCategory((String) source.get("action_category"))
+        builder.action((String) source.get("action"))
+                .actionCategory((String) source.get("actionCategory"))
                 .level((String) source.get("level"))
                 .message((String) source.get("message"))
-                .httpMethod((String) source.get("mdc_httpMethod"))
-                .requestUri((String) source.get("mdc_requestUri"));
+                .httpMethod((String) source.get("httpMethod"))
+                .requestUri((String) source.get("requestUri"));
 
         // 사용자 정보
-        Object userIdObj = source.get("mdc_userId");
+        Object userIdObj = source.get("userId");
         if (userIdObj != null) {
             builder.userId(Long.parseLong(userIdObj.toString()));
         }
-        builder.userName((String) source.get("mdc_userName"))
-                .userEmail((String) source.get("mdc_userEmail"));
+        builder.userName((String) source.get("userName"))
+                .userEmail((String) source.get("email"));
 
         // 클라이언트 정보
-        builder.clientIp((String) source.get("mdc_clientIp"));
+        builder.clientIp((String) source.get("clientIp"));
 
         // 에러 정보
-        builder.httpStatus((String) source.get("mdc_httpStatus"))
-                .errorType((String) source.get("mdc_errorType"));
+        builder.httpStatus((String) source.get("httpStatus"))
+                .errorType((String) source.get("errorType"));
 
         // 세부 정보 구성
         StringBuilder details = new StringBuilder();
-        if (source.get("mdc_amount") != null) {
-            details.append("금액: ").append(source.get("mdc_amount")).append(" ");
+        if (source.get("amount") != null) {
+            details.append("금액: ").append(source.get("amount")).append(" ");
         }
-        if (source.get("mdc_placeName") != null) {
-            details.append("장소: ").append(source.get("mdc_placeName")).append(" ");
+        if (source.get("placeName") != null) {
+            details.append("장소: ").append(source.get("placeName")).append(" ");
         }
-        if (source.get("mdc_paymentId") != null) {
-            details.append("결제ID: ").append(source.get("mdc_paymentId")).append(" ");
+        if (source.get("paymentId") != null) {
+            details.append("결제ID: ").append(source.get("paymentId")).append(" ");
         }
-        if (source.get("mdc_paymentMethod") != null) {
-            details.append("결제수단: ").append(source.get("mdc_paymentMethod")).append(" ");
+        if (source.get("paymentMethod") != null) {
+            details.append("결제수단: ").append(source.get("paymentMethod")).append(" ");
         }
-        if (source.get("mdc_errorMessage") != null) {
-            details.append("에러: ").append(source.get("mdc_errorMessage")).append(" ");
+        if (source.get("errorMessage") != null) {
+            details.append("에러: ").append(source.get("errorMessage")).append(" ");
         }
-        if (source.get("mdc_cancelReason") != null) {
-            details.append("취소사유: ").append(source.get("mdc_cancelReason")).append(" ");
+        if (source.get("cancelReason") != null) {
+            details.append("취소사유: ").append(source.get("cancelReason")).append(" ");
         }
 
         if (details.length() > 0) {

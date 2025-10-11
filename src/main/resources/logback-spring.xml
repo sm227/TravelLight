@@ -18,10 +18,33 @@
     <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/${LOG_FILE}.json</file>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- 기본 MDC 필드 -->
             <includeMdcKeyName>userId</includeMdcKeyName>
             <includeMdcKeyName>requestId</includeMdcKeyName>
             <includeMdcKeyName>sessionId</includeMdcKeyName>
             <includeMdcKeyName>clientIp</includeMdcKeyName>
+            <includeMdcKeyName>userAgent</includeMdcKeyName>
+            <includeMdcKeyName>httpMethod</includeMdcKeyName>
+            <includeMdcKeyName>requestUri</includeMdcKeyName>
+            <!-- Activity Log MDC 필드 -->
+            <includeMdcKeyName>action</includeMdcKeyName>
+            <includeMdcKeyName>email</includeMdcKeyName>
+            <includeMdcKeyName>userName</includeMdcKeyName>
+            <includeMdcKeyName>userEmail</includeMdcKeyName>
+            <includeMdcKeyName>placeName</includeMdcKeyName>
+            <includeMdcKeyName>storageDate</includeMdcKeyName>
+            <includeMdcKeyName>amount</includeMdcKeyName>
+            <includeMdcKeyName>reservationNumber</includeMdcKeyName>
+            <includeMdcKeyName>reservationId</includeMdcKeyName>
+            <includeMdcKeyName>reason</includeMdcKeyName>
+            <includeMdcKeyName>paymentId</includeMdcKeyName>
+            <includeMdcKeyName>paymentMethod</includeMdcKeyName>
+            <includeMdcKeyName>paymentStatus</includeMdcKeyName>
+            <includeMdcKeyName>cancelReason</includeMdcKeyName>
+            <includeMdcKeyName>errorMessage</includeMdcKeyName>
+            <includeMdcKeyName>errorType</includeMdcKeyName>
+            <includeMdcKeyName>httpStatus</includeMdcKeyName>
+            <includeMdcKeyName>endpoint</includeMdcKeyName>
             <customFields>{"service":"travellight","environment":"${SPRING_PROFILES_ACTIVE:-local}"}</customFields>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -54,10 +77,33 @@
             <onMismatch>DENY</onMismatch>
         </filter>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- 기본 MDC 필드 -->
             <includeMdcKeyName>userId</includeMdcKeyName>
             <includeMdcKeyName>requestId</includeMdcKeyName>
             <includeMdcKeyName>sessionId</includeMdcKeyName>
             <includeMdcKeyName>clientIp</includeMdcKeyName>
+            <includeMdcKeyName>userAgent</includeMdcKeyName>
+            <includeMdcKeyName>httpMethod</includeMdcKeyName>
+            <includeMdcKeyName>requestUri</includeMdcKeyName>
+            <!-- Activity Log MDC 필드 -->
+            <includeMdcKeyName>action</includeMdcKeyName>
+            <includeMdcKeyName>email</includeMdcKeyName>
+            <includeMdcKeyName>userName</includeMdcKeyName>
+            <includeMdcKeyName>userEmail</includeMdcKeyName>
+            <includeMdcKeyName>placeName</includeMdcKeyName>
+            <includeMdcKeyName>storageDate</includeMdcKeyName>
+            <includeMdcKeyName>amount</includeMdcKeyName>
+            <includeMdcKeyName>reservationNumber</includeMdcKeyName>
+            <includeMdcKeyName>reservationId</includeMdcKeyName>
+            <includeMdcKeyName>reason</includeMdcKeyName>
+            <includeMdcKeyName>paymentId</includeMdcKeyName>
+            <includeMdcKeyName>paymentMethod</includeMdcKeyName>
+            <includeMdcKeyName>paymentStatus</includeMdcKeyName>
+            <includeMdcKeyName>cancelReason</includeMdcKeyName>
+            <includeMdcKeyName>errorMessage</includeMdcKeyName>
+            <includeMdcKeyName>errorType</includeMdcKeyName>
+            <includeMdcKeyName>httpStatus</includeMdcKeyName>
+            <includeMdcKeyName>endpoint</includeMdcKeyName>
             <customFields>{"service":"travellight","environment":"${SPRING_PROFILES_ACTIVE:-local}","severity":"error"}</customFields>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -71,10 +117,33 @@
     <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
         <destination>${LOGSTASH_HOST:-localhost}:${LOGSTASH_PORT:-5000}</destination>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- 기본 MDC 필드 -->
             <includeMdcKeyName>userId</includeMdcKeyName>
             <includeMdcKeyName>requestId</includeMdcKeyName>
             <includeMdcKeyName>sessionId</includeMdcKeyName>
             <includeMdcKeyName>clientIp</includeMdcKeyName>
+            <includeMdcKeyName>userAgent</includeMdcKeyName>
+            <includeMdcKeyName>httpMethod</includeMdcKeyName>
+            <includeMdcKeyName>requestUri</includeMdcKeyName>
+            <!-- Activity Log MDC 필드 -->
+            <includeMdcKeyName>action</includeMdcKeyName>
+            <includeMdcKeyName>email</includeMdcKeyName>
+            <includeMdcKeyName>userName</includeMdcKeyName>
+            <includeMdcKeyName>userEmail</includeMdcKeyName>
+            <includeMdcKeyName>placeName</includeMdcKeyName>
+            <includeMdcKeyName>storageDate</includeMdcKeyName>
+            <includeMdcKeyName>amount</includeMdcKeyName>
+            <includeMdcKeyName>reservationNumber</includeMdcKeyName>
+            <includeMdcKeyName>reservationId</includeMdcKeyName>
+            <includeMdcKeyName>reason</includeMdcKeyName>
+            <includeMdcKeyName>paymentId</includeMdcKeyName>
+            <includeMdcKeyName>paymentMethod</includeMdcKeyName>
+            <includeMdcKeyName>paymentStatus</includeMdcKeyName>
+            <includeMdcKeyName>cancelReason</includeMdcKeyName>
+            <includeMdcKeyName>errorMessage</includeMdcKeyName>
+            <includeMdcKeyName>errorType</includeMdcKeyName>
+            <includeMdcKeyName>httpStatus</includeMdcKeyName>
+            <includeMdcKeyName>endpoint</includeMdcKeyName>
             <customFields>{"service":"travellight","environment":"${SPRING_PROFILES_ACTIVE:-local}"}</customFields>
         </encoder>
         <!-- 연결 실패 시 재시도 설정 -->
