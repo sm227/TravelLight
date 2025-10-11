@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Container,
     Typography,
@@ -15,7 +15,10 @@ import {
     useTheme,
     alpha,
     Card,
-    CardContent
+    CardContent,
+    CircularProgress,
+    Alert,
+    Stack
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { keyframes } from '@mui/system';
@@ -30,6 +33,10 @@ import { Link as RouterLink } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useTranslation } from 'react-i18next';
+import { faqService, FAQResponse, FAQCategoryInfo, inquiryService, InquiryResponse } from '../services/api';
+import { useAuth } from '../services/AuthContext';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 // 애니메이션 정의
 const fadeIn = keyframes`
@@ -98,105 +105,108 @@ const CategoryChip = styled(Chip)<{ selected?: boolean }>(({ theme, selected }) 
 const FAQPage = () => {
     const theme = useTheme();
     const { t } = useTranslation();
-    // 검색어 상태 관리
+    const { user, isAuthenticated } = useAuth();
+    
+    // 상태 관리
     const [searchQuery, setSearchQuery] = useState('');
-    // 현재 선택된 카테고리 관리
     const [selectedCategory, setSelectedCategory] = useState('all');
+    const [faqs, setFaqs] = useState<FAQResponse[]>([]);
+    const [categories, setCategories] = useState<{ id: string; name: string; count?: number }[]>([
+        { id: 'all', name: '전체' }
+    ]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    
+    // 문의 내역 상태
+    const [myInquiries, setMyInquiries] = useState<InquiryResponse[]>([]);
+    const [inquiriesLoading, setInquiriesLoading] = useState(false);
 
-    // FAQ 카테고리 정의
-    const categories = [
-        { id: 'all', name: '전체' },
-        { id: 'reservation', name: '예약 및 결제' },
-        { id: 'delivery', name: '배송 서비스' },
-        { id: 'storage', name: '짐 보관' },
-        { id: 'account', name: '계정 관리' },
-        { id: 'refund', name: '환불 및 취소' }
-    ];
-
-    // FAQ 데이터 (실제로는 API에서 가져올 수 있음)
-    const faqData = [
-        {
-            id: 1,
-            category: 'reservation',
-            question: '예약은 얼마나 미리 해야 하나요?',
-            answer: '저희 TravelLight는 최소 24시간 전에 예약하시는 것을 권장드립니다. 급하신 경우 고객센터(1588-0000)로 문의해 주시면 가능 여부를 확인해 드립니다.'
-        },
-        {
-            id: 2,
-            category: 'reservation',
-            question: '예약 후 일정이 변경되면 어떻게 해야 하나요?',
-            answer: '예약 변경은 지도 페이지 &gt; 내 예약에서 변경하시거나, 출발 48시간 전까지 무료로 변경 가능합니다. 그 이후에는 수수료가 발생할 수 있습니다.'
-        },
-        {
-            id: 3,
-            category: 'delivery',
-            question: '배송 중인 짐의 현재 위치를 확인할 수 있나요?',
-            answer: '네, 지도 페이지 &gt; 내 예약에서 실시간으로 짐의 위치를 확인하실 수 있습니다. 배송 조회 번호를 통해 더 자세한 정보를 확인하실 수 있습니다.'
-        },
-        {
-            id: 4,
-            category: 'delivery',
-            question: '배송 가능 지역은 어디인가요?',
-            answer: '현재 서울, 경기, 인천, 부산, 제주 지역 편의점 및 음식점등 고객님들의 접근성이 좋은 위치에서 서비스를 제공하고 있습니다. 그 외 지역은 점차 확대해 나갈 예정이니 많은 관심 부탁드립니다.'
-        },
-        {
-            id: 5,
-            category: 'storage',
-            question: '보관 중인 짐을 미리 찾을 수 있나요?',
-            answer: '네, 가능합니다. 지도 페이지 &gt; 내 예약에서 찾으실 날짜를 변경하시거나, 고객센터(1588-0000)로 문의해 주시면 가능 여부를 확인해 드립니다. 단, 최소 12시간 전에 알려주셔야 원활한 처리가 가능합니다.'
-        },
-        {
-            id: 6,
-            category: 'storage',
-            question: '보관 가능한 물품과 불가능한 물품은 무엇인가요?',
-            answer: '귀중품(노트북, 현금 등), 위험물질, 동식물은 보관이 불가합니다. 자세한 내용은 이용약관을 참고해 주세요.'
-        },
-        {
-            id: 7,
-            category: 'account',
-            question: '계정 정보를 변경하고 싶어요.',
-            answer: '내 프로필 페이지에서 개인정보 및 비밀번호를 변경하실 수 있습니다.'
-        },
-        {
-            id: 8,
-            category: 'account',
-            question: '회원 탈퇴는 어떻게 하나요?',
-            answer: '고객센터로 문의하시면 회원 탈퇴를 도와드립니다. 단, 현재 진행 중인 서비스나 예약이 있다면 완료 후 탈퇴가 가능합니다.'
-        },
-        {
-            id: 9,
-            category: 'refund',
-            question: '환불 정책은 어떻게 되나요?',
-            answer: '서비스 신청 후 3일 전: 100%, 2일 전: 70%, 하루 전: 50% 환불, 1일 이하: 환불 불가. 자세한 사항은 환불 정책을 참고해주세요.'
-        },
-        {
-            id: 10,
-            category: 'refund',
-            question: '환불은 얼마나 걸리나요?',
-            answer: '환불 승인 후 결제 수단에 따라 차이가 있습니다. 환불신청일 기준 7일 이내로 환불이 진행됩니다. 환불이 지연되는 경우 고객센터로 문의 바랍니다.'
+    // FAQ 데이터 로드
+    useEffect(() => {
+        loadFaqs();
+        loadCategories();
+        if (isAuthenticated) {
+            loadMyInquiries();
         }
-    ];
+    }, [isAuthenticated]);
 
-    // 검색어와 카테고리 필터링을 적용한 FAQ 목록
-    const filteredFAQs = faqData.filter(faq => {
-        // 검색어 필터링
-        const matchesQuery = searchQuery === '' ||
-            faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            faq.answer.toLowerCase().includes(searchQuery.toLowerCase());
+    // 카테고리 또는 검색어 변경 시 FAQ 재로드
+    useEffect(() => {
+        loadFaqs();
+    }, [selectedCategory, searchQuery]);
 
-        // 카테고리 필터링
-        const matchesCategory = selectedCategory === 'all' || faq.category === selectedCategory;
+    const loadFaqs = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            let response;
+            
+            if (searchQuery.trim()) {
+                // 검색어가 있으면 검색 API 사용
+                const category = selectedCategory !== 'all' ? selectedCategory : undefined;
+                response = await faqService.searchFaqs(searchQuery, category);
+            } else if (selectedCategory !== 'all') {
+                // 카테고리별 조회
+                response = await faqService.getFaqsByCategory(selectedCategory);
+            } else {
+                // 전체 조회
+                response = await faqService.getAllFaqs();
+            }
+            
+            if (response.success) {
+                setFaqs(response.data);
+            }
+        } catch (err: any) {
+            console.error('FAQ 로드 실패:', err);
+            setError('FAQ를 불러오는데 실패했습니다.');
+            setFaqs([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        return matchesQuery && matchesCategory;
-    });
+    const loadCategories = async () => {
+        try {
+            const response = await faqService.getAllCategories();
+            if (response.success) {
+                const loadedCategories = response.data.map((cat: FAQCategoryInfo) => ({
+                    id: cat.code,
+                    name: cat.name,
+                    count: cat.count
+                }));
+                setCategories([{ id: 'all', name: '전체' }, ...loadedCategories]);
+            }
+        } catch (err) {
+            console.error('카테고리 로드 실패:', err);
+        }
+    };
 
-    // 검색어 변경 핸들러
-    const handleSearchChange = (event: { target: { value: React.SetStateAction<string>; }; }) => {
+    const loadMyInquiries = async () => {
+        if (!isAuthenticated) return;
+        
+        setInquiriesLoading(true);
+        try {
+            const response = await inquiryService.getMyInquiries();
+            if (response.success) {
+                setMyInquiries(response.data);
+            }
+        } catch (err) {
+            console.error('문의 내역 로드 실패:', err);
+        } finally {
+            setInquiriesLoading(false);
+        }
+    };
+
+    // 필터링된 FAQ 목록 (이제는 API에서 필터링됨)
+    const filteredFAQs = faqs;
+
+    // 검색어 변경 핸들러 (디바운스 적용)
+    const handleSearchChange = (event: { target: { value: string; }; }) => {
         setSearchQuery(event.target.value);
     };
 
     // 카테고리 선택 핸들러
-    const handleCategoryChange = (categoryId: React.SetStateAction<string>) => {
+    const handleCategoryChange = (categoryId: string) => {
         setSelectedCategory(categoryId);
     };
 
@@ -272,6 +282,13 @@ const FAQPage = () => {
                             TravelLight 서비스 이용 방법과 자주 묻는 질문들을 확인하세요.
                         </Typography>
                     </Box>
+
+                    {/* 에러 메시지 */}
+                    {error && (
+                        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+                            {error}
+                        </Alert>
+                    )}
 
                     {/* 서비스 이용 가이드 섹션 */}
                     <StyledCard sx={{ 
@@ -505,7 +522,11 @@ const FAQPage = () => {
                         mx: 'auto',
                         animation: `${fadeIn} 0.6s ease-out 1s both`
                     }}>
-                        {filteredFAQs.length > 0 ? (
+                        {loading ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                                <CircularProgress />
+                            </Box>
+                        ) : filteredFAQs.length > 0 ? (
                             filteredFAQs.map((faq, index) => (
                                 <StyledAccordion 
                                     key={faq.id}
@@ -559,9 +580,8 @@ const FAQPage = () => {
                                                     lineHeight: 1.7,
                                                     fontSize: '0.95rem'
                                                 }}
-                                            >
-                                                {faq.answer}
-                                            </Typography>
+                                                dangerouslySetInnerHTML={{ __html: faq.answer }}
+                                            />
                                         </Box>
                                     </AccordionDetails>
                                 </StyledAccordion>
@@ -826,6 +846,198 @@ const FAQPage = () => {
                             ))}
                         </Grid>
                     </Box>
+
+                    {/* 내 문의 내역 */}
+                    {isAuthenticated && (
+                        <Box sx={{ mt: 10, mb: 6 }}>
+                            <Typography 
+                                variant="h4" 
+                                component="h2" 
+                                sx={{ 
+                                    mb: 6, 
+                                    fontWeight: 600,
+                                    color: '#1E293B',
+                                    textAlign: 'center',
+                                    fontSize: { xs: '1.5rem', md: '1.75rem' }
+                                }}
+                            >
+                                내 문의 내역
+                            </Typography>
+                            
+                            {inquiriesLoading ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                                    <CircularProgress />
+                                </Box>
+                            ) : myInquiries.length > 0 ? (
+                                <Grid container spacing={3}>
+                                    {myInquiries.map((inquiry, index) => (
+                                        <Grid item xs={12} key={inquiry.id}>
+                                            <StyledCard
+                                                sx={{
+                                                    p: 3,
+                                                    animation: `${fadeIn} 0.4s ease-out ${2 + index * 0.1}s both`,
+                                                    borderLeft: inquiry.status === 'ANSWERED' ? '4px solid #10B981' : '4px solid #F59E0B'
+                                                }}
+                                            >
+                                                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
+                                                    <Box sx={{ flex: 1 }}>
+                                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                                                            <Chip
+                                                                label={inquiry.inquiryTypeName}
+                                                                size="small"
+                                                                sx={{
+                                                                    bgcolor: '#E0F2FE',
+                                                                    color: '#0284C7',
+                                                                    fontWeight: 500
+                                                                }}
+                                                            />
+                                                            <Chip
+                                                                label={inquiry.statusName}
+                                                                size="small"
+                                                                sx={{
+                                                                    bgcolor: inquiry.status === 'ANSWERED' ? '#D1FAE5' : '#FEF3C7',
+                                                                    color: inquiry.status === 'ANSWERED' ? '#059669' : '#D97706',
+                                                                    fontWeight: 500
+                                                                }}
+                                                            />
+                                                        </Stack>
+                                                        <Typography 
+                                                            variant="h6" 
+                                                            sx={{ 
+                                                                fontWeight: 600,
+                                                                color: '#1E293B',
+                                                                mb: 1
+                                                            }}
+                                                        >
+                                                            {inquiry.subject}
+                                                        </Typography>
+                                                        <Typography 
+                                                            variant="body2" 
+                                                            sx={{ 
+                                                                color: '#64748B',
+                                                                mb: 1
+                                                            }}
+                                                        >
+                                                            {inquiry.content}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Typography 
+                                                        variant="caption" 
+                                                        sx={{ 
+                                                            color: '#94A3B8',
+                                                            whiteSpace: 'nowrap',
+                                                            ml: 2
+                                                        }}
+                                                    >
+                                                        {format(new Date(inquiry.createdAt), 'yyyy.MM.dd', { locale: ko })}
+                                                    </Typography>
+                                                </Stack>
+                                                
+                                                {inquiry.adminReply && (
+                                                    <Box 
+                                                        sx={{ 
+                                                            mt: 3,
+                                                            pt: 3,
+                                                            borderTop: '1px solid #E2E8F0',
+                                                            backgroundColor: '#F8FAFC',
+                                                            borderRadius: 2,
+                                                            p: 2
+                                                        }}
+                                                    >
+                                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                                                            <SupportAgentIcon sx={{ fontSize: 18, color: '#10B981' }} />
+                                                            <Typography 
+                                                                variant="subtitle2" 
+                                                                sx={{ 
+                                                                    fontWeight: 600,
+                                                                    color: '#10B981'
+                                                                }}
+                                                            >
+                                                                관리자 답변
+                                                            </Typography>
+                                                        </Stack>
+                                                        <Typography 
+                                                            variant="body2" 
+                                                            sx={{ 
+                                                                color: '#475569',
+                                                                lineHeight: 1.6,
+                                                                whiteSpace: 'pre-wrap'
+                                                            }}
+                                                        >
+                                                            {inquiry.adminReply}
+                                                        </Typography>
+                                                        {inquiry.repliedAt && (
+                                                            <Typography 
+                                                                variant="caption" 
+                                                                sx={{ 
+                                                                    color: '#94A3B8',
+                                                                    mt: 1,
+                                                                    display: 'block'
+                                                                }}
+                                                            >
+                                                                {format(new Date(inquiry.repliedAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                )}
+                                            </StyledCard>
+                                        </Grid>
+                                    ))}
+                                </Grid>
+                            ) : (
+                                <StyledCard sx={{ 
+                                    textAlign: 'center', 
+                                    py: 6,
+                                    px: 4
+                                }}>
+                                    <QuestionAnswerIcon sx={{ 
+                                        fontSize: 48, 
+                                        color: '#94A3B8',
+                                        mb: 2
+                                    }} />
+                                    <Typography 
+                                        variant="h6" 
+                                        sx={{ 
+                                            mb: 1,
+                                            fontWeight: 600,
+                                            color: '#475569'
+                                        }}
+                                    >
+                                        문의 내역이 없습니다
+                                    </Typography>
+                                    <Typography 
+                                        variant="body2" 
+                                        sx={{ 
+                                            color: '#64748B',
+                                            mb: 3
+                                        }}
+                                    >
+                                        궁금한 사항이 있으시면 1:1 문의를 이용해 주세요.
+                                    </Typography>
+                                    <Button
+                                        component={RouterLink}
+                                        to="/Inquiry"
+                                        variant="contained"
+                                        sx={{ 
+                                            backgroundColor: '#3B82F6',
+                                            color: 'white',
+                                            px: 4,
+                                            py: 1.5,
+                                            borderRadius: '10px',
+                                            fontSize: '1rem',
+                                            fontWeight: 600,
+                                            textTransform: 'none',
+                                            '&:hover': {
+                                                backgroundColor: '#2563EB'
+                                            }
+                                        }}
+                                    >
+                                        1:1 문의하기
+                                    </Button>
+                                </StyledCard>
+                            )}
+                        </Box>
+                    )}
 
                     {/* 이용 가이드 다운로드 */}
                     <StyledCard sx={{ 

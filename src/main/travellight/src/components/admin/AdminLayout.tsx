@@ -30,7 +30,9 @@ import {
   History as HistoryIcon,
   Timeline as TimelineIcon,
   RateReview as RateReviewIcon,
-  Logout as LogoutIcon
+  Logout as LogoutIcon,
+  QuestionAnswer as QuestionAnswerIcon,
+  LiveHelp as LiveHelpIcon
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../services/AuthContext';
@@ -92,6 +94,8 @@ const AdminLayout = () => {
     {
       title: '고객 서비스',
       items: [
+        { text: 'FAQ 관리', icon: <QuestionAnswerIcon />, path: '/admin/faqs' },
+        { text: '문의 관리', icon: <LiveHelpIcon />, path: '/admin/inquiries' },
         { text: '리뷰 관리', icon: <RateReviewIcon />, path: '/admin/reviews' },
       ]
     },
