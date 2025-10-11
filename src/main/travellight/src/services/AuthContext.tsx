@@ -70,23 +70,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // 인증 상태 확인 및 사용자 정보 로드
   const checkAuthStatus = async () => {
     try {
-      // localStorage에 Access Token이 있는지 먼저 확인
-      const existingToken = getAccessToken();
-
-      if (existingToken) {
-        // 기존 토큰으로 사용자 정보 로드 시도
-        try {
-          await loadCurrentUser();
-          return; // 성공하면 종료
-        } catch (error) {
-          // 토큰이 만료되었을 수 있으므로 refresh 시도
-          console.log('Existing token invalid, attempting refresh...');
-        }
-      }
-
       // 쿠키에 refresh token이 있는지 확인
       const hasRefreshToken = document.cookie.includes('refreshToken');
-
+      
       if (!hasRefreshToken) {
         setIsInitialLoading(false);
         return;
@@ -95,9 +81,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Refresh Token으로 새로운 Access Token 발급 시도
       const tokenResponse = await authService.refreshToken();
       if (tokenResponse.success && tokenResponse.data.accessToken) {
-        // Access Token을 localStorage에 저장
+        // Access Token을 메모리에 저장
         setAccessToken(tokenResponse.data.accessToken);
-
+        
         // 사용자 정보 로드
         await loadCurrentUser();
       } else {
@@ -148,9 +134,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authService.login(credentials);
       if (response.success && response.data) {
-        // Access Token을 localStorage에 저장
+        // Access Token을 메모리에 저장
         setAccessToken(response.data.accessToken);
-
+        
         // 사용자 정보 설정
         const userData: ExtendedUserResponse = {
           id: response.data.id,
@@ -159,7 +145,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           role: response.data.role,
           isAdmin: response.data.role === "ADMIN",
         };
-
+        
         setUser(userData);
         setIsAuthenticated(true);
         setIsAdmin(userData.isAdmin || false);
@@ -178,9 +164,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authService.register(data);
       if (response.success && response.data) {
-        // Access Token을 localStorage에 저장
+        // Access Token을 메모리에 저장
         setAccessToken(response.data.accessToken);
-
+        
         // 사용자 정보 설정
         const userData: ExtendedUserResponse = {
           id: response.data.id,
@@ -189,7 +175,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           role: response.data.role,
           isAdmin: response.data.role === "ADMIN",
         };
-
+        
         setUser(userData);
         setIsAuthenticated(true);
         setIsAdmin(userData.isAdmin || false);
@@ -216,9 +202,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
   
   const handleLogoutEvent = () => {
-    // Access Token localStorage에서 삭제
+    // Access Token 메모리에서 삭제
     clearAccessToken();
-
+    
     // 상태 초기화
     setUser(null);
     setIsAuthenticated(false);
@@ -232,9 +218,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authService.login(credentials);
       if (response.success && response.data && response.data.role === "ADMIN") {
-        // Access Token을 localStorage에 저장
+        // Access Token을 메모리에 저장
         setAccessToken(response.data.accessToken);
-
+        
         const adminData: ExtendedUserResponse = {
           id: response.data.id,
           name: response.data.name,
@@ -242,7 +228,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           role: response.data.role,
           isAdmin: true,
         };
-
+        
         setUser(adminData);
         setIsAuthenticated(true);
         setIsAdmin(true);
@@ -279,9 +265,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (response.success && response.data) {
-        // Access Token을 localStorage에 저장
+        // Access Token을 메모리에 저장
         setAccessToken(response.data.accessToken);
-
+        
         // 사용자 정보 설정
         const userData: ExtendedUserResponse = {
           id: response.data.id,
@@ -290,7 +276,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           role: response.data.role,
           isAdmin: response.data.role === "ADMIN",
         };
-
+        
         setUser(userData);
         setIsAuthenticated(true);
         setIsAdmin(userData.isAdmin || false);
