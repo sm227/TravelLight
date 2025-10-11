@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- 로그 파일 저장 경로 -->
+    <property name="LOG_PATH" value="${LOG_PATH:-logs}"/>
+    <property name="LOG_FILE" value="${LOG_FILE:-travellight}"/>
+
+    <!-- Console Appender - 개발 환경용 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) %magenta(${PID:- }) --- [%15.15thread] %cyan(%-40.40logger{39}) : %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- File Appender - JSON 포맷 -->
+    <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE}.json</file>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- 기본 MDC 필드 -->
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>sessionId</includeMdcKeyName>
+            <includeMdcKeyName>clientIp</includeMdcKeyName>
+            <includeMdcKeyName>userAgent</includeMdcKeyName>
+            <includeMdcKeyName>httpMethod</includeMdcKeyName>
+            <includeMdcKeyName>requestUri</includeMdcKeyName>
+            <!-- Activity Log MDC 필드 -->
+            <includeMdcKeyName>action</includeMdcKeyName>
+            <includeMdcKeyName>actionCategory</includeMdcKeyName>
+            <includeMdcKeyName>email</includeMdcKeyName>
+            <includeMdcKeyName>userName</includeMdcKeyName>
+            <includeMdcKeyName>userEmail</includeMdcKeyName>
+            <includeMdcKeyName>placeName</includeMdcKeyName>
+            <includeMdcKeyName>storageDate</includeMdcKeyName>
+            <includeMdcKeyName>amount</includeMdcKeyName>
+            <includeMdcKeyName>reservationNumber</includeMdcKeyName>
+            <includeMdcKeyName>reservationId</includeMdcKeyName>
+            <includeMdcKeyName>reason</includeMdcKeyName>
+            <includeMdcKeyName>paymentId</includeMdcKeyName>
+            <includeMdcKeyName>paymentMethod</includeMdcKeyName>
+            <includeMdcKeyName>paymentStatus</includeMdcKeyName>
+            <includeMdcKeyName>cancelReason</includeMdcKeyName>
+            <includeMdcKeyName>errorMessage</includeMdcKeyName>
+            <includeMdcKeyName>errorType</includeMdcKeyName>
+            <includeMdcKeyName>httpStatus</includeMdcKeyName>
+            <includeMdcKeyName>endpoint</includeMdcKeyName>
+            <customFields>{"service":"travellight","environment":"${SPRING_PROFILES_ACTIVE:-local}"}</customFields>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE}.%d{yyyy-MM-dd}.json</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- File Appender - 일반 텍스트 포맷 -->
+    <appender name="FILE_TEXT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE}.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level ${PID:- } --- [%thread] %-40.40logger{39} : %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE}.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Error Log File -->
+    <appender name="FILE_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE}-error.log</file>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- 기본 MDC 필드 -->
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>sessionId</includeMdcKeyName>
+            <includeMdcKeyName>clientIp</includeMdcKeyName>
+            <includeMdcKeyName>userAgent</includeMdcKeyName>
+            <includeMdcKeyName>httpMethod</includeMdcKeyName>
+            <includeMdcKeyName>requestUri</includeMdcKeyName>
+            <!-- Activity Log MDC 필드 -->
+            <includeMdcKeyName>action</includeMdcKeyName>
+            <includeMdcKeyName>actionCategory</includeMdcKeyName>
+            <includeMdcKeyName>email</includeMdcKeyName>
+            <includeMdcKeyName>userName</includeMdcKeyName>
+            <includeMdcKeyName>userEmail</includeMdcKeyName>
+            <includeMdcKeyName>placeName</includeMdcKeyName>
+            <includeMdcKeyName>storageDate</includeMdcKeyName>
+            <includeMdcKeyName>amount</includeMdcKeyName>
+            <includeMdcKeyName>reservationNumber</includeMdcKeyName>
+            <includeMdcKeyName>reservationId</includeMdcKeyName>
+            <includeMdcKeyName>reason</includeMdcKeyName>
+            <includeMdcKeyName>paymentId</includeMdcKeyName>
+            <includeMdcKeyName>paymentMethod</includeMdcKeyName>
+            <includeMdcKeyName>paymentStatus</includeMdcKeyName>
+            <includeMdcKeyName>cancelReason</includeMdcKeyName>
+            <includeMdcKeyName>errorMessage</includeMdcKeyName>
+            <includeMdcKeyName>errorType</includeMdcKeyName>
+            <includeMdcKeyName>httpStatus</includeMdcKeyName>
+            <includeMdcKeyName>endpoint</includeMdcKeyName>
+            <customFields>{"service":"travellight","environment":"${SPRING_PROFILES_ACTIVE:-local}","severity":"error"}</customFields>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE}-error.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Logstash TCP Appender - ELK 스택 연동 -->
+    <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+        <destination>${LOGSTASH_HOST:-localhost}:${LOGSTASH_PORT:-5000}</destination>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- 기본 MDC 필드 -->
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>sessionId</includeMdcKeyName>
+            <includeMdcKeyName>clientIp</includeMdcKeyName>
+            <includeMdcKeyName>userAgent</includeMdcKeyName>
+            <includeMdcKeyName>httpMethod</includeMdcKeyName>
+            <includeMdcKeyName>requestUri</includeMdcKeyName>
+            <!-- Activity Log MDC 필드 -->
+            <includeMdcKeyName>action</includeMdcKeyName>
+            <includeMdcKeyName>actionCategory</includeMdcKeyName>
+            <includeMdcKeyName>email</includeMdcKeyName>
+            <includeMdcKeyName>userName</includeMdcKeyName>
+            <includeMdcKeyName>userEmail</includeMdcKeyName>
+            <includeMdcKeyName>placeName</includeMdcKeyName>
+            <includeMdcKeyName>storageDate</includeMdcKeyName>
+            <includeMdcKeyName>amount</includeMdcKeyName>
+            <includeMdcKeyName>reservationNumber</includeMdcKeyName>
+            <includeMdcKeyName>reservationId</includeMdcKeyName>
+            <includeMdcKeyName>reason</includeMdcKeyName>
+            <includeMdcKeyName>paymentId</includeMdcKeyName>
+            <includeMdcKeyName>paymentMethod</includeMdcKeyName>
+            <includeMdcKeyName>paymentStatus</includeMdcKeyName>
+            <includeMdcKeyName>cancelReason</includeMdcKeyName>
+            <includeMdcKeyName>errorMessage</includeMdcKeyName>
+            <includeMdcKeyName>errorType</includeMdcKeyName>
+            <includeMdcKeyName>httpStatus</includeMdcKeyName>
+            <includeMdcKeyName>endpoint</includeMdcKeyName>
+            <customFields>{"service":"travellight","environment":"${SPRING_PROFILES_ACTIVE:-local}"}</customFields>
+        </encoder>
+        <!-- 연결 실패 시 재시도 설정 -->
+        <keepAliveDuration>5 minutes</keepAliveDuration>
+        <reconnectionDelay>10 seconds</reconnectionDelay>
+    </appender>
+
+    <!-- Async Appenders for better performance -->
+    <appender name="ASYNC_FILE_JSON" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE_JSON"/>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <appender name="ASYNC_LOGSTASH" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="LOGSTASH"/>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <!-- Spring profiles -->
+    <springProfile name="local, default">
+        <logger name="org.example.travellight" level="DEBUG"/>
+        <logger name="org.springframework.web" level="DEBUG"/>
+        <logger name="org.springframework.security" level="DEBUG"/>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE_TEXT"/>
+            <appender-ref ref="ASYNC_FILE_JSON"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="docker, production">
+        <logger name="org.example.travellight" level="INFO"/>
+        <logger name="org.springframework.web" level="INFO"/>
+        <logger name="org.springframework.security" level="WARN"/>
+        <logger name="org.hibernate.SQL" level="WARN"/>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE_JSON"/>
+            <appender-ref ref="FILE_ERROR"/>
+            <appender-ref ref="ASYNC_LOGSTASH"/>
+        </root>
+    </springProfile>
+
+    <!-- 특정 패키지 로그 레벨 설정 -->
+    <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_FILE_JSON"/>
+    </logger>
+
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_FILE_JSON"/>
+    </logger>
+
+    <!-- 외부 라이브러리 로그 레벨 조정 -->
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.apache" level="WARN"/>
+    <logger name="com.zaxxer.hikari" level="WARN"/>
+</configuration>

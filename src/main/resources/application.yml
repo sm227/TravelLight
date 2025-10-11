@@ -66,6 +66,11 @@ spring:
           max-idle: 8
           min-idle: 0
 
+# Elasticsearch 설정 (ELK 스택 로그 조회용)
+elasticsearch:
+  host: ${ELASTICSEARCH_HOST:localhost}
+  port: ${ELASTICSEARCH_PORT:9200}
+
 # 서버 포트 설정
 server:
   port: 8080

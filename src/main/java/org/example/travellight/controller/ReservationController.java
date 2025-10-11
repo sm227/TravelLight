@@ -34,14 +34,35 @@ public class ReservationController {
     
     @PostMapping
     public ResponseEntity<ReservationDto> createReservation(@RequestBody ReservationDto reservationDto) {
-        logger.info("예약 생성 요청: {}", reservationDto);
+        // 예약 생성 시도 로그 (ELK 전용)
+        org.slf4j.MDC.put("action", "RESERVATION_CREATE_ATTEMPT");
+        org.slf4j.MDC.put("actionCategory", "RESERVATION");
+        org.slf4j.MDC.put("placeName", reservationDto.getPlaceName());
+        org.slf4j.MDC.put("storageDate", reservationDto.getStorageDate() != null ? reservationDto.getStorageDate().toString() : "");
+        org.slf4j.MDC.put("amount", String.valueOf(reservationDto.getTotalPrice()));
+        logger.info("RESERVATION_CREATE_ATTEMPT - Place: {}, Amount: {}",
+            reservationDto.getPlaceName(), reservationDto.getTotalPrice());
+
         try {
             ReservationDto createdReservation = reservationService.createReservation(reservationDto);
-            logger.info("예약 생성 성공: {}", createdReservation);
+
+            // 예약 생성 성공 로그
+            org.slf4j.MDC.put("action", "RESERVATION_CREATE_SUCCESS");
+            org.slf4j.MDC.put("actionCategory", "RESERVATION");
+            org.slf4j.MDC.put("reservationNumber", createdReservation.getReservationNumber());
+            org.slf4j.MDC.put("reservationId", String.valueOf(createdReservation.getId()));
+            logger.info("RESERVATION_CREATE_SUCCESS - ReservationNumber: {}", createdReservation.getReservationNumber());
+
             return new ResponseEntity<>(createdReservation, HttpStatus.CREATED);
         } catch (Exception e) {
-            logger.error("예약 생성 중 오류 발생: {}", e.getMessage(), e);
+            // 예약 생성 실패 로그
+            org.slf4j.MDC.put("action", "RESERVATION_CREATE_FAIL");
+            org.slf4j.MDC.put("actionCategory", "RESERVATION");
+            org.slf4j.MDC.put("reason", e.getMessage());
+            logger.error("RESERVATION_CREATE_FAIL - Reason: {}", e.getMessage(), e);
             throw e;
+        } finally {
+            org.slf4j.MDC.clear();
         }
     }
     
@@ -98,14 +119,22 @@ public class ReservationController {
     
     @PutMapping("/{reservationNumber}/cancel")
     public ResponseEntity<CommonApiResponse> cancelReservationByNumber(@PathVariable String reservationNumber) {
-        logger.info("예약 취소 요청: {}", reservationNumber);
+        // 예약 취소 로그 (ELK 전용)
+        org.slf4j.MDC.put("action", "RESERVATION_CANCEL");
+        org.slf4j.MDC.put("actionCategory", "RESERVATION");
+        org.slf4j.MDC.put("reservationNumber", reservationNumber);
+        logger.info("RESERVATION_CANCEL - ReservationNumber: {}", reservationNumber);
+
         try {
             reservationService.cancelReservationByNumber(reservationNumber);
-            logger.info("예약 취소 성공: {}", reservationNumber);
+            logger.info("RESERVATION_CANCEL_SUCCESS - ReservationNumber: {}", reservationNumber);
             return ResponseEntity.ok(CommonApiResponse.success("예약이 성공적으로 취소되었습니다.", null));
         } catch (Exception e) {
-            logger.error("예약 취소 중 오류 발생: {}", e.getMessage(), e);
+            org.slf4j.MDC.put("reason", e.getMessage());
+            logger.error("RESERVATION_CANCEL_FAIL - Reason: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(CommonApiResponse.error(e.getMessage()));
+        } finally {
+            org.slf4j.MDC.clear();
         }
     }
     
