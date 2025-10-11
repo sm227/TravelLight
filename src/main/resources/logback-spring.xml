@@ -28,6 +28,7 @@
             <includeMdcKeyName>requestUri</includeMdcKeyName>
             <!-- Activity Log MDC 필드 -->
             <includeMdcKeyName>action</includeMdcKeyName>
+            <includeMdcKeyName>actionCategory</includeMdcKeyName>
             <includeMdcKeyName>email</includeMdcKeyName>
             <includeMdcKeyName>userName</includeMdcKeyName>
             <includeMdcKeyName>userEmail</includeMdcKeyName>
@@ -87,6 +88,7 @@
             <includeMdcKeyName>requestUri</includeMdcKeyName>
             <!-- Activity Log MDC 필드 -->
             <includeMdcKeyName>action</includeMdcKeyName>
+            <includeMdcKeyName>actionCategory</includeMdcKeyName>
             <includeMdcKeyName>email</includeMdcKeyName>
             <includeMdcKeyName>userName</includeMdcKeyName>
             <includeMdcKeyName>userEmail</includeMdcKeyName>
@@ -127,6 +129,7 @@
             <includeMdcKeyName>requestUri</includeMdcKeyName>
             <!-- Activity Log MDC 필드 -->
             <includeMdcKeyName>action</includeMdcKeyName>
+            <includeMdcKeyName>actionCategory</includeMdcKeyName>
             <includeMdcKeyName>email</includeMdcKeyName>
             <includeMdcKeyName>userName</includeMdcKeyName>
             <includeMdcKeyName>userEmail</includeMdcKeyName>

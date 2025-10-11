@@ -26,6 +26,7 @@ public class PaymentController {
 
         // 결제 시도 로그 (ELK 전용)
         org.slf4j.MDC.put("action", "PAYMENT_ATTEMPT");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
         org.slf4j.MDC.put("paymentId", paymentId);
         org.slf4j.MDC.put("paymentMethod", payMethod != null ? payMethod : "unknown");
         log.info("PAYMENT_ATTEMPT - PaymentId: {}, Method: {}", paymentId, payMethod);
@@ -33,6 +34,7 @@ public class PaymentController {
         try {
             if (paymentId == null || paymentId.isEmpty()) {
                 org.slf4j.MDC.put("action", "PAYMENT_FAIL");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
                 org.slf4j.MDC.put("reason", "Missing payment ID");
                 log.warn("PAYMENT_FAIL - Missing payment ID");
                 return ResponseEntity.badRequest()
@@ -44,6 +46,7 @@ public class PaymentController {
 
             if (paymentInfo == null) {
                 org.slf4j.MDC.put("action", "PAYMENT_FAIL");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
                 org.slf4j.MDC.put("reason", "Verification failed");
                 log.error("PAYMENT_FAIL - Verification failed: paymentId = {}", paymentId);
                 return ResponseEntity.badRequest()
@@ -53,6 +56,7 @@ public class PaymentController {
             String paymentStatus = (String) paymentInfo.get("status");
             if (!"PAID".equals(paymentStatus)) {
                 org.slf4j.MDC.put("action", "PAYMENT_FAIL");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
                 org.slf4j.MDC.put("status", paymentStatus);
                 org.slf4j.MDC.put("reason", "Payment not completed");
                 log.error("PAYMENT_FAIL - Status: {}, paymentId = {}", paymentStatus, paymentId);
@@ -62,6 +66,7 @@ public class PaymentController {
 
             // 결제 성공 로그
             org.slf4j.MDC.put("action", "PAYMENT_SUCCESS");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
             org.slf4j.MDC.put("amount", paymentInfo.get("amount").toString());
             org.slf4j.MDC.put("status", "PAID");
             log.info("PAYMENT_SUCCESS - PaymentId: {}, Amount: {}, Method: {}",
@@ -78,6 +83,7 @@ public class PaymentController {
 
         } catch (Exception e) {
             org.slf4j.MDC.put("action", "PAYMENT_ERROR");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
             org.slf4j.MDC.put("errorMessage", e.getMessage());
             log.error("PAYMENT_ERROR - Exception: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError()
@@ -104,6 +110,7 @@ public class PaymentController {
 
         // 결제 취소 시도 로그 (ELK 전용)
         org.slf4j.MDC.put("action", "PAYMENT_CANCEL_ATTEMPT");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
         org.slf4j.MDC.put("paymentId", paymentId);
         org.slf4j.MDC.put("cancelReason", reason);
         log.info("PAYMENT_CANCEL_ATTEMPT - PaymentId: {}, Reason: {}", paymentId, reason);
@@ -114,6 +121,7 @@ public class PaymentController {
 
             // 결제 취소 성공 로그
             org.slf4j.MDC.put("action", "PAYMENT_CANCEL_SUCCESS");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
             log.info("PAYMENT_CANCEL_SUCCESS - PaymentId: {}", paymentId);
 
             return ResponseEntity.ok(CommonApiResponse.success("결제가 성공적으로 취소되었습니다.", null));
@@ -121,6 +129,7 @@ public class PaymentController {
         } catch (Exception e) {
             // 결제 취소 실패 로그
             org.slf4j.MDC.put("action", "PAYMENT_CANCEL_FAIL");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
             org.slf4j.MDC.put("errorMessage", e.getMessage());
             log.error("PAYMENT_CANCEL_FAIL - PaymentId: {}, Error: {}", paymentId, e.getMessage(), e);
             return ResponseEntity.badRequest()

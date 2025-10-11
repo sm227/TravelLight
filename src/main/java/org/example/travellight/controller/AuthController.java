@@ -81,6 +81,7 @@ public class AuthController {
 
             // 로그인 성공 로그 (ELK 전용 - DB 저장 안 함)
             org.slf4j.MDC.put("action", "LOGIN_SUCCESS");
+            org.slf4j.MDC.put("actionCategory", "LOGIN");
             org.slf4j.MDC.put("userId", userResponse.getId().toString());
             org.slf4j.MDC.put("email", userResponse.getEmail());
             org.slf4j.MDC.put("userName", userResponse.getName());
@@ -96,6 +97,7 @@ public class AuthController {
         } catch (Exception e) {
             // 로그인 실패 로그
             org.slf4j.MDC.put("action", "LOGIN_FAIL");
+            org.slf4j.MDC.put("actionCategory", "LOGIN");
             org.slf4j.MDC.put("attemptedEmail", request.getEmail());
             org.slf4j.MDC.put("clientIp", getClientIP(httpRequest));
             org.slf4j.MDC.put("reason", e.getMessage());
@@ -124,6 +126,7 @@ public class AuthController {
 
             // 로그아웃 로그 (ELK 전용)
             org.slf4j.MDC.put("action", "LOGOUT");
+            org.slf4j.MDC.put("actionCategory", "LOGIN");
             log.info("LOGOUT - Session ended");
 
             // 쿠키 삭제

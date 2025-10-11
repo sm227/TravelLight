@@ -20,6 +20,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonApiResponse<Void>> handleCustomException(CustomException e, HttpServletRequest request) {
         // 에러 로그 (ELK 전용)
         MDC.put("action", "ERROR_CUSTOM");
+        MDC.put("actionCategory", "ERROR");
         MDC.put("errorType", "CustomException");
         MDC.put("errorMessage", e.getMessage());
         MDC.put("httpStatus", String.valueOf(e.getStatus().value()));
@@ -37,6 +38,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonApiResponse<Void>> handleHttpMessageNotReadableException(HttpMessageNotReadableException e, HttpServletRequest request) {
         // 에러 로그 (ELK 전용)
         MDC.put("action", "ERROR_BAD_REQUEST");
+        MDC.put("actionCategory", "ERROR");
         MDC.put("errorType", "HttpMessageNotReadableException");
         MDC.put("errorMessage", e.getMessage());
         MDC.put("httpStatus", String.valueOf(HttpStatus.BAD_REQUEST.value()));
@@ -54,6 +56,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException e, HttpServletRequest request) {
         // 에러 로그 (ELK 전용)
         MDC.put("action", "ERROR_INVALID_ARGUMENT");
+        MDC.put("actionCategory", "ERROR");
         MDC.put("errorType", "IllegalArgumentException");
         MDC.put("errorMessage", e.getMessage());
         MDC.put("httpStatus", String.valueOf(HttpStatus.BAD_REQUEST.value()));
@@ -71,6 +74,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonApiResponse<Void>> handleException(Exception e, HttpServletRequest request) {
         // 에러 로그 (ELK 전용)
         MDC.put("action", "ERROR_UNHANDLED");
+        MDC.put("actionCategory", "ERROR");
         MDC.put("errorType", e.getClass().getSimpleName());
         MDC.put("errorMessage", e.getMessage());
         MDC.put("httpStatus", String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()));
