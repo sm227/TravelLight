@@ -55,8 +55,9 @@ api.interceptors.response.use(
       
       try {
         // 토큰 갱신 요청
-        const refreshResponse = await axios.post('/api/auth/refresh', {}, {
-          withCredentials: true
+        const refreshResponse = await axios.post('/auth/refresh', {}, {
+          withCredentials: true,
+          baseURL: API_BASE_URL
         });
         
         if (refreshResponse.data.success) {
@@ -687,6 +688,194 @@ export const reviewService = {
   getHighReportReviews: async (threshold: number = 3): Promise<ApiResponse<ReviewResponse[]>> => {
     const response = await api.get<ApiResponse<ReviewResponse[]>>('/reviews/admin/high-reports', {
       params: { threshold }
+    });
+    return response.data;
+  }
+};
+
+// FAQ 관련 타입 정의
+export interface FAQResponse {
+  id: number;
+  category: string;
+  categoryName: string;
+  question: string;
+  answer: string;
+  sortOrder: number;
+  isActive: boolean;
+  viewCount: number;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  updatedBy?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
+export interface FAQCategoryInfo {
+  code: string;
+  name: string;
+  count: number;
+}
+
+// FAQ 관련 서비스
+export const faqService = {
+  // FAQ 목록 조회 (활성화된 FAQ만)
+  getAllFaqs: async (): Promise<ApiResponse<FAQResponse[]>> => {
+    const response = await api.get<ApiResponse<FAQResponse[]>>('/faqs');
+    return response.data;
+  },
+
+  // 카테고리별 FAQ 목록 조회
+  getFaqsByCategory: async (category: string): Promise<ApiResponse<FAQResponse[]>> => {
+    const response = await api.get<ApiResponse<FAQResponse[]>>(`/faqs/category/${category}`);
+    return response.data;
+  },
+
+  // FAQ 상세 조회
+  getFaq: async (faqId: number): Promise<ApiResponse<FAQResponse>> => {
+    const response = await api.get<ApiResponse<FAQResponse>>(`/faqs/${faqId}`);
+    return response.data;
+  },
+
+  // FAQ 검색
+  searchFaqs: async (keyword?: string, category?: string): Promise<ApiResponse<FAQResponse[]>> => {
+    const response = await api.get<ApiResponse<FAQResponse[]>>('/faqs/search', {
+      params: { keyword, category }
+    });
+    return response.data;
+  },
+
+  // 카테고리 목록 조회
+  getAllCategories: async (): Promise<ApiResponse<FAQCategoryInfo[]>> => {
+    const response = await api.get<ApiResponse<FAQCategoryInfo[]>>('/faqs/categories');
+    return response.data;
+  },
+
+  // 인기 FAQ 조회
+  getPopularFaqs: async (limit: number = 5): Promise<ApiResponse<FAQResponse[]>> => {
+    const response = await api.get<ApiResponse<FAQResponse[]>>('/faqs/popular', {
+      params: { limit }
+    });
+    return response.data;
+  }
+};
+
+// 문의 관련 타입 정의
+export interface InquiryResponse {
+  id: number;
+  inquiryType: string;
+  inquiryTypeName: string;
+  subject: string;
+  content: string;
+  email: string;
+  phone?: string;
+  status: string;
+  statusName: string;
+  adminReply?: string;
+  repliedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  adminUser?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
+export interface InquiryRequest {
+  inquiryType: string;
+  subject: string;
+  content: string;
+  email: string;
+  phone?: string;
+}
+
+// 문의 관련 서비스
+export const inquiryService = {
+  // 문의 생성
+  createInquiry: async (data: InquiryRequest): Promise<ApiResponse<InquiryResponse>> => {
+    const response = await api.post<ApiResponse<InquiryResponse>>('/inquiries', data);
+    return response.data;
+  },
+
+  // 내 문의 목록 조회
+  getMyInquiries: async (): Promise<ApiResponse<InquiryResponse[]>> => {
+    const response = await api.get<ApiResponse<InquiryResponse[]>>('/inquiries/my');
+    return response.data;
+  },
+
+  // 문의 상세 조회
+  getInquiry: async (inquiryId: number): Promise<ApiResponse<InquiryResponse>> => {
+    const response = await api.get<ApiResponse<InquiryResponse>>(`/inquiries/${inquiryId}`);
+    return response.data;
+  },
+
+  // 내 답변 대기 중인 문의 개수
+  getMyPendingCount: async (): Promise<ApiResponse<number>> => {
+    const response = await api.get<ApiResponse<number>>('/inquiries/my/pending-count');
+    return response.data;
+  }
+};
+
+// ==================== Activity Log API ====================
+
+export interface ActivityLogDto {
+  timestamp: string;
+  action: string;
+  actionCategory: string;
+  userId: number;
+  userEmail: string;
+  userName: string;
+  clientIp: string;
+  httpMethod: string;
+  requestUri: string;
+  level: string;
+  message: string;
+  details: string;
+  httpStatus: string;
+  errorType: string;
+}
+
+export interface ActivityLogSearchParams {
+  userId?: number;
+  actionCategory?: string;
+  action?: string;
+  level?: string;
+  days?: number;
+  page?: number;
+  size?: number;
+}
+
+export const activityLogService = {
+  // 활동 로그 조회
+  getActivityLogs: async (params: ActivityLogSearchParams): Promise<ApiResponse<ActivityLogDto[]>> => {
+    const response = await api.get<ApiResponse<ActivityLogDto[]>>('/admin/activity-logs', {
+      params
+    });
+    return response.data;
+  },
+
+  // 특정 사용자의 최근 활동 조회
+  getRecentUserActivity: async (userId: number): Promise<ApiResponse<ActivityLogDto[]>> => {
+    const response = await api.get<ApiResponse<ActivityLogDto[]>>(`/admin/activity-logs/user/${userId}/recent`);
+    return response.data;
+  },
+
+  // 특정 사용자의 에러 로그 조회
+  getUserErrors: async (userId: number, days: number = 30): Promise<ApiResponse<ActivityLogDto[]>> => {
+    const response = await api.get<ApiResponse<ActivityLogDto[]>>(`/admin/activity-logs/user/${userId}/errors`, {
+      params: { days }
     });
     return response.data;
   }

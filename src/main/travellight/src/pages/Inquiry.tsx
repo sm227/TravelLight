@@ -16,24 +16,31 @@ import {
     FormHelperText,
     Stack,
     Snackbar,
-    Alert
+    Alert,
+    CircularProgress
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import KeyboardBackspaceIcon from '@mui/icons-material/KeyboardBackspace';
 import { Link as RouterLink } from 'react-router-dom';
+import { inquiryService, InquiryRequest } from '../services/api';
+import { useAuth } from '../services/AuthContext';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 /**
  * 1:1 문의하기 페이지 컴포넌트
  * 사용자가 고객센터에 직접 문의할 수 있는 폼을 제공합니다.
  */
 const InquiryPage = () => {
+    const { user } = useAuth();
+    
     // 폼 상태 관리
     const [formData, setFormData] = useState({
         inquiryType: '',
         subject: '',
         content: '',
-        email: '',
+        email: user?.email || '',
         phone: '',
         files: []
     });
@@ -48,6 +55,8 @@ const InquiryPage = () => {
 
     // 제출 완료 상태
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [inquiryNumber, setInquiryNumber] = useState<string>('');
 
     // 알림 상태
     const [notification, setNotification] = useState<{
@@ -140,22 +149,73 @@ const InquiryPage = () => {
     };
 
     // 문의 제출 핸들러
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (validateForm()) {
-            // 여기서 실제 API 호출을 수행합니다
-            console.log('문의사항 제출:', formData);
-
-            // 제출 완료 상태로 변경
-            setIsSubmitted(true);
-
-            // 성공 알림
+        // 로그인 체크
+        if (!user) {
             setNotification({
                 open: true,
-                message: '문의사항이 성공적으로 제출되었습니다.',
-                severity: 'success'
+                message: '문의를 제출하려면 로그인이 필요합니다.',
+                severity: 'warning'
             });
+            // 3초 후 로그인 페이지로 이동
+            setTimeout(() => {
+                window.location.href = '/login?redirect=/Inquiry';
+            }, 2000);
+            return;
+        }
+
+        if (validateForm()) {
+            setSubmitting(true);
+            try {
+                // 백엔드 API 호출
+                const inquiryData: InquiryRequest = {
+                    inquiryType: formData.inquiryType.toUpperCase(),
+                    subject: formData.subject,
+                    content: formData.content,
+                    email: formData.email,
+                    phone: formData.phone || undefined
+                };
+
+                console.log('문의 데이터:', inquiryData); // 디버깅용
+
+                const response = await inquiryService.createInquiry(inquiryData);
+
+                if (response.success) {
+                    // 제출 완료 상태로 변경
+                    setIsSubmitted(true);
+                    setInquiryNumber(`INQ-${response.data.id.toString().padStart(6, '0')}`);
+
+                    // 성공 알림
+                    setNotification({
+                        open: true,
+                        message: '문의사항이 성공적으로 제출되었습니다.',
+                        severity: 'success'
+                    });
+                }
+            } catch (error: any) {
+                console.error('문의 제출 실패:', error);
+                console.error('에러 응답:', error.response); // 디버깅용
+                
+                let errorMessage = '문의 제출에 실패했습니다.';
+                
+                if (error.response?.status === 401) {
+                    errorMessage = '로그인이 필요합니다. 다시 로그인해주세요.';
+                } else if (error.response?.data?.message) {
+                    errorMessage = error.response.data.message;
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+                
+                setNotification({
+                    open: true,
+                    message: errorMessage,
+                    severity: 'error'
+                });
+            } finally {
+                setSubmitting(false);
+            }
         } else {
             // 오류 알림
             setNotification({
@@ -172,15 +232,34 @@ const InquiryPage = () => {
             inquiryType: '',
             subject: '',
             content: '',
-            email: '',
+            email: user?.email || '',
             phone: '',
             files: []
         });
         setIsSubmitted(false);
+        setInquiryNumber('');
     };
 
     return (
-        <Container maxWidth="md" sx={{ py: 8 }}>
+        <>
+            <Navbar />
+            <Container maxWidth="md" sx={{ py: 8, mt: 8 }}>
+            {/* 로그인 안내 */}
+            {!user && (
+                <Alert severity="info" sx={{ mb: 4 }}>
+                    문의를 제출하려면 로그인이 필요합니다. 
+                    <Button 
+                        component={RouterLink} 
+                        to="/login?redirect=/Inquiry"
+                        sx={{ ml: 2 }}
+                        size="small"
+                        variant="outlined"
+                    >
+                        로그인하기
+                    </Button>
+                </Alert>
+            )}
+            
             {/* 헤더 섹션 */}
             <Box sx={{ mb: 6, textAlign: 'center' }}>
                 <Typography variant="h4" component="h1" gutterBottom fontWeight="bold" color="primary.main">
@@ -211,7 +290,7 @@ const InquiryPage = () => {
                         빠른 시일 내에 담당자가 검토 후 답변을 드리겠습니다.
                     </Typography>
                     <Typography variant="body2" color="text.secondary" paragraph>
-                        접수 번호: INQ-{new Date().getTime().toString().slice(-8)}
+                        접수 번호: {inquiryNumber}
                     </Typography>
                     <Button
                         variant="contained"
@@ -368,10 +447,11 @@ const InquiryPage = () => {
                                 variant="contained"
                                 color="primary"
                                 size="large"
-                                endIcon={<SendIcon />}
+                                endIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+                                disabled={submitting}
                                 sx={{ borderRadius: '24px', px: 4, py: 1.5 }}
                             >
-                                문의 제출하기
+                                {submitting ? '제출 중...' : '문의 제출하기'}
                             </Button>
                         </Grid>
                     </Grid>
@@ -427,6 +507,8 @@ const InquiryPage = () => {
                 </Alert>
             </Snackbar>
         </Container>
+        <Footer />
+        </>
     );
 };
 

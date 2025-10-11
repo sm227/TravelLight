@@ -21,53 +21,75 @@ public class PaymentController {
 
     @PostMapping("/portone/complete")
     public ResponseEntity<?> completePortonePayment(@RequestBody Map<String, String> request) {
+        String paymentId = request.get("paymentId");
+        String payMethod = request.get("payMethod");
+
+        // 결제 시도 로그 (ELK 전용)
+        org.slf4j.MDC.put("action", "PAYMENT_ATTEMPT");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
+        org.slf4j.MDC.put("paymentId", paymentId);
+        org.slf4j.MDC.put("paymentMethod", payMethod != null ? payMethod : "unknown");
+        log.info("PAYMENT_ATTEMPT - PaymentId: {}, Method: {}", paymentId, payMethod);
+
         try {
-            String paymentId = request.get("paymentId");
-            String payMethod = request.get("payMethod"); // 결제 수단 정보 추가
-            
             if (paymentId == null || paymentId.isEmpty()) {
+                org.slf4j.MDC.put("action", "PAYMENT_FAIL");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
+                org.slf4j.MDC.put("reason", "Missing payment ID");
+                log.warn("PAYMENT_FAIL - Missing payment ID");
                 return ResponseEntity.badRequest()
                     .body(Map.of("error", "결제 ID가 필요합니다."));
             }
-            
-            log.info("포트원 결제 완료 처리: paymentId = {}, payMethod = {}", paymentId, payMethod);
-            
-            // PayPal 결제인 경우 추가 로그
-            if ("paypal".equalsIgnoreCase(payMethod)) {
-                log.info("PayPal 결제 완료: paymentId = {}", paymentId);
-            }
-            
+
             // 포트원 API를 통한 실제 결제 검증
             Map<String, Object> paymentInfo = portOnePaymentService.verifyPayment(paymentId);
-            
+
             if (paymentInfo == null) {
-                log.error("결제 검증 실패: paymentId = {}", paymentId);
+                org.slf4j.MDC.put("action", "PAYMENT_FAIL");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
+                org.slf4j.MDC.put("reason", "Verification failed");
+                log.error("PAYMENT_FAIL - Verification failed: paymentId = {}", paymentId);
                 return ResponseEntity.badRequest()
                     .body(Map.of("error", "결제 검증에 실패했습니다."));
             }
-            
+
             String paymentStatus = (String) paymentInfo.get("status");
             if (!"PAID".equals(paymentStatus)) {
-                log.error("결제가 완료되지 않음: paymentId = {}, status = {}", paymentId, paymentStatus);
+                org.slf4j.MDC.put("action", "PAYMENT_FAIL");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
+                org.slf4j.MDC.put("status", paymentStatus);
+                org.slf4j.MDC.put("reason", "Payment not completed");
+                log.error("PAYMENT_FAIL - Status: {}, paymentId = {}", paymentStatus, paymentId);
                 return ResponseEntity.badRequest()
                     .body(Map.of("error", "결제가 완료되지 않았습니다. 상태: " + paymentStatus));
             }
-            
-            log.info("포트원 결제 검증 성공: paymentId = {}", paymentId);
-            
+
+            // 결제 성공 로그
+            org.slf4j.MDC.put("action", "PAYMENT_SUCCESS");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
+            org.slf4j.MDC.put("amount", paymentInfo.get("amount").toString());
+            org.slf4j.MDC.put("status", "PAID");
+            log.info("PAYMENT_SUCCESS - PaymentId: {}, Amount: {}, Method: {}",
+                paymentId, paymentInfo.get("amount"), payMethod);
+
             Map<String, Object> response = new HashMap<>();
             response.put("status", "PAID");
             response.put("paymentId", paymentId);
             response.put("payMethod", payMethod);
             response.put("message", getSuccessMessage(payMethod));
             response.put("amount", paymentInfo.get("amount"));
-            
+
             return ResponseEntity.ok(response);
-            
+
         } catch (Exception e) {
-            log.error("포트원 결제 완료 처리 중 오류 발생", e);
+            org.slf4j.MDC.put("action", "PAYMENT_ERROR");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
+            org.slf4j.MDC.put("errorMessage", e.getMessage());
+            log.error("PAYMENT_ERROR - Exception: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError()
                 .body(Map.of("error", "결제 처리 중 오류가 발생했습니다: " + e.getMessage()));
+        } finally {
+            org.slf4j.MDC.clear();
         }
     }
     
@@ -84,22 +106,36 @@ public class PaymentController {
     @PostMapping("/{paymentId}/cancel")
     public ResponseEntity<CommonApiResponse> cancelPayment(@PathVariable String paymentId,
                                                            @RequestBody Map<String, String> request) {
+        String reason = request.getOrDefault("reason", "고객 요청");
+
+        // 결제 취소 시도 로그 (ELK 전용)
+        org.slf4j.MDC.put("action", "PAYMENT_CANCEL_ATTEMPT");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
+        org.slf4j.MDC.put("paymentId", paymentId);
+        org.slf4j.MDC.put("cancelReason", reason);
+        log.info("PAYMENT_CANCEL_ATTEMPT - PaymentId: {}, Reason: {}", paymentId, reason);
+
         try {
-            String reason = request.getOrDefault("reason", "고객 요청");
-            
-            log.info("결제 취소 요청: paymentId = {}, reason = {}", paymentId, reason);
-            
             // 실제 포트원 API를 통한 결제 취소
             portOnePaymentService.cancelPayment(paymentId, reason);
-            
-            log.info("결제 취소 완료: paymentId = {}", paymentId);
-            
+
+            // 결제 취소 성공 로그
+            org.slf4j.MDC.put("action", "PAYMENT_CANCEL_SUCCESS");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
+            log.info("PAYMENT_CANCEL_SUCCESS - PaymentId: {}", paymentId);
+
             return ResponseEntity.ok(CommonApiResponse.success("결제가 성공적으로 취소되었습니다.", null));
-            
+
         } catch (Exception e) {
-            log.error("결제 취소 처리 중 오류 발생: paymentId = {}", paymentId, e);
+            // 결제 취소 실패 로그
+            org.slf4j.MDC.put("action", "PAYMENT_CANCEL_FAIL");
+        org.slf4j.MDC.put("actionCategory", "PAYMENT");
+            org.slf4j.MDC.put("errorMessage", e.getMessage());
+            log.error("PAYMENT_CANCEL_FAIL - PaymentId: {}, Error: {}", paymentId, e.getMessage(), e);
             return ResponseEntity.badRequest()
                 .body(CommonApiResponse.error("결제 취소 중 오류가 발생했습니다: " + e.getMessage()));
+        } finally {
+            org.slf4j.MDC.clear();
         }
     }
     
