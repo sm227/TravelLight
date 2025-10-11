@@ -3,20 +3,24 @@ import axios from 'axios';
 // 프록시 설정을 사용하므로 기본 URL은 상대 경로로 설정
 const API_BASE_URL = '/api';
 
-// Access Token을 메모리에 저장
-let accessToken: string | null = null;
+// Access Token을 localStorage에 저장
+const ACCESS_TOKEN_KEY = 'accessToken';
 
 // Access Token 관리 함수들
 export const setAccessToken = (token: string | null) => {
-  accessToken = token;
+  if (token) {
+    localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+  }
 };
 
 export const getAccessToken = (): string | null => {
-  return accessToken;
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
 };
 
 export const clearAccessToken = () => {
-  accessToken = null;
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
 };
 
 const api = axios.create({
@@ -30,8 +34,9 @@ const api = axios.create({
 // 요청 인터셉터 - Access Token을 Authorization 헤더에 추가
 api.interceptors.request.use(
   (config) => {
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
+    const token = getAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
