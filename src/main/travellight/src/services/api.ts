@@ -55,8 +55,9 @@ api.interceptors.response.use(
       
       try {
         // 토큰 갱신 요청
-        const refreshResponse = await axios.post('/api/auth/refresh', {}, {
-          withCredentials: true
+        const refreshResponse = await axios.post('/auth/refresh', {}, {
+          withCredentials: true,
+          baseURL: API_BASE_URL
         });
         
         if (refreshResponse.data.success) {
