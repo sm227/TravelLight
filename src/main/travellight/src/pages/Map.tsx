@@ -185,9 +185,35 @@ const Map = () => {
     "portone"
   ); // 기본값을 포트원으로 설정
   const [storageDuration, setStorageDuration] = useState("day");
-  const [storageDate, setStorageDate] = useState("");
-  const [storageStartTime, setStorageStartTime] = useState("");
-  const [storageEndTime, setStorageEndTime] = useState("");
+
+  // 초기 날짜와 시간 설정 함수
+  const getInitialDateTime = () => {
+    const now = new Date();
+    const todayDate = now.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+
+    // 현재 시간 + 1시간을 시작 시간으로
+    const startTime = new Date(now.getTime() + 60 * 60 * 1000);
+    const startHour = startTime.getHours().toString().padStart(2, '0');
+    const startMinute = startTime.getMinutes().toString().padStart(2, '0');
+    const startTimeStr = `${startHour}:${startMinute}`;
+
+    // 현재 시간 + 2시간을 종료 시간으로
+    const endTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    const endHour = endTime.getHours().toString().padStart(2, '0');
+    const endMinute = endTime.getMinutes().toString().padStart(2, '0');
+    const endTimeStr = `${endHour}:${endMinute}`;
+
+    return {
+      date: todayDate,
+      startTime: startTimeStr,
+      endTime: endTimeStr
+    };
+  };
+
+  const initialDateTime = getInitialDateTime();
+  const [storageDate, setStorageDate] = useState(initialDateTime.date);
+  const [storageStartTime, setStorageStartTime] = useState(initialDateTime.startTime);
+  const [storageEndTime, setStorageEndTime] = useState(initialDateTime.endTime);
   // 시간 유효성 상태 추가
   const [isTimeValid, setIsTimeValid] = useState(true);
   // 종료 날짜 상태 추가
