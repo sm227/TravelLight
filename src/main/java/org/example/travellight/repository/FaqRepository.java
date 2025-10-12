@@ -61,3 +61,4 @@ public interface FaqRepository extends JpaRepository<Faq, Long> {
     List<Faq> findTopByViewCount(Pageable pageable);
 }
 
+

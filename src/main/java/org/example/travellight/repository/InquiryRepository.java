@@ -35,3 +35,5 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
     Long countByStatus(InquiryStatus status);
 }
 
+
+
