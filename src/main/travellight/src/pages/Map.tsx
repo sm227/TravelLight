@@ -4243,8 +4243,27 @@ const Map = () => {
       console.log("========================");
 
       if (payment.code !== undefined) {
-        // 결제 실패
+        // 결제 실패 또는 사용자 취소
         console.error("결제 실패:", payment.code, payment.message);
+
+        // 결제 취소 로그를 백엔드에 전송
+        try {
+          await fetch("/api/admin/activity-logs/payment-cancel", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              userId: user?.id,
+              reason: payment.message || "사용자가 결제 창을 닫음",
+              paymentMethod: paymentMethod === "paypal" ? "paypal" : "card",
+              amount: totalPrice.toString(),
+            }),
+          });
+        } catch (error) {
+          console.error("결제 취소 로그 전송 실패:", error);
+        }
+
         setReservationError(`결제 실패: ${payment.message}`);
         setIsProcessingPayment(false);
         return;
@@ -4361,6 +4380,25 @@ const Map = () => {
       }
     } catch (error) {
       console.error("포트원 결제 처리 중 오류:", error);
+
+      // 결제 오류 로그를 백엔드에 전송
+      try {
+        await fetch("/api/admin/activity-logs/payment-cancel", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: user?.id,
+            reason: `결제 처리 중 오류 발생: ${error}`,
+            paymentMethod: paymentMethod === "paypal" ? "paypal" : "card",
+            amount: totalPrice.toString(),
+          }),
+        });
+      } catch (logError) {
+        console.error("결제 오류 로그 전송 실패:", logError);
+      }
+
       setReservationError("결제 처리 중 오류가 발생했습니다.");
     } finally {
       setIsProcessingPayment(false);

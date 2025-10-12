@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 활동 로그 API 컨트롤러
@@ -146,6 +147,48 @@ public class ActivityLogController {
             log.error("사용자 에러 로그 조회 중 오류 발생", e);
             return ResponseEntity.internalServerError()
                     .body(CommonApiResponse.error("에러 로그 조회 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 결제 취소 로그 기록 (프론트엔드에서 호출)
+     * - 사용자가 결제 창을 닫거나 결제 도중 취소한 경우
+     *
+     * @param request userId, reason, paymentMethod, amount 등
+     * @return 성공 응답
+     */
+    @PostMapping("/payment-cancel")
+    public ResponseEntity<CommonApiResponse<Void>> logPaymentCancel(@RequestBody Map<String, Object> request) {
+        try {
+            Long userId = request.get("userId") != null ? Long.parseLong(request.get("userId").toString()) : null;
+            String reason = (String) request.getOrDefault("reason", "사용자가 결제 취소");
+            String paymentMethod = (String) request.get("paymentMethod");
+            String amount = request.get("amount") != null ? request.get("amount").toString() : null;
+
+            // MDC에 정보 설정
+            org.slf4j.MDC.put("action", "PAYMENT_USER_CANCEL");
+            org.slf4j.MDC.put("actionCategory", "PAYMENT");
+            if (userId != null) {
+                org.slf4j.MDC.put("userId", userId.toString());
+            }
+            if (paymentMethod != null) {
+                org.slf4j.MDC.put("paymentMethod", paymentMethod);
+            }
+            if (amount != null) {
+                org.slf4j.MDC.put("amount", amount);
+            }
+            org.slf4j.MDC.put("cancelReason", reason);
+
+            log.warn("PAYMENT_USER_CANCEL - UserId: {}, Reason: {}, Method: {}", userId, reason, paymentMethod);
+
+            return ResponseEntity.ok(CommonApiResponse.success("결제 취소 로그 기록 완료", null));
+
+        } catch (Exception e) {
+            log.error("결제 취소 로그 기록 중 오류 발생", e);
+            return ResponseEntity.internalServerError()
+                    .body(CommonApiResponse.error("결제 취소 로그 기록 중 오류가 발생했습니다: " + e.getMessage()));
+        } finally {
+            org.slf4j.MDC.clear();
         }
     }
 }

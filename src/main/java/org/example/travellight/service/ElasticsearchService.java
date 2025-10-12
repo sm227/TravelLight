@@ -147,33 +147,33 @@ public class ElasticsearchService {
         ActivityLogDto.ActivityLogDtoBuilder builder = ActivityLogDto.builder();
 
         // 타임스탬프 파싱
-        String timestamp = (String) source.get("@timestamp");
+        String timestamp = getStringValue(source, "@timestamp");
         if (timestamp != null) {
             builder.timestamp(LocalDateTime.parse(timestamp, ISO_FORMATTER));
         }
 
         // 기본 필드
-        builder.action((String) source.get("action"))
-                .actionCategory((String) source.get("actionCategory"))
-                .level((String) source.get("level"))
-                .message((String) source.get("message"))
-                .httpMethod((String) source.get("httpMethod"))
-                .requestUri((String) source.get("requestUri"));
+        builder.action(getStringValue(source, "action"))
+                .actionCategory(getStringValue(source, "actionCategory"))
+                .level(getStringValue(source, "level"))
+                .message(getStringValue(source, "message"))
+                .httpMethod(getStringValue(source, "httpMethod"))
+                .requestUri(getStringValue(source, "requestUri"));
 
         // 사용자 정보
         Object userIdObj = source.get("userId");
         if (userIdObj != null) {
             builder.userId(Long.parseLong(userIdObj.toString()));
         }
-        builder.userName((String) source.get("userName"))
-                .userEmail((String) source.get("email"));
+        builder.userName(getStringValue(source, "userName"))
+                .userEmail(getStringValue(source, "email"));
 
         // 클라이언트 정보
-        builder.clientIp((String) source.get("clientIp"));
+        builder.clientIp(getStringValue(source, "clientIp"));
 
         // 에러 정보
-        builder.httpStatus((String) source.get("httpStatus"))
-                .errorType((String) source.get("errorType"));
+        builder.httpStatus(getStringValue(source, "httpStatus"))
+                .errorType(getStringValue(source, "errorType"));
 
         // 세부 정보 구성
         StringBuilder details = new StringBuilder();
@@ -181,19 +181,19 @@ public class ElasticsearchService {
             details.append("금액: ").append(source.get("amount")).append(" ");
         }
         if (source.get("placeName") != null) {
-            details.append("장소: ").append(source.get("placeName")).append(" ");
+            details.append("장소: ").append(getStringValue(source, "placeName")).append(" ");
         }
         if (source.get("paymentId") != null) {
-            details.append("결제ID: ").append(source.get("paymentId")).append(" ");
+            details.append("결제ID: ").append(getStringValue(source, "paymentId")).append(" ");
         }
         if (source.get("paymentMethod") != null) {
-            details.append("결제수단: ").append(source.get("paymentMethod")).append(" ");
+            details.append("결제수단: ").append(getStringValue(source, "paymentMethod")).append(" ");
         }
         if (source.get("errorMessage") != null) {
-            details.append("에러: ").append(source.get("errorMessage")).append(" ");
+            details.append("에러: ").append(getStringValue(source, "errorMessage")).append(" ");
         }
         if (source.get("cancelReason") != null) {
-            details.append("취소사유: ").append(source.get("cancelReason")).append(" ");
+            details.append("취소사유: ").append(getStringValue(source, "cancelReason")).append(" ");
         }
 
         if (details.length() > 0) {
@@ -201,5 +201,31 @@ public class ElasticsearchService {
         }
 
         return builder.build();
+    }
+
+    /**
+     * Map에서 안전하게 String 값을 추출하는 헬퍼 메서드
+     * - 값이 List인 경우 첫 번째 요소를 반환
+     * - 값이 null이거나 빈 문자열인 경우 null 반환
+     */
+    private String getStringValue(Map<String, Object> source, String key) {
+        Object value = source.get(key);
+        if (value == null) {
+            return null;
+        }
+
+        // List인 경우 첫 번째 요소 반환
+        if (value instanceof List) {
+            List<?> list = (List<?>) value;
+            if (list.isEmpty()) {
+                return null;
+            }
+            Object firstItem = list.get(0);
+            return firstItem != null ? firstItem.toString() : null;
+        }
+
+        // String으로 변환
+        String strValue = value.toString();
+        return strValue.isEmpty() ? null : strValue;
     }
 }
