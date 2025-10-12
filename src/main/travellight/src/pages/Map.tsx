@@ -49,6 +49,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import StarIcon from "@mui/icons-material/Star";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
+import DirectionsIcon from "@mui/icons-material/Directions";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import LuggageIcon from "@mui/icons-material/Luggage";
@@ -5207,16 +5208,16 @@ const Map = () => {
                         sx={{
                           backgroundColor: '#03C75A',
                           color: 'white',
-                          fontWeight: 600,
-                          fontSize: '12px',
+                          fontWeight: 500,
+                          fontSize: '14px',
                           py: 1,
                           borderRadius: '6px',
                           '&:hover': {
-                            backgroundColor: '#029B4A'
+                            backgroundColor: '#02a74a'
                           }
                         }}
                       >
-                        🗺️ 네이버맵 길찾기
+                        네이버맵 길찾기
                       </Button>
                     </Box>
                   )}
@@ -5305,14 +5306,41 @@ const Map = () => {
                         mb: 1.5
                       }}>
                         <Box sx={{ flex: 1 }}>
-                          <Typography variant="h6" sx={{
-                            fontWeight: 600,
-                            fontSize: "16px",
-                            color: "#333",
-                            mb: 0.5
-                          }}>
-                            {reservation.placeName}
-                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            <Typography variant="h6" sx={{
+                              fontWeight: 600,
+                              fontSize: "16px",
+                              color: "#333"
+                            }}>
+                              {reservation.placeName}
+                            </Typography>
+                            {reservation.status === 'RESERVED' && (
+                              <Button
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openNaverMap(reservation);
+                                }}
+                                sx={{
+                                  backgroundColor: '#f5f5f5',
+                                  color: '#666',
+                                  fontSize: '11px',
+                                  fontWeight: 500,
+                                  px: 1,
+                                  py: 0.3,
+                                  minWidth: 'auto',
+                                  borderRadius: '4px',
+                                  border: '1px solid #e0e0e0',
+                                  '&:hover': {
+                                    backgroundColor: '#e8e8e8',
+                                    borderColor: '#d0d0d0'
+                                  }
+                                }}
+                              >
+                                길찾기
+                              </Button>
+                            )}
+                          </Box>
                           <Typography variant="body2" sx={{
                             color: "#666",
                             fontSize: "13px",
@@ -5328,34 +5356,32 @@ const Map = () => {
                                 {storageStatuses[reservation.reservationNumber].hasStorage ? (
                                   <Chip
                                     icon={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                          <CheckCircleIcon sx={{ fontSize: 14 }} /> :
-                                          <QrCodeIcon sx={{ fontSize: 14 }} />}
+                                          <CheckCircleIcon sx={{ fontSize: 13 }} /> :
+                                          <QrCodeIcon sx={{ fontSize: 13 }} />}
                                     label={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
                                            '보관 중' : '이용 완료'}
                                     size="small"
-                                    variant="outlined"
                                     sx={{
                                       backgroundColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                                      '#e8f5e8' : '#f3e5f5',
-                                      borderColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                                  '#4caf50' : '#9c27b0',
-                                      color: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                             '#2e7d32' : '#7b1fa2',
-                                      fontSize: '10px',
-                                      height: '22px'
+                                                      '#f5f5f5' : '#fafafa',
+                                      border: '1px solid #e0e0e0',
+                                      color: '#666',
+                                      fontSize: '11px',
+                                      height: '24px',
+                                      fontWeight: 500
                                     }}
                                   />
                                 ) : (
                                   <Chip
                                     label={t('waitingForStoreVisit')}
                                     size="small"
-                                    variant="outlined"
                                     sx={{
-                                      backgroundColor: '#fff3e0',
-                                      borderColor: '#ff9800',
-                                      color: '#e65100',
-                                      fontSize: '10px',
-                                      height: '22px'
+                                      backgroundColor: '#f5f5f5',
+                                      border: '1px solid #e0e0e0',
+                                      color: '#666',
+                                      fontSize: '11px',
+                                      height: '24px',
+                                      fontWeight: 500
                                     }}
                                   />
                                 )}
@@ -5367,10 +5393,9 @@ const Map = () => {
                           label={getStatusText(reservation.status)}
                           size="small"
                           sx={{
-                            backgroundColor: reservation.status === 'RESERVED' ? '#e3f2fd' :
-                                           reservation.status === 'COMPLETED' ? '#f3e5f5' : '#fff3e0',
-                            color: reservation.status === 'RESERVED' ? '#1976d2' :
-                                   reservation.status === 'COMPLETED' ? '#7b1fa2' : '#ed6c02',
+                            backgroundColor: '#f5f5f5',
+                            border: '1px solid #e0e0e0',
+                            color: '#666',
                             fontWeight: 500,
                             fontSize: '11px',
                             height: '24px'
@@ -5488,29 +5513,6 @@ const Map = () => {
                               
                               {/* 액션 버튼들 - 배달 여부와 관계없이 항상 표시 */}
                               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                                {/* 예약 상태별 버튼들 */}
-                                {reservation.status === 'RESERVED' && (
-                                  <Button
-                                    fullWidth
-                                    variant="contained"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openNaverMap(reservation);
-                                    }}
-                                    sx={{
-                                      backgroundColor: '#03C75A',
-                                      color: 'white',
-                                      '&:hover': {
-                                        backgroundColor: '#02a74a'
-                                      },
-                                      fontSize: '12px',
-                                      py: 0.8
-                                    }}
-                                  >
-                                    네이버맵 길찾기
-                                  </Button>
-                                )}
-                                
                                 {/* 배달 신청 버튼 - 배달이 없는 경우에만 표시 */}
                                 {!hasDelivery && (
                                   <Button
@@ -5524,11 +5526,13 @@ const Map = () => {
                                     sx={{
                                       borderColor: '#1976d2',
                                       color: '#1976d2',
+                                      fontWeight: 500,
+                                      fontSize: '14px',
+                                      py: 0.9,
+                                      borderRadius: '6px',
                                       '&:hover': {
                                         backgroundColor: '#e3f2fd'
-                                      },
-                                      fontSize: '12px',
-                                      py: 0.8
+                                      }
                                     }}
                                   >
                                     배달 신청하기
@@ -5547,17 +5551,17 @@ const Map = () => {
                                             flex: 1,
                                             backgroundColor: '#4CAF50',
                                             color: 'white',
-                                            fontSize: '12px',
-                                            py: 1,
-                                            fontWeight: 600,
-                                            opacity: 0.9,
-                                            borderRadius: '8px',
+                                            fontSize: '14px',
+                                            py: 0.9,
+                                            fontWeight: 500,
+                                            borderRadius: '6px',
                                             '&.Mui-disabled': {
-                                              color: 'white'
+                                              color: 'white',
+                                              opacity: 0.8
                                             }
                                           }}
                                         >
-                                          ✅ 리뷰 작성 완료
+                                          리뷰 작성 완료
                                         </Button>
                                         <Button
                                           variant="outlined"
@@ -5568,15 +5572,14 @@ const Map = () => {
                                           sx={{
                                             borderColor: '#1976d2',
                                             color: '#1976d2',
-                                            fontSize: '12px',
+                                            fontSize: '14px',
                                             minWidth: '50px',
                                             px: 1.5,
-                                            py: 1,
-                                            fontWeight: 600,
-                                            borderRadius: '8px',
+                                            py: 0.9,
+                                            fontWeight: 500,
+                                            borderRadius: '6px',
                                             '&:hover': {
-                                              backgroundColor: '#e3f2fd',
-                                              borderColor: '#1565c0'
+                                              backgroundColor: '#e3f2fd'
                                             }
                                           }}
                                         >
@@ -5591,15 +5594,14 @@ const Map = () => {
                                           sx={{
                                             borderColor: '#d32f2f',
                                             color: '#d32f2f',
-                                            fontSize: '12px',
+                                            fontSize: '14px',
                                             minWidth: '50px',
                                             px: 1.5,
-                                            py: 1,
-                                            fontWeight: 600,
-                                            borderRadius: '8px',
+                                            py: 0.9,
+                                            fontWeight: 500,
+                                            borderRadius: '6px',
                                             '&:hover': {
-                                              backgroundColor: '#ffebee',
-                                              borderColor: '#c62828'
+                                              backgroundColor: '#ffebee'
                                             }
                                           }}
                                         >
@@ -5617,18 +5619,16 @@ const Map = () => {
                                         sx={{
                                           backgroundColor: '#FF6B35',
                                           color: 'white',
-                                          fontWeight: 600,
-                                          fontSize: '13px',
-                                          py: 1.2,
-                                          borderRadius: '8px',
-                                          boxShadow: '0 2px 8px rgba(255, 107, 53, 0.25)',
+                                          fontWeight: 500,
+                                          fontSize: '14px',
+                                          py: 0.9,
+                                          borderRadius: '6px',
                                           '&:hover': {
-                                            backgroundColor: '#E64A19',
-                                            boxShadow: '0 4px 12px rgba(255, 107, 53, 0.35)'
+                                            backgroundColor: '#E64A19'
                                           }
                                         }}
                                       >
-                                        ⭐ 리뷰 작성하기
+                                        리뷰 작성하기
                                       </Button>
                                     )}
                                   </>
