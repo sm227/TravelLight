@@ -22,7 +22,6 @@ import {
   Tooltip,
 } from '@mui/material';
 import {
-  Cloud as CloudIcon,
   Computer as ServerIcon,
   Database as DatabaseIcon,
   NetworkCheck as NetworkIcon,
@@ -30,20 +29,20 @@ import {
   Storage as StorageIcon,
   Speed as SpeedIcon,
   Refresh as RefreshIcon,
-  TrendingUp,
-  Warning,
   CheckCircle,
+  Warning,
   Error,
+  AccessTime,
+  AccountTree,
 } from '@mui/icons-material';
 
-// AWS 서비스 상태를 위한 인터페이스
-interface AWSServiceStatus {
+// 홈서버 서비스 상태를 위한 인터페이스
+interface ServerServiceStatus {
   serviceName: string;
   status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
   responseTime: number;
   lastChecked: string;
-  endpoint?: string;
-  region?: string;
+  details?: string;
 }
 
 interface SystemMetrics {
@@ -70,9 +69,11 @@ interface SystemMetrics {
 }
 
 interface SystemHealthData {
-  services: AWSServiceStatus[];
+  services: ServerServiceStatus[];
   metrics: SystemMetrics;
   lastUpdated: string;
+  uptimeSeconds?: number;
+  threadCount?: number;
 }
 
 const COLORS = {
@@ -86,6 +87,7 @@ const COLORS = {
   borderPrimary: '#27272a',
   borderSecondary: '#3f3f46',
   accentPrimary: '#3b82f6',
+  accentSecondary: '#8b5cf6',
   success: '#10b981',
   warning: '#f59e0b',
   danger: '#ef4444',
@@ -93,11 +95,13 @@ const COLORS = {
 };
 
 const AdminServices = () => {
-  const [services, setServices] = useState<AWSServiceStatus[]>([]);
+  const [services, setServices] = useState<ServerServiceStatus[]>([]);
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
+  const [uptimeSeconds, setUptimeSeconds] = useState<number>(0);
+  const [threadCount, setThreadCount] = useState<number>(0);
   const [cacheStats, setCacheStats] = useState({
     cacheSize: 0,
     totalRequests: 0,
@@ -106,24 +110,26 @@ const AdminServices = () => {
     hitRate: 0
   });
 
-  // AWS 서비스 상태 체크
-  const checkAWSServices = async () => {
+  // 홈서버 상태 체크
+  const checkServerHealth = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetch('/api/admin/system/health');
       const data = await response.json();
-      
+
       if (data.success && data.data) {
         setServices(data.data.services || []);
         setMetrics(data.data.metrics || null);
+        setUptimeSeconds(data.data.uptimeSeconds || 0);
+        setThreadCount(data.data.threadCount || 0);
         setLastUpdate(new Date());
       } else {
         throw new Error(data.message || '데이터 로드 실패');
       }
     } catch (error) {
-      console.error('AWS 서비스 상태 확인 실패:', error);
+      console.error('서버 상태 확인 실패:', error);
       setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다');
     } finally {
       setLoading(false);
@@ -170,12 +176,12 @@ const AdminServices = () => {
   };
 
   useEffect(() => {
-    checkAWSServices();
+    checkServerHealth();
     loadCacheStats();
 
     // 30초마다 자동 새로고침
     const interval = setInterval(() => {
-      checkAWSServices();
+      checkServerHealth();
       loadCacheStats();
     }, 30000);
     return () => clearInterval(interval);
@@ -218,12 +224,29 @@ const AdminServices = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const formatUptime = (seconds: number) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (days > 0) {
+      return `${days}일 ${hours}시간 ${minutes}분`;
+    } else if (hours > 0) {
+      return `${hours}시간 ${minutes}분 ${secs}초`;
+    } else if (minutes > 0) {
+      return `${minutes}분 ${secs}초`;
+    } else {
+      return `${secs}초`;
+    }
+  };
+
   const getOverallStatus = () => {
     if (services.length === 0) return 'unknown';
-    
+
     const healthyCount = services.filter(s => s.status === 'healthy').length;
     const totalCount = services.length;
-    
+
     if (healthyCount === totalCount) return 'healthy';
     if (healthyCount > totalCount / 2) return 'degraded';
     return 'unhealthy';
@@ -232,44 +255,44 @@ const AdminServices = () => {
   const overallStatus = getOverallStatus();
 
   return (
-    <Box sx={{ 
-      bgcolor: COLORS.backgroundDark, 
+    <Box sx={{
+      bgcolor: COLORS.backgroundDark,
       width: '100%',
       minHeight: '100vh',
       p: 2.5
     }}>
       {/* 헤더 */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         mb: 3,
         pb: 2,
         borderBottom: `1px solid ${COLORS.borderPrimary}`
       }}>
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-            <Typography variant="h5" sx={{ 
-              color: COLORS.textPrimary, 
+            <Typography variant="h5" sx={{
+              color: COLORS.textPrimary,
               fontWeight: 600,
               fontSize: '1.25rem',
               letterSpacing: '-0.025em'
             }}>
-              시스템 상태 모니터링
+              시스템 모니터링
             </Typography>
             {getStatusIcon(overallStatus)}
           </Box>
-          <Typography variant="body2" sx={{ 
+          <Typography variant="body2" sx={{
             color: COLORS.textSecondary,
             fontSize: '0.75rem',
             fontWeight: 500
           }}>
-            AWS 인프라 및 시스템 상태 실시간 모니터링
+            인프라 및 시스템 상태 실시간 모니터링
           </Typography>
         </Box>
-        
+
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="caption" sx={{ 
+          <Typography variant="caption" sx={{
             color: COLORS.textMuted,
             fontSize: '0.6875rem'
           }}>
@@ -277,13 +300,13 @@ const AdminServices = () => {
           </Typography>
           <Tooltip title="새로고침">
             <IconButton
-              onClick={checkAWSServices}
+              onClick={checkServerHealth}
               disabled={loading}
               sx={{
                 color: COLORS.textSecondary,
-                '&:hover': { 
+                '&:hover': {
                   color: COLORS.accentPrimary,
-                  backgroundColor: COLORS.backgroundSurface 
+                  backgroundColor: COLORS.backgroundSurface
                 }
               }}
             >
@@ -312,8 +335,8 @@ const AdminServices = () => {
         <Grid container spacing={2}>
           {/* 전체 상태 카드 */}
           <Grid item xs={12}>
-            <Card sx={{ 
-              bgcolor: COLORS.backgroundCard, 
+            <Card sx={{
+              bgcolor: COLORS.backgroundCard,
               border: `1px solid ${COLORS.borderPrimary}`,
               borderRadius: 1,
               mb: 2
@@ -341,6 +364,67 @@ const AdminServices = () => {
                     }}
                   />
                 </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* 서버 업타임 및 스레드 정보 카드 */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{
+              bgcolor: COLORS.backgroundCard,
+              border: `1px solid ${COLORS.borderPrimary}`,
+              borderRadius: 1,
+              mb: 2,
+              height: '100%'
+            }}>
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <AccessTime sx={{ color: COLORS.accentPrimary, mr: 1, fontSize: '1.25rem' }} />
+                  <Typography variant="h6" sx={{ color: COLORS.textPrimary }}>
+                    서버 업타임
+                  </Typography>
+                </Box>
+                <Typography variant="h4" sx={{
+                  color: COLORS.success,
+                  fontWeight: 700,
+                  fontSize: '1.5rem',
+                  mb: 1
+                }}>
+                  {formatUptime(uptimeSeconds)}
+                </Typography>
+                <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+                  서버가 중단 없이 실행 중입니다
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Card sx={{
+              bgcolor: COLORS.backgroundCard,
+              border: `1px solid ${COLORS.borderPrimary}`,
+              borderRadius: 1,
+              mb: 2,
+              height: '100%'
+            }}>
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <AccountTree sx={{ color: COLORS.accentSecondary, mr: 1, fontSize: '1.25rem' }} />
+                  <Typography variant="h6" sx={{ color: COLORS.textPrimary }}>
+                    활성 스레드
+                  </Typography>
+                </Box>
+                <Typography variant="h4" sx={{
+                  color: COLORS.accentSecondary,
+                  fontWeight: 700,
+                  fontSize: '1.5rem',
+                  mb: 1
+                }}>
+                  {threadCount}개
+                </Typography>
+                <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+                  현재 JVM에서 실행 중인 스레드 수
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -478,9 +562,9 @@ const AdminServices = () => {
           {metrics && (
             <>
               <Grid item xs={12} sm={6} md={3}>
-                <Paper sx={{ 
-                  p: 2, 
-                  bgcolor: COLORS.backgroundCard, 
+                <Paper sx={{
+                  p: 2,
+                  bgcolor: COLORS.backgroundCard,
                   border: `1px solid ${COLORS.borderPrimary}`,
                   borderRadius: 1,
                   height: '100%'
@@ -491,15 +575,15 @@ const AdminServices = () => {
                       CPU 사용률
                     </Typography>
                   </Box>
-                  <Typography variant="h4" sx={{ 
-                    color: COLORS.textPrimary, 
-                    fontWeight: 700, 
+                  <Typography variant="h4" sx={{
+                    color: COLORS.textPrimary,
+                    fontWeight: 700,
                     fontSize: '1.75rem',
-                    mb: 1 
+                    mb: 1
                   }}>
                     {metrics.cpu.usage.toFixed(1)}%
                   </Typography>
-                  <Typography variant="caption" sx={{ 
+                  <Typography variant="caption" sx={{
                     color: COLORS.textSecondary,
                     fontSize: '0.75rem',
                     mb: 1,
@@ -515,7 +599,7 @@ const AdminServices = () => {
                       borderRadius: 3,
                       bgcolor: COLORS.borderPrimary,
                       '& .MuiLinearProgress-bar': {
-                        bgcolor: metrics.cpu.usage > 80 ? COLORS.danger : 
+                        bgcolor: metrics.cpu.usage > 80 ? COLORS.danger :
                                 metrics.cpu.usage > 60 ? COLORS.warning : COLORS.success,
                         borderRadius: 3,
                       }
@@ -525,9 +609,9 @@ const AdminServices = () => {
               </Grid>
 
               <Grid item xs={12} sm={6} md={3}>
-                <Paper sx={{ 
-                  p: 2, 
-                  bgcolor: COLORS.backgroundCard, 
+                <Paper sx={{
+                  p: 2,
+                  bgcolor: COLORS.backgroundCard,
                   border: `1px solid ${COLORS.borderPrimary}`,
                   borderRadius: 1,
                   height: '100%'
@@ -538,15 +622,15 @@ const AdminServices = () => {
                       메모리 사용량
                     </Typography>
                   </Box>
-                  <Typography variant="h4" sx={{ 
-                    color: COLORS.textPrimary, 
-                    fontWeight: 700, 
+                  <Typography variant="h4" sx={{
+                    color: COLORS.textPrimary,
+                    fontWeight: 700,
                     fontSize: '1.75rem',
-                    mb: 1 
+                    mb: 1
                   }}>
                     {metrics.memory.usage.toFixed(1)}%
                   </Typography>
-                  <Typography variant="caption" sx={{ 
+                  <Typography variant="caption" sx={{
                     color: COLORS.textSecondary,
                     fontSize: '0.75rem',
                     mb: 1,
@@ -562,7 +646,7 @@ const AdminServices = () => {
                       borderRadius: 3,
                       bgcolor: COLORS.borderPrimary,
                       '& .MuiLinearProgress-bar': {
-                        bgcolor: metrics.memory.usage > 80 ? COLORS.danger : 
+                        bgcolor: metrics.memory.usage > 80 ? COLORS.danger :
                                 metrics.memory.usage > 60 ? COLORS.warning : COLORS.info,
                         borderRadius: 3,
                       }
@@ -572,9 +656,9 @@ const AdminServices = () => {
               </Grid>
 
               <Grid item xs={12} sm={6} md={3}>
-                <Paper sx={{ 
-                  p: 2, 
-                  bgcolor: COLORS.backgroundCard, 
+                <Paper sx={{
+                  p: 2,
+                  bgcolor: COLORS.backgroundCard,
                   border: `1px solid ${COLORS.borderPrimary}`,
                   borderRadius: 1,
                   height: '100%'
@@ -585,15 +669,15 @@ const AdminServices = () => {
                       디스크 사용률
                     </Typography>
                   </Box>
-                  <Typography variant="h4" sx={{ 
-                    color: COLORS.textPrimary, 
-                    fontWeight: 700, 
+                  <Typography variant="h4" sx={{
+                    color: COLORS.textPrimary,
+                    fontWeight: 700,
                     fontSize: '1.75rem',
-                    mb: 1 
+                    mb: 1
                   }}>
                     {metrics.disk.usage.toFixed(1)}%
                   </Typography>
-                  <Typography variant="caption" sx={{ 
+                  <Typography variant="caption" sx={{
                     color: COLORS.textSecondary,
                     fontSize: '0.75rem',
                     mb: 1,
@@ -609,7 +693,7 @@ const AdminServices = () => {
                       borderRadius: 3,
                       bgcolor: COLORS.borderPrimary,
                       '& .MuiLinearProgress-bar': {
-                        bgcolor: metrics.disk.usage > 80 ? COLORS.danger : 
+                        bgcolor: metrics.disk.usage > 80 ? COLORS.danger :
                                 metrics.disk.usage > 60 ? COLORS.warning : COLORS.warning,
                         borderRadius: 3,
                       }
@@ -619,9 +703,9 @@ const AdminServices = () => {
               </Grid>
 
               <Grid item xs={12} sm={6} md={3}>
-                <Paper sx={{ 
-                  p: 2, 
-                  bgcolor: COLORS.backgroundCard, 
+                <Paper sx={{
+                  p: 2,
+                  bgcolor: COLORS.backgroundCard,
                   border: `1px solid ${COLORS.borderPrimary}`,
                   borderRadius: 1,
                   height: '100%'
@@ -649,7 +733,7 @@ const AdminServices = () => {
                         {formatBytes(metrics.network.bytesOut)}
                       </Typography>
                     </Box>
-                    {metrics.network.throughputIn && (
+                    {metrics.network.throughputIn && metrics.network.throughputIn > 0 && (
                       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                         <Typography variant="caption" sx={{ color: COLORS.textMuted, fontSize: '0.6875rem' }}>
                           처리량:
@@ -665,16 +749,16 @@ const AdminServices = () => {
             </>
           )}
 
-          {/* AWS 서비스 상태 테이블 */}
+          {/* 홈서버 서비스 상태 테이블 */}
           <Grid item xs={12}>
-            <Paper sx={{ 
-              p: 2, 
-              bgcolor: COLORS.backgroundCard, 
+            <Paper sx={{
+              p: 2,
+              bgcolor: COLORS.backgroundCard,
               border: `1px solid ${COLORS.borderPrimary}`,
-              borderRadius: 1 
+              borderRadius: 1
             }}>
-              <Typography variant="h6" sx={{ 
-                color: COLORS.textPrimary, 
+              <Typography variant="h6" sx={{
+                color: COLORS.textPrimary,
                 mb: 2,
                 fontSize: '1rem',
                 fontWeight: 600,
@@ -682,49 +766,49 @@ const AdminServices = () => {
                 alignItems: 'center',
                 gap: 1
               }}>
-                <CloudIcon sx={{ color: COLORS.accentPrimary, fontSize: '1.25rem' }} />
+                <ServerIcon sx={{ color: COLORS.accentPrimary, fontSize: '1.25rem' }} />
                 서비스 상태 상세
               </Typography>
-              
+
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ 
-                        color: COLORS.textSecondary, 
-                        fontWeight: 600, 
+                      <TableCell sx={{
+                        color: COLORS.textSecondary,
+                        fontWeight: 600,
                         fontSize: '0.75rem',
                         py: 1.5
                       }}>
                         서비스
                       </TableCell>
-                      <TableCell sx={{ 
-                        color: COLORS.textSecondary, 
-                        fontWeight: 600, 
+                      <TableCell sx={{
+                        color: COLORS.textSecondary,
+                        fontWeight: 600,
                         fontSize: '0.75rem',
                         py: 1.5
                       }}>
                         상태
                       </TableCell>
-                      <TableCell sx={{ 
-                        color: COLORS.textSecondary, 
-                        fontWeight: 600, 
+                      <TableCell sx={{
+                        color: COLORS.textSecondary,
+                        fontWeight: 600,
                         fontSize: '0.75rem',
                         py: 1.5
                       }}>
                         응답시간
                       </TableCell>
-                      <TableCell sx={{ 
-                        color: COLORS.textSecondary, 
-                        fontWeight: 600, 
+                      <TableCell sx={{
+                        color: COLORS.textSecondary,
+                        fontWeight: 600,
                         fontSize: '0.75rem',
                         py: 1.5
                       }}>
-                        리전
+                        상세 정보
                       </TableCell>
-                      <TableCell sx={{ 
-                        color: COLORS.textSecondary, 
-                        fontWeight: 600, 
+                      <TableCell sx={{
+                        color: COLORS.textSecondary,
+                        fontWeight: 600,
                         fontSize: '0.75rem',
                         py: 1.5
                       }}>
@@ -735,9 +819,9 @@ const AdminServices = () => {
                   <TableBody>
                     {services.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} sx={{ 
-                          textAlign: 'center', 
-                          py: 3, 
+                        <TableCell colSpan={5} sx={{
+                          textAlign: 'center',
+                          py: 3,
                           color: COLORS.textSecondary,
                           fontSize: '0.875rem'
                         }}>
@@ -751,8 +835,8 @@ const AdminServices = () => {
                             backgroundColor: COLORS.backgroundSurface
                           }
                         }}>
-                          <TableCell sx={{ 
-                            color: COLORS.textPrimary, 
+                          <TableCell sx={{
+                            color: COLORS.textPrimary,
                             fontSize: '0.875rem',
                             py: 1.5,
                             fontWeight: 500
@@ -773,27 +857,27 @@ const AdminServices = () => {
                               }}
                             />
                           </TableCell>
-                          <TableCell sx={{ 
-                            color: COLORS.textPrimary, 
+                          <TableCell sx={{
+                            color: COLORS.textPrimary,
                             fontSize: '0.875rem',
                             py: 1.5
                           }}>
                             {service.responseTime > 0 ? `${service.responseTime}ms` : 'N/A'}
                           </TableCell>
-                          <TableCell sx={{ 
-                            color: COLORS.textSecondary, 
+                          <TableCell sx={{
+                            color: COLORS.textSecondary,
                             fontSize: '0.875rem',
                             py: 1.5
                           }}>
-                            {service.region || 'ap-northeast-2'}
+                            {service.details || '-'}
                           </TableCell>
-                          <TableCell sx={{ 
-                            color: COLORS.textSecondary, 
+                          <TableCell sx={{
+                            color: COLORS.textSecondary,
                             fontSize: '0.875rem',
                             py: 1.5
                           }}>
-                            {service.lastChecked ? 
-                              new Date(service.lastChecked).toLocaleTimeString() : 
+                            {service.lastChecked ?
+                              new Date(service.lastChecked).toLocaleTimeString() :
                               'N/A'
                             }
                           </TableCell>
@@ -811,4 +895,4 @@ const AdminServices = () => {
   );
 };
 
-export default AdminServices; 
+export default AdminServices;

@@ -11,7 +11,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SystemHealthDto {
-    private List<AWSServiceStatusDto> services;
+    private List<ServerServiceStatusDto> services;
     private SystemMetricsDto metrics;
     private String lastUpdated;
+    private Long uptimeSeconds; // 서버 업타임 (초)
+    private Integer threadCount; // 현재 활성 스레드 수
 } 

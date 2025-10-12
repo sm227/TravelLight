@@ -1,26 +1,16 @@
 package org.example.travellight.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.travellight.dto.AWSServiceStatusDto;
+import org.example.travellight.dto.ServerServiceStatusDto;
 import org.example.travellight.dto.SystemHealthDto;
 import org.example.travellight.dto.SystemMetricsDto;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
-import software.amazon.awssdk.services.cloudwatch.model.*;
-import software.amazon.awssdk.services.ec2.Ec2Client;
-import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
-import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
-import software.amazon.awssdk.services.ec2.model.Instance;
-import software.amazon.awssdk.services.ec2.model.Reservation;
 
-
+import javax.sql.DataSource;
 import java.io.File;
-import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
-import java.lang.management.OperatingSystemMXBean;
-import java.time.Instant;
+import java.lang.management.*;
+import java.sql.Connection;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -28,283 +18,346 @@ import java.util.List;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class SystemHealthService {
 
-    private final CloudWatchClient cloudWatchClient;
-    private final Ec2Client ec2Client;
-    private final OperatingSystemMXBean osBean;
-    private final MemoryMXBean memoryBean;
-
-    public SystemHealthService() {
-        // AWS 클라이언트 초기화 - IAM Role 또는 Default Credentials 자동 감지
-        CloudWatchClient tempCloudWatchClient;
-        Ec2Client tempEc2Client;
-        
-        try {
-            // AWS SDK v2의 DefaultCredentialsProvider를 사용하여 자동 인증
-            // 다음 순서로 자격 증명을 찾습니다:
-            // 1. Java System Properties (aws.accessKeyId, aws.secretAccessKey)
-            // 2. Environment Variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-            // 3. Credential profiles file (~/.aws/credentials)
-            // 4. Instance profile credentials (EC2에서 실행 시)
-            // 5. Container credentials (ECS에서 실행 시)
-            
-            tempCloudWatchClient = CloudWatchClient.builder()
-                    .region(Region.AP_NORTHEAST_2) // 서울 리전
-                    .credentialsProvider(DefaultCredentialsProvider.create())
-                    .build();
-                    
-            tempEc2Client = Ec2Client.builder()
-                    .region(Region.AP_NORTHEAST_2)
-                    .credentialsProvider(DefaultCredentialsProvider.create())
-                    .build();
-                    
-            log.info("AWS 클라이언트 초기화 성공 (리전: ap-northeast-2)");
-            
-            // AWS 자격 증명 확인 테스트
-            testAWSConnection(tempCloudWatchClient, tempEc2Client);
-            
-        } catch (Exception e) {
-            log.warn("AWS 클라이언트 초기화 실패. 로컬 메트릭만 사용합니다.");
-            log.warn("AWS 설정 가이드:");
-            log.warn("1. EC2 인스턴스에서 실행 시: IAM Role 설정");
-            log.warn("2. 로컬 개발 시: ~/.aws/credentials 파일 또는 환경변수 설정");
-            log.warn("3. 환경변수: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY");
-            log.debug("상세 오류: {}", e.getMessage());
-            
-            tempCloudWatchClient = null;
-            tempEc2Client = null;
-        }
-        
-        this.cloudWatchClient = tempCloudWatchClient;
-        this.ec2Client = tempEc2Client;
-        this.osBean = ManagementFactory.getOperatingSystemMXBean();
-        this.memoryBean = ManagementFactory.getMemoryMXBean();
-    }
+    private final DataSource dataSource;
+    private final OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
+    private final MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
+    private final ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+    private final RuntimeMXBean runtimeBean = ManagementFactory.getRuntimeMXBean();
 
     /**
-     * AWS 연결 상태를 테스트합니다.
+     * 홈서버 시스템 전체 상태를 조회합니다.
      */
-    private void testAWSConnection(CloudWatchClient cloudWatch, Ec2Client ec2) {
-        try {
-            // CloudWatch 연결 테스트 - 네임스페이스 조회
-            ListMetricsRequest metricsRequest = ListMetricsRequest.builder()
-                    .namespace("AWS/EC2") // EC2 네임스페이스로 제한
-                    .build();
-            
-            cloudWatch.listMetrics(metricsRequest);
-            log.debug("CloudWatch 연결 테스트 성공");
-            
-        } catch (Exception e) {
-            log.debug("CloudWatch 연결 테스트 실패: {}", e.getMessage());
-        }
-        
-        try {
-            // EC2 연결 테스트 - 현재 리전 확인
-            ec2.describeAvailabilityZones();
-            log.debug("EC2 연결 테스트 성공");
-            
-        } catch (Exception e) {
-            log.debug("EC2 연결 테스트 실패: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * CloudWatch에서 EC2 인스턴스의 CPU 사용률을 가져옵니다.
-     */
-    private double getCloudWatchCpuMetric() {
-        try {
-            if (cloudWatchClient == null) {
-                return 0.0;
-            }
-
-            // 현재 시간에서 5분 전까지의 CPU 사용률 조회
-            Instant endTime = Instant.now();
-            Instant startTime = endTime.minusSeconds(300); // 5분 전
-
-            GetMetricStatisticsRequest request = GetMetricStatisticsRequest.builder()
-                    .namespace("AWS/EC2")
-                    .metricName("CPUUtilization")
-                    .startTime(startTime)
-                    .endTime(endTime)
-                    .period(300) // 5분 간격
-                    .statistics(Statistic.AVERAGE)
-                    .build();
-
-            GetMetricStatisticsResponse response = cloudWatchClient.getMetricStatistics(request);
-            
-            if (!response.datapoints().isEmpty()) {
-                // 가장 최근 데이터포인트의 평균값 반환
-                return response.datapoints().stream()
-                        .max((d1, d2) -> d1.timestamp().compareTo(d2.timestamp()))
-                        .map(Datapoint::average)
-                        .orElse(0.0);
-            }
-
-        } catch (Exception e) {
-            log.debug("CloudWatch CPU 메트릭 조회 실패: {}", e.getMessage());
-        }
-        
-        return 0.0;
-    }
-
     public SystemHealthDto getSystemHealth() {
-        List<AWSServiceStatusDto> services = new ArrayList<>();
+        List<ServerServiceStatusDto> services = new ArrayList<>();
         SystemMetricsDto metrics = null;
 
         try {
-            // AWS 서비스 상태 체크
-            services.addAll(checkAWSServices());
-            
+            // 홈서버 서비스 상태 체크
+            services.addAll(checkHomeServerServices());
+
             // 시스템 메트릭 수집
             metrics = collectSystemMetrics();
-            
+
         } catch (Exception e) {
             log.error("시스템 헬스체크 중 오류 발생", e);
-            
+
             // 기본 더미 데이터
-            services.addAll(getDummyAWSServices());
+            services.addAll(getDummyServices());
             metrics = getDummyMetrics();
         }
+
+        // 시스템 업타임 계산
+        long uptimeSeconds = getSystemUptime();
+
+        // 현재 활성 스레드 수
+        int threadCount = threadBean.getThreadCount();
 
         return SystemHealthDto.builder()
                 .services(services)
                 .metrics(metrics)
                 .lastUpdated(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .uptimeSeconds(uptimeSeconds)
+                .threadCount(threadCount)
                 .build();
     }
 
-    private List<AWSServiceStatusDto> checkAWSServices() {
-        List<AWSServiceStatusDto> services = new ArrayList<>();
+    /**
+     * 시스템 업타임을 가져옵니다 (Linux/Unix 시스템).
+     * /proc/uptime 파일에서 시스템 부팅 이후 경과 시간을 읽습니다.
+     */
+    private long getSystemUptime() {
+        try {
+            // Linux 시스템의 경우 /proc/uptime 파일 읽기
+            java.nio.file.Path uptimePath = java.nio.file.Paths.get("/proc/uptime");
+            if (java.nio.file.Files.exists(uptimePath)) {
+                String content = java.nio.file.Files.readString(uptimePath);
+                // /proc/uptime 형식: "123456.78 987654.32" (첫 번째 숫자가 시스템 업타임(초))
+                String[] parts = content.trim().split("\\s+");
+                if (parts.length > 0) {
+                    double uptimeInSeconds = Double.parseDouble(parts[0]);
+                    return (long) uptimeInSeconds;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("시스템 업타임 읽기 실패 (Linux /proc/uptime), JVM 업타임 사용: {}", e.getMessage());
+        }
 
-        // EC2 상태 체크
-        services.add(checkEC2Health());
-        
-        // RDS 상태 체크 (간접적)
+        // fallback: JVM 업타임 사용 (밀리초 -> 초)
+        return runtimeBean.getUptime() / 1000;
+    }
+
+    /**
+     * 홈서버의 각 서비스 상태를 체크합니다.
+     */
+    private List<ServerServiceStatusDto> checkHomeServerServices() {
+        List<ServerServiceStatusDto> services = new ArrayList<>();
+
+        // 1. 데이터베이스 연결 상태
         services.add(checkDatabaseHealth());
-        
-        // 애플리케이션 헬스체크
+
+        // 2. 애플리케이션 서버 상태
         services.add(checkApplicationHealth());
-        
-        // 로드밸런서 상태 체크
-        services.add(checkLoadBalancerHealth());
+
+        // 3. JVM 메모리 상태
+        services.add(checkJvmMemoryHealth());
+
+        // 4. 디스크 상태
+        services.add(checkDiskHealth());
+
+        // 5. 스레드 상태
+        services.add(checkThreadHealth());
 
         return services;
     }
 
-    private AWSServiceStatusDto checkEC2Health() {
-        if (ec2Client == null) {
-            return createServiceStatus("EC2 Instance", "unknown", 0, "AWS 클라이언트 초기화 실패");
-        }
-
+    /**
+     * PostgreSQL 데이터베이스 연결 상태를 체크합니다.
+     */
+    private ServerServiceStatusDto checkDatabaseHealth() {
         try {
             long startTime = System.currentTimeMillis();
-            
-            DescribeInstancesRequest request = DescribeInstancesRequest.builder().build();
-            DescribeInstancesResponse response = ec2Client.describeInstances(request);
-            
-            long responseTime = System.currentTimeMillis() - startTime;
-            
-            // 실행 중인 인스턴스가 있는지 확인
-            boolean hasRunningInstance = response.reservations().stream()
-                    .flatMap(reservation -> reservation.instances().stream())
-                    .anyMatch(instance -> "running".equals(instance.state().nameAsString()));
 
-            String status = hasRunningInstance ? "healthy" : "degraded";
-            
-            return createServiceStatus("EC2 Instance", status, (int) responseTime, null);
-            
-        } catch (Exception e) {
-            log.error("EC2 헬스체크 실패", e);
-            return createServiceStatus("EC2 Instance", "unhealthy", 0, e.getMessage());
-        }
-    }
+            // 실제 데이터베이스 연결 테스트
+            try (Connection conn = dataSource.getConnection()) {
+                boolean isValid = conn.isValid(5); // 5초 타임아웃
+                long responseTime = System.currentTimeMillis() - startTime;
 
-    private AWSServiceStatusDto checkDatabaseHealth() {
-        try {
-            long startTime = System.currentTimeMillis();
-            
-            // 간단한 데이터베이스 연결 테스트
-            // 실제로는 데이터소스를 통한 연결 테스트를 구현
-            Thread.sleep(10); // 실제 DB 쿼리 시뮬레이션
-            
-            long responseTime = System.currentTimeMillis() - startTime;
-            
-            return createServiceStatus("RDS Database", "healthy", (int) responseTime, null);
-            
+                if (isValid) {
+                    String dbInfo = String.format("연결 성공 | %dms", responseTime);
+                    return createServiceStatus("PostgreSQL Database", "healthy", (int) responseTime, dbInfo);
+                } else {
+                    return createServiceStatus("PostgreSQL Database", "unhealthy", (int) responseTime, "연결 실패");
+                }
+            }
+
         } catch (Exception e) {
             log.error("데이터베이스 헬스체크 실패", e);
-            return createServiceStatus("RDS Database", "unhealthy", 0, e.getMessage());
+            return createServiceStatus("PostgreSQL Database", "unhealthy", 0, "오류: " + e.getMessage());
         }
     }
 
-    private AWSServiceStatusDto checkApplicationHealth() {
+    /**
+     * Spring Boot 애플리케이션 서버 상태를 체크합니다.
+     */
+    private ServerServiceStatusDto checkApplicationHealth() {
         try {
             long startTime = System.currentTimeMillis();
-            
+
             // JVM 상태 체크
             long freeMemory = Runtime.getRuntime().freeMemory();
             long totalMemory = Runtime.getRuntime().totalMemory();
             double memoryUsage = (double) (totalMemory - freeMemory) / totalMemory * 100;
-            
+
             long responseTime = System.currentTimeMillis() - startTime;
-            
-            String status = memoryUsage > 90 ? "degraded" : "healthy";
-            
-            return createServiceStatus("Application", status, (int) responseTime, null);
-            
+
+            String status;
+            String details;
+            if (memoryUsage > 90) {
+                status = "degraded";
+                details = String.format("메모리 사용률 높음: %.1f%%", memoryUsage);
+            } else {
+                status = "healthy";
+                details = String.format("정상 작동 | 메모리: %.1f%%", memoryUsage);
+            }
+
+            return createServiceStatus("Application Server", status, (int) responseTime, details);
+
         } catch (Exception e) {
             log.error("애플리케이션 헬스체크 실패", e);
-            return createServiceStatus("Application", "unhealthy", 0, e.getMessage());
+            return createServiceStatus("Application Server", "unhealthy", 0, "오류: " + e.getMessage());
         }
     }
 
-    private AWSServiceStatusDto checkLoadBalancerHealth() {
+    /**
+     * JVM 메모리 상태를 체크합니다.
+     */
+    private ServerServiceStatusDto checkJvmMemoryHealth() {
         try {
             long startTime = System.currentTimeMillis();
-            
-            // 로드밸런서 상태 시뮬레이션
-            Thread.sleep(25);
-            
+
+            MemoryUsage heapUsage = memoryBean.getHeapMemoryUsage();
+            long used = heapUsage.getUsed();
+            long max = heapUsage.getMax();
+            double usage = (double) used / max * 100;
+
             long responseTime = System.currentTimeMillis() - startTime;
-            
-            return createServiceStatus("Load Balancer", "healthy", (int) responseTime, null);
-            
+
+            String status;
+            String details;
+            if (usage > 85) {
+                status = "degraded";
+                details = String.format("Heap 사용률 높음: %.1f%% (%.1fGB/%.1fGB)",
+                    usage, used / (1024.0 * 1024 * 1024), max / (1024.0 * 1024 * 1024));
+            } else if (usage > 95) {
+                status = "unhealthy";
+                details = String.format("Heap 임계치 도달: %.1f%%", usage);
+            } else {
+                status = "healthy";
+                details = String.format("Heap: %.1f%% (%.1fGB/%.1fGB)",
+                    usage, used / (1024.0 * 1024 * 1024), max / (1024.0 * 1024 * 1024));
+            }
+
+            return createServiceStatus("JVM Memory", status, (int) responseTime, details);
+
         } catch (Exception e) {
-            return createServiceStatus("Load Balancer", "degraded", 0, e.getMessage());
+            log.error("JVM 메모리 헬스체크 실패", e);
+            return createServiceStatus("JVM Memory", "unknown", 0, "메트릭 수집 실패");
         }
     }
 
+    /**
+     * 디스크 사용량을 체크합니다.
+     */
+    private ServerServiceStatusDto checkDiskHealth() {
+        try {
+            long startTime = System.currentTimeMillis();
+
+            File diskPartition = new File("/");
+            long freeSpace = diskPartition.getFreeSpace();
+            long totalSpace = diskPartition.getTotalSpace();
+            long usedSpace = totalSpace - freeSpace;
+            double usage = (double) usedSpace / totalSpace * 100;
+
+            long responseTime = System.currentTimeMillis() - startTime;
+
+            String status;
+            String details;
+            if (usage > 90) {
+                status = "unhealthy";
+                details = String.format("디스크 부족: %.1f%% (%.0fGB/%.0fGB)",
+                    usage, usedSpace / (1024.0 * 1024 * 1024), totalSpace / (1024.0 * 1024 * 1024));
+            } else if (usage > 80) {
+                status = "degraded";
+                details = String.format("디스크 사용률 높음: %.1f%%", usage);
+            } else {
+                status = "healthy";
+                details = String.format("%.1f%% (%.0fGB/%.0fGB)",
+                    usage, usedSpace / (1024.0 * 1024 * 1024), totalSpace / (1024.0 * 1024 * 1024));
+            }
+
+            return createServiceStatus("Disk Storage", status, (int) responseTime, details);
+
+        } catch (Exception e) {
+            log.error("디스크 헬스체크 실패", e);
+            return createServiceStatus("Disk Storage", "unknown", 0, "메트릭 수집 실패");
+        }
+    }
+
+    /**
+     * 스레드 상태를 체크합니다.
+     */
+    private ServerServiceStatusDto checkThreadHealth() {
+        try {
+            long startTime = System.currentTimeMillis();
+
+            int threadCount = threadBean.getThreadCount();
+            int peakThreadCount = threadBean.getPeakThreadCount();
+            long totalStartedThreadCount = threadBean.getTotalStartedThreadCount();
+
+            long responseTime = System.currentTimeMillis() - startTime;
+
+            String status;
+            String details;
+            if (threadCount > 200) {
+                status = "degraded";
+                details = String.format("스레드 수 높음: %d개 (Peak: %d개)", threadCount, peakThreadCount);
+            } else {
+                status = "healthy";
+                details = String.format("%d개 활성 (Peak: %d, Total: %d)",
+                    threadCount, peakThreadCount, totalStartedThreadCount);
+            }
+
+            return createServiceStatus("Thread Pool", status, (int) responseTime, details);
+
+        } catch (Exception e) {
+            log.error("스레드 헬스체크 실패", e);
+            return createServiceStatus("Thread Pool", "unknown", 0, "메트릭 수집 실패");
+        }
+    }
+
+    /**
+     * 시스템 메트릭을 수집합니다.
+     */
     private SystemMetricsDto collectSystemMetrics() {
         try {
-            // CPU 사용률 - Sun/Oracle JVM 확장 메서드 사용
+            // CPU 사용률
             double cpuUsage = 0.0;
             try {
                 if (osBean instanceof com.sun.management.OperatingSystemMXBean) {
-                    com.sun.management.OperatingSystemMXBean sunOsBean = 
+                    com.sun.management.OperatingSystemMXBean sunOsBean =
                         (com.sun.management.OperatingSystemMXBean) osBean;
-                    cpuUsage = sunOsBean.getProcessCpuLoad() * 100;
+                    cpuUsage = sunOsBean.getCpuLoad() * 100; // 시스템 전체 CPU 로드
+                    if (cpuUsage < 0) {
+                        cpuUsage = sunOsBean.getProcessCpuLoad() * 100; // 프로세스 CPU 로드
+                    }
                 }
             } catch (Exception e) {
-                log.debug("Sun OperatingSystemMXBean을 사용할 수 없습니다: {}", e.getMessage());
+                log.debug("CPU 메트릭 수집 실패: {}", e.getMessage());
             }
-            
-            // CloudWatch에서 실제 CPU 메트릭 가져오기 시도
-            if (cpuUsage <= 0 && cloudWatchClient != null) {
-                cpuUsage = getCloudWatchCpuMetric();
-            }
-            
-            // fallback: CPU 사용률을 얻을 수 없는 경우 더미 데이터 사용
+
+            // CPU 사용률을 얻을 수 없는 경우 기본값
             if (cpuUsage <= 0) {
-                cpuUsage = Math.random() * 30 + 20; // 20-50% 범위의 더미 데이터
+                cpuUsage = 0.0;
             }
-            
+
             int availableProcessors = osBean.getAvailableProcessors();
 
-            // 메모리 사용량
-            long usedMemory = memoryBean.getHeapMemoryUsage().getUsed();
-            long maxMemory = memoryBean.getHeapMemoryUsage().getMax();
-            double memoryUsagePercent = (double) usedMemory / maxMemory * 100;
+            // 시스템 전체 물리 메모리 사용량
+            long usedMemory = 0;
+            long totalMemory = 0;
+            double memoryUsagePercent = 0.0;
+
+            try {
+                // Linux /proc/meminfo에서 정확한 메모리 정보 읽기
+                java.nio.file.Path meminfoPath = java.nio.file.Paths.get("/proc/meminfo");
+                if (java.nio.file.Files.exists(meminfoPath)) {
+                    String content = java.nio.file.Files.readString(meminfoPath);
+                    long memTotal = 0;
+                    long memAvailable = 0;
+
+                    for (String line : content.split("\n")) {
+                        if (line.startsWith("MemTotal:")) {
+                            // MemTotal:       32945164 kB
+                            memTotal = Long.parseLong(line.split("\\s+")[1]) * 1024; // kB to bytes
+                        } else if (line.startsWith("MemAvailable:")) {
+                            // MemAvailable:   16234567 kB
+                            memAvailable = Long.parseLong(line.split("\\s+")[1]) * 1024; // kB to bytes
+                        }
+                    }
+
+                    if (memTotal > 0 && memAvailable > 0) {
+                        totalMemory = memTotal;
+                        usedMemory = memTotal - memAvailable;
+                        memoryUsagePercent = (double) usedMemory / totalMemory * 100;
+                    } else {
+                        throw new Exception("MemTotal 또는 MemAvailable을 찾을 수 없음");
+                    }
+                } else {
+                    throw new Exception("/proc/meminfo 파일을 찾을 수 없음");
+                }
+            } catch (Exception e) {
+                log.debug("시스템 메모리 메트릭 수집 실패 (/proc/meminfo), OperatingSystemMXBean 사용: {}", e.getMessage());
+                // fallback 1: OperatingSystemMXBean 사용
+                try {
+                    if (osBean instanceof com.sun.management.OperatingSystemMXBean) {
+                        com.sun.management.OperatingSystemMXBean sunOsBean =
+                            (com.sun.management.OperatingSystemMXBean) osBean;
+                        totalMemory = sunOsBean.getTotalMemorySize();
+                        long freeMemory = sunOsBean.getFreeMemorySize();
+                        usedMemory = totalMemory - freeMemory;
+                        memoryUsagePercent = (double) usedMemory / totalMemory * 100;
+                    }
+                } catch (Exception e2) {
+                    log.debug("OperatingSystemMXBean 메모리 수집 실패, JVM Heap 메모리 사용: {}", e2.getMessage());
+                    // fallback 2: JVM Heap 메모리 사용
+                    usedMemory = memoryBean.getHeapMemoryUsage().getUsed();
+                    totalMemory = memoryBean.getHeapMemoryUsage().getMax();
+                    memoryUsagePercent = (double) usedMemory / totalMemory * 100;
+                }
+            }
 
             // 디스크 사용량
             File diskPartition = new File("/");
@@ -313,6 +366,8 @@ public class SystemHealthService {
             long usedSpace = totalSpace - freeSpace;
             double diskUsagePercent = (double) usedSpace / totalSpace * 100;
 
+            // 네트워크 메트릭 (실제 값 수집은 어려우므로 더미 데이터 유지)
+            // 실제 구현 시 NetworkInterface 사용하거나 /proc/net/dev 파싱
             return SystemMetricsDto.builder()
                     .cpu(SystemMetricsDto.CpuMetricsDto.builder()
                             .usage(Math.round(cpuUsage * 100.0) / 100.0)
@@ -320,7 +375,7 @@ public class SystemHealthService {
                             .build())
                     .memory(SystemMetricsDto.MemoryMetricsDto.builder()
                             .used((double) usedMemory / (1024 * 1024 * 1024)) // GB
-                            .total((double) maxMemory / (1024 * 1024 * 1024)) // GB
+                            .total((double) totalMemory / (1024 * 1024 * 1024)) // GB
                             .usage(Math.round(memoryUsagePercent * 100.0) / 100.0)
                             .build())
                     .disk(SystemMetricsDto.DiskMetricsDto.builder()
@@ -329,10 +384,10 @@ public class SystemHealthService {
                             .usage(Math.round(diskUsagePercent * 100.0) / 100.0)
                             .build())
                     .network(SystemMetricsDto.NetworkMetricsDto.builder()
-                            .bytesIn((long) (Math.random() * 1000000))
-                            .bytesOut((long) (Math.random() * 2000000))
-                            .throughputIn(Math.random() * 100)
-                            .throughputOut(Math.random() * 150)
+                            .bytesIn(0L) // 실제 구현 필요
+                            .bytesOut(0L) // 실제 구현 필요
+                            .throughputIn(0.0)
+                            .throughputOut(0.0)
                             .build())
                     .build();
 
@@ -342,51 +397,54 @@ public class SystemHealthService {
         }
     }
 
-    private AWSServiceStatusDto createServiceStatus(String serviceName, String status, int responseTime, String error) {
-        return AWSServiceStatusDto.builder()
+    /**
+     * 서비스 상태 DTO를 생성합니다.
+     */
+    private ServerServiceStatusDto createServiceStatus(String serviceName, String status, int responseTime, String details) {
+        return ServerServiceStatusDto.builder()
                 .serviceName(serviceName)
                 .status(status)
                 .responseTime(responseTime)
                 .lastChecked(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
-                .endpoint(error)
-                .region("ap-northeast-2")
+                .details(details)
                 .build();
     }
 
     // 더미 데이터 생성 메서드들
-    private List<AWSServiceStatusDto> getDummyAWSServices() {
-        List<AWSServiceStatusDto> services = new ArrayList<>();
-        
-        services.add(createServiceStatus("EC2 Instance", "healthy", 45, null));
-        services.add(createServiceStatus("RDS Database", "healthy", 12, null));
-        services.add(createServiceStatus("Application", "healthy", 23, null));
-        services.add(createServiceStatus("Load Balancer", "degraded", 89, null));
-        
+    private List<ServerServiceStatusDto> getDummyServices() {
+        List<ServerServiceStatusDto> services = new ArrayList<>();
+
+        services.add(createServiceStatus("PostgreSQL Database", "healthy", 12, "연결 성공"));
+        services.add(createServiceStatus("Application Server", "healthy", 5, "정상 작동"));
+        services.add(createServiceStatus("JVM Memory", "healthy", 3, "Heap: 45%"));
+        services.add(createServiceStatus("Disk Storage", "healthy", 8, "60% (120GB/200GB)"));
+        services.add(createServiceStatus("Thread Pool", "healthy", 2, "85개 활성"));
+
         return services;
     }
 
     private SystemMetricsDto getDummyMetrics() {
         return SystemMetricsDto.builder()
                 .cpu(SystemMetricsDto.CpuMetricsDto.builder()
-                        .usage(45.0)
+                        .usage(25.0)
                         .cores(4)
                         .build())
                 .memory(SystemMetricsDto.MemoryMetricsDto.builder()
-                        .used(6.2)
-                        .total(16.0)
-                        .usage(38.75)
+                        .used(3.2)
+                        .total(8.0)
+                        .usage(40.0)
                         .build())
                 .disk(SystemMetricsDto.DiskMetricsDto.builder()
                         .used(120.0)
-                        .total(500.0)
-                        .usage(24.0)
+                        .total(200.0)
+                        .usage(60.0)
                         .build())
                 .network(SystemMetricsDto.NetworkMetricsDto.builder()
-                        .bytesIn(1024000L)
-                        .bytesOut(2048000L)
-                        .throughputIn(50.5)
-                        .throughputOut(75.3)
+                        .bytesIn(0L)
+                        .bytesOut(0L)
+                        .throughputIn(0.0)
+                        .throughputOut(0.0)
                         .build())
                 .build();
     }
-} 
+}
