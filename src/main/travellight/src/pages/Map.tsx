@@ -187,19 +187,24 @@ const Map = () => {
   ); // 기본값을 포트원으로 설정
   const [storageDuration, setStorageDuration] = useState("day");
 
-  // 초기 날짜와 시간 설정 함수
+  // 초기 날짜와 시간 설정 함수 (30분 단위)
   const getInitialDateTime = () => {
     const now = new Date();
     const todayDate = now.toISOString().split('T')[0]; // YYYY-MM-DD 형식
 
-    // 현재 시간 + 1시간을 시작 시간으로
+    // 현재 시간 + 1시간을 시작 시간으로, 30분 단위로 반올림
     const startTime = new Date(now.getTime() + 60 * 60 * 1000);
+    const startMinutes = startTime.getMinutes();
+    const roundedStartMinutes = startMinutes < 30 ? 0 : 30;
+    startTime.setMinutes(roundedStartMinutes);
+    startTime.setSeconds(0);
+
     const startHour = startTime.getHours().toString().padStart(2, '0');
-    const startMinute = startTime.getMinutes().toString().padStart(2, '0');
+    const startMinute = roundedStartMinutes.toString().padStart(2, '0');
     const startTimeStr = `${startHour}:${startMinute}`;
 
-    // 현재 시간 + 2시간을 종료 시간으로
-    const endTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    // 시작 시간 + 1시간을 종료 시간으로 (30분 단위 유지)
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
     const endHour = endTime.getHours().toString().padStart(2, '0');
     const endMinute = endTime.getMinutes().toString().padStart(2, '0');
     const endTimeStr = `${endHour}:${endMinute}`;
