@@ -18,7 +18,11 @@ import {
   Grid,
   TextField,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import {
   ArrowBack,
@@ -74,6 +78,15 @@ interface Partnership {
   submissionId: string;
   createdAt: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  smallBagsAvailable?: number;
+  mediumBagsAvailable?: number;
+  largeBagsAvailable?: number;
+}
+
+interface BusinessHourEdit {
+  enabled: boolean;
+  open: string;
+  close: string;
 }
 
 interface TabPanelProps {
@@ -122,6 +135,33 @@ const PartnershipDetail = () => {
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<Partial<Partnership>>({});
   const [alertMessage, setAlertMessage] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [editBusinessHours, setEditBusinessHours] = useState<Record<string, BusinessHourEdit>>({});
+
+  // 운영시간 파싱 함수
+  const parseBusinessHours = (businessHours: Record<string, string>): Record<string, BusinessHourEdit> => {
+    const parsed: Record<string, BusinessHourEdit> = {};
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+    
+    days.forEach(day => {
+      const hours = businessHours[day];
+      if (hours && hours !== '24시간') {
+        const [open, close] = hours.split('-');
+        parsed[day] = {
+          enabled: true,
+          open: open || '09:00',
+          close: close || '18:00'
+        };
+      } else {
+        parsed[day] = {
+          enabled: false,
+          open: '09:00',
+          close: '18:00'
+        };
+      }
+    });
+    
+    return parsed;
+  };
 
   // 제휴점 정보 로드
   const loadPartnership = async () => {
@@ -136,6 +176,7 @@ const PartnershipDetail = () => {
         if (foundPartnership) {
           setPartnership(foundPartnership);
           setEditData(foundPartnership);
+          setEditBusinessHours(parseBusinessHours(foundPartnership.businessHours || {}));
         } else {
           setAlertMessage({type: 'error', message: '제휴점을 찾을 수 없습니다.'});
         }
@@ -162,22 +203,37 @@ const PartnershipDetail = () => {
     if (editMode) {
       // 취소
       setEditData(partnership || {});
+      setEditBusinessHours(parseBusinessHours(partnership?.businessHours || {}));
     }
     setEditMode(!editMode);
   };
 
   const handleSave = async () => {
     try {
-      // 상태 변경 API 호출 (기존 API 사용)
-      if (editData.status && editData.status !== partnership?.status) {
-        await axios.put(`/api/partnership/${partnershipId}/status`, { status: editData.status });
-        toast.success('상태가 업데이트되었습니다.');
-        loadPartnership();
-      }
+      // 운영시간 데이터를 백엔드 형식으로 변환 (DTO의 BusinessHourDto 형식)
+      const businessHoursPayload: Record<string, { enabled: boolean; open: string; close: string }> = {};
+      Object.entries(editBusinessHours).forEach(([day, hours]) => {
+        businessHoursPayload[day] = {
+          enabled: hours.enabled,
+          open: hours.open,
+          close: hours.close
+        };
+      });
+
+      const payload = {
+        ...editData,
+        businessHours: businessHoursPayload
+      };
+
+      const response = await axios.put(`/api/partnership/${partnershipId}`, payload);
+      toast.success('제휴점 정보가 성공적으로 수정되었습니다.');
       setEditMode(false);
-    } catch (error) {
+      await loadPartnership();
+    } catch (error: any) {
       console.error('저장 중 오류:', error);
-      setAlertMessage({type: 'error', message: '저장에 실패했습니다.'});
+      const errorMessage = error.response?.data?.message || '저장에 실패했습니다.';
+      toast.error(errorMessage);
+      setAlertMessage({type: 'error', message: errorMessage});
     }
   };
 
@@ -198,6 +254,23 @@ const PartnershipDetail = () => {
       const errorMessage = error.response?.data?.message || '상태 업데이트에 실패했습니다.';
       toast.error(errorMessage);
     }
+  };
+
+  const handleInputChange = (field: keyof Partnership, value: any) => {
+    setEditData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleBusinessHourChange = (day: string, field: keyof BusinessHourEdit, value: any) => {
+    setEditBusinessHours(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [field]: value
+      }
+    }));
   };
 
   if (loading) {
@@ -223,13 +296,13 @@ const PartnershipDetail = () => {
   }
 
   const dayLabels: Record<string, string> = {
-    'monday': '월요일',
-    'tuesday': '화요일',
-    'wednesday': '수요일',
-    'thursday': '목요일',
-    'friday': '금요일',
-    'saturday': '토요일',
-    'sunday': '일요일'
+    'MONDAY': '월요일',
+    'TUESDAY': '화요일',
+    'WEDNESDAY': '수요일',
+    'THURSDAY': '목요일',
+    'FRIDAY': '금요일',
+    'SATURDAY': '토요일',
+    'SUNDAY': '일요일'
   };
 
   return (
@@ -265,7 +338,21 @@ const PartnershipDetail = () => {
               gap: 1
             }}>
               <Business sx={{ color: COLORS.accentPrimary }} />
-              {partnership.businessName}
+              {editMode ? (
+                <TextField
+                  value={editData.businessName || ''}
+                  onChange={(e) => handleInputChange('businessName', e.target.value)}
+                  variant="standard"
+                  size="small"
+                  sx={{
+                    '& .MuiInputBase-input': {
+                      color: COLORS.textPrimary,
+                      fontSize: '1.5rem',
+                      fontWeight: 600
+                    }
+                  }}
+                />
+              ) : partnership.businessName}
             </Typography>
             <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
               제휴점 상세정보
@@ -273,11 +360,11 @@ const PartnershipDetail = () => {
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Chip 
             label={
-              partnership.status === 'PENDING' ? '대기중' : 
-              partnership.status === 'APPROVED' ? '승인됨' : '거절됨'
+              partnership.status === 'PENDING' ? '검토중' : 
+              partnership.status === 'APPROVED' ? '운영중' : '거절'
             }
             sx={{
               bgcolor: 
@@ -288,6 +375,48 @@ const PartnershipDetail = () => {
               fontWeight: 600
             }}
           />
+          {editMode ? (
+            <>
+              <Button
+                variant="contained"
+                startIcon={<Save />}
+                onClick={handleSave}
+                sx={{
+                  bgcolor: COLORS.success,
+                  '&:hover': { bgcolor: COLORS.success, opacity: 0.8 }
+                }}
+              >
+                저장
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<Cancel />}
+                onClick={handleEditToggle}
+                sx={{
+                  color: COLORS.textSecondary,
+                  borderColor: COLORS.borderSecondary,
+                  '&:hover': { 
+                    borderColor: COLORS.textSecondary,
+                    bgcolor: COLORS.backgroundHover
+                  }
+                }}
+              >
+                취소
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="contained"
+              startIcon={<Edit />}
+              onClick={handleEditToggle}
+              sx={{
+                bgcolor: COLORS.accentPrimary,
+                '&:hover': { bgcolor: COLORS.accentPrimary, opacity: 0.8 }
+              }}
+            >
+              수정
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -328,6 +457,7 @@ const PartnershipDetail = () => {
         >
           <Tab label="기본 정보" />
           <Tab label="운영 정보" />
+          <Tab label="보관 용량" />
           <Tab label="관리" />
         </Tabs>
 
@@ -345,33 +475,85 @@ const PartnershipDetail = () => {
                       <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
                         상호명
                       </Typography>
-                      <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
-                        {partnership.businessName}
-                      </Typography>
+                      {editMode ? (
+                        <TextField
+                          fullWidth
+                          value={editData.businessName || ''}
+                          onChange={(e) => handleInputChange('businessName', e.target.value)}
+                          size="small"
+                          sx={{
+                            '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                            '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                          {partnership.businessName}
+                        </Typography>
+                      )}
                     </Box>
                     <Box>
                       <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
                         대표자명
                       </Typography>
-                      <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
-                        {partnership.ownerName}
-                      </Typography>
+                      {editMode ? (
+                        <TextField
+                          fullWidth
+                          value={editData.ownerName || ''}
+                          onChange={(e) => handleInputChange('ownerName', e.target.value)}
+                          size="small"
+                          sx={{
+                            '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                            '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                          {partnership.ownerName}
+                        </Typography>
+                      )}
                     </Box>
                     <Box>
                       <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
                         업종
                       </Typography>
-                      <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
-                        {partnership.businessType}
-                      </Typography>
+                      {editMode ? (
+                        <TextField
+                          fullWidth
+                          value={editData.businessType || ''}
+                          onChange={(e) => handleInputChange('businessType', e.target.value)}
+                          size="small"
+                          sx={{
+                            '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                            '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                          {partnership.businessType}
+                        </Typography>
+                      )}
                     </Box>
                     <Box>
                       <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
                         공간 규모
                       </Typography>
-                      <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
-                        {partnership.spaceSize}
-                      </Typography>
+                      {editMode ? (
+                        <TextField
+                          fullWidth
+                          value={editData.spaceSize || ''}
+                          onChange={(e) => handleInputChange('spaceSize', e.target.value)}
+                          size="small"
+                          sx={{
+                            '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                            '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                          {partnership.spaceSize}
+                        </Typography>
+                      )}
                     </Box>
                   </Stack>
                 </CardContent>
@@ -390,33 +572,103 @@ const PartnershipDetail = () => {
                       <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
                         이메일
                       </Typography>
-                      <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
-                        {partnership.email}
-                      </Typography>
+                      {editMode ? (
+                        <TextField
+                          fullWidth
+                          value={editData.email || ''}
+                          onChange={(e) => handleInputChange('email', e.target.value)}
+                          size="small"
+                          sx={{
+                            '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                            '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                          {partnership.email}
+                        </Typography>
+                      )}
                     </Box>
                     <Box>
                       <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
                         전화번호
                       </Typography>
-                      <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
-                        {partnership.phone}
-                      </Typography>
+                      {editMode ? (
+                        <TextField
+                          fullWidth
+                          value={editData.phone || ''}
+                          onChange={(e) => handleInputChange('phone', e.target.value)}
+                          size="small"
+                          sx={{
+                            '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                            '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                          {partnership.phone}
+                        </Typography>
+                      )}
                     </Box>
                     <Box>
                       <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
                         주소
                       </Typography>
-                      <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
-                        {partnership.address}
-                      </Typography>
+                      {editMode ? (
+                        <TextField
+                          fullWidth
+                          value={editData.address || ''}
+                          onChange={(e) => handleInputChange('address', e.target.value)}
+                          size="small"
+                          multiline
+                          rows={2}
+                          sx={{
+                            '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                            '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                          {partnership.address}
+                        </Typography>
+                      )}
                     </Box>
                     <Box>
                       <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
                         좌표
                       </Typography>
-                      <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
-                        위도: {partnership.latitude}, 경도: {partnership.longitude}
-                      </Typography>
+                      {editMode ? (
+                        <Stack direction="row" spacing={1}>
+                          <TextField
+                            label="위도"
+                            value={editData.latitude || ''}
+                            onChange={(e) => handleInputChange('latitude', parseFloat(e.target.value) || 0)}
+                            size="small"
+                            type="number"
+                            sx={{
+                              '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                              '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary },
+                              '& .MuiInputLabel-root': { color: COLORS.textSecondary }
+                            }}
+                          />
+                          <TextField
+                            label="경도"
+                            value={editData.longitude || ''}
+                            onChange={(e) => handleInputChange('longitude', parseFloat(e.target.value) || 0)}
+                            size="small"
+                            type="number"
+                            sx={{
+                              '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                              '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary },
+                              '& .MuiInputLabel-root': { color: COLORS.textSecondary }
+                            }}
+                          />
+                        </Stack>
+                      ) : (
+                        <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                          위도: {partnership.latitude}, 경도: {partnership.longitude}
+                        </Typography>
+                      )}
                     </Box>
                   </Stack>
                 </CardContent>
@@ -427,7 +679,7 @@ const PartnershipDetail = () => {
 
         <TabPanel value={tabValue} index={1}>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12}>
               <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
                 <CardContent>
                   <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -436,25 +688,110 @@ const PartnershipDetail = () => {
                   </Typography>
                   <Stack spacing={2}>
                     <Box>
-                      <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
-                        24시간 운영: {partnership.is24Hours ? '예' : '아니오'}
-                      </Typography>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={editMode ? (editData.is24Hours || false) : partnership.is24Hours}
+                            onChange={(e) => handleInputChange('is24Hours', e.target.checked)}
+                            disabled={!editMode}
+                            sx={{
+                              '& .MuiSwitch-switchBase.Mui-checked': {
+                                color: COLORS.accentPrimary
+                              }
+                            }}
+                          />
+                        }
+                        label={
+                          <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
+                            24시간 운영
+                          </Typography>
+                        }
+                      />
                     </Box>
-                    {!partnership.is24Hours && (
+                    
+                    {!((editMode ? editData.is24Hours : partnership.is24Hours) || false) && (
                       <Box>
-                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
-                          운영 시간
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 2, fontWeight: 600 }}>
+                          요일별 운영 시간
                         </Typography>
-                        {Object.entries(partnership.businessHours).map(([day, hours]) => (
-                          <Box key={day} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
-                            <Typography variant="body2" sx={{ color: COLORS.textMuted }}>
-                              {dayLabels[day]}
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: COLORS.textPrimary }}>
-                              {hours || '휴무'}
-                            </Typography>
-                          </Box>
-                        ))}
+                        <Stack spacing={2}>
+                          {Object.entries(dayLabels).map(([dayKey, dayName]) => (
+                            <Box 
+                              key={dayKey} 
+                              sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 2,
+                                p: 2,
+                                bgcolor: COLORS.backgroundCard,
+                                borderRadius: 1,
+                                border: `1px solid ${COLORS.borderSecondary}`
+                              }}
+                            >
+                              {editMode ? (
+                                <>
+                                  <FormControlLabel
+                                    control={
+                                      <Switch
+                                        checked={editBusinessHours[dayKey]?.enabled || false}
+                                        onChange={(e) => handleBusinessHourChange(dayKey, 'enabled', e.target.checked)}
+                                        sx={{
+                                          '& .MuiSwitch-switchBase.Mui-checked': {
+                                            color: COLORS.accentPrimary
+                                          }
+                                        }}
+                                      />
+                                    }
+                                    label={
+                                      <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500, minWidth: 60 }}>
+                                        {dayName}
+                                      </Typography>
+                                    }
+                                  />
+                                  {editBusinessHours[dayKey]?.enabled && (
+                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flex: 1 }}>
+                                      <TextField
+                                        type="time"
+                                        value={editBusinessHours[dayKey]?.open || '09:00'}
+                                        onChange={(e) => handleBusinessHourChange(dayKey, 'open', e.target.value)}
+                                        size="small"
+                                        sx={{
+                                          '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                                          '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                                        }}
+                                      />
+                                      <Typography sx={{ color: COLORS.textSecondary }}>~</Typography>
+                                      <TextField
+                                        type="time"
+                                        value={editBusinessHours[dayKey]?.close || '18:00'}
+                                        onChange={(e) => handleBusinessHourChange(dayKey, 'close', e.target.value)}
+                                        size="small"
+                                        sx={{
+                                          '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                                          '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                                        }}
+                                      />
+                                    </Box>
+                                  )}
+                                  {!editBusinessHours[dayKey]?.enabled && (
+                                    <Typography sx={{ color: COLORS.textMuted, flex: 1 }}>
+                                      휴무
+                                    </Typography>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500, minWidth: 100 }}>
+                                    {dayName}
+                                  </Typography>
+                                  <Typography variant="body1" sx={{ color: COLORS.textSecondary }}>
+                                    {partnership.businessHours[dayKey] || '휴무'}
+                                  </Typography>
+                                </>
+                              )}
+                            </Box>
+                          ))}
+                        </Stack>
                       </Box>
                     )}
                   </Stack>
@@ -462,7 +799,7 @@ const PartnershipDetail = () => {
               </Card>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12}>
               <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
                 <CardContent>
                   <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -494,16 +831,29 @@ const PartnershipDetail = () => {
                         {partnership.agreeTerms ? '동의함' : '동의하지 않음'}
                       </Typography>
                     </Box>
-                    {partnership.additionalInfo && (
-                      <Box>
-                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
-                          추가 정보
-                        </Typography>
+                    <Box>
+                      <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
+                        추가 정보
+                      </Typography>
+                      {editMode ? (
+                        <TextField
+                          fullWidth
+                          value={editData.additionalInfo || ''}
+                          onChange={(e) => handleInputChange('additionalInfo', e.target.value)}
+                          size="small"
+                          multiline
+                          rows={3}
+                          sx={{
+                            '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                            '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                          }}
+                        />
+                      ) : (
                         <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
-                          {partnership.additionalInfo}
+                          {partnership.additionalInfo || '-'}
                         </Typography>
-                      </Box>
-                    )}
+                      )}
+                    </Box>
                   </Stack>
                 </CardContent>
               </Card>
@@ -512,6 +862,93 @@ const PartnershipDetail = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
+          <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 3 }}>
+                보관 용량 관리
+              </Typography>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={4}>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                      소형 가방 보관 가능 개수
+                    </Typography>
+                    {editMode ? (
+                      <TextField
+                        fullWidth
+                        type="number"
+                        value={editData.smallBagsAvailable ?? partnership.smallBagsAvailable ?? 0}
+                        onChange={(e) => handleInputChange('smallBagsAvailable', parseInt(e.target.value) || 0)}
+                        size="small"
+                        sx={{
+                          '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                          '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                        }}
+                      />
+                    ) : (
+                      <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 600 }}>
+                        {partnership.smallBagsAvailable ?? 0}개
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                      중형 가방 보관 가능 개수
+                    </Typography>
+                    {editMode ? (
+                      <TextField
+                        fullWidth
+                        type="number"
+                        value={editData.mediumBagsAvailable ?? partnership.mediumBagsAvailable ?? 0}
+                        onChange={(e) => handleInputChange('mediumBagsAvailable', parseInt(e.target.value) || 0)}
+                        size="small"
+                        sx={{
+                          '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                          '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                        }}
+                      />
+                    ) : (
+                      <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 600 }}>
+                        {partnership.mediumBagsAvailable ?? 0}개
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                      대형 가방 보관 가능 개수
+                    </Typography>
+                    {editMode ? (
+                      <TextField
+                        fullWidth
+                        type="number"
+                        value={editData.largeBagsAvailable ?? partnership.largeBagsAvailable ?? 0}
+                        onChange={(e) => handleInputChange('largeBagsAvailable', parseInt(e.target.value) || 0)}
+                        size="small"
+                        sx={{
+                          '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                          '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                        }}
+                      />
+                    ) : (
+                      <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 600 }}>
+                        {partnership.largeBagsAvailable ?? 0}개
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={3}>
           <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
             <CardContent>
               <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 3 }}>
@@ -524,8 +961,8 @@ const PartnershipDetail = () => {
                 </Typography>
                 <Chip 
                   label={
-                    partnership.status === 'PENDING' ? '대기중' : 
-                    partnership.status === 'APPROVED' ? '승인됨' : '거절됨'
+                    partnership.status === 'PENDING' ? '검토중' : 
+                    partnership.status === 'APPROVED' ? '운영중' : '거절'
                   }
                   sx={{
                     bgcolor: 
@@ -554,7 +991,7 @@ const PartnershipDetail = () => {
                     '&:disabled': { bgcolor: COLORS.textMuted }
                   }}
                 >
-                  승인
+                  승인 (운영중으로 변경)
                 </Button>
                 <Button
                   variant="contained"
@@ -570,6 +1007,57 @@ const PartnershipDetail = () => {
                   거절
                 </Button>
               </Stack>
+              
+              {partnership.status === 'APPROVED' && (
+                <Box sx={{ 
+                  mt: 3, 
+                  p: 2, 
+                  bgcolor: COLORS.backgroundCard, 
+                  border: `1px solid ${COLORS.success}`,
+                  borderRadius: 1
+                }}>
+                  <Typography variant="body2" sx={{ color: COLORS.success, fontWeight: 600 }}>
+                    ✓ 현재 운영중인 제휴점입니다
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: COLORS.textSecondary, display: 'block', mt: 1 }}>
+                    이 제휴점은 고객들에게 표시되며, 예약을 받을 수 있습니다.
+                  </Typography>
+                </Box>
+              )}
+              
+              {partnership.status === 'PENDING' && (
+                <Box sx={{ 
+                  mt: 3, 
+                  p: 2, 
+                  bgcolor: COLORS.backgroundCard, 
+                  border: `1px solid ${COLORS.warning}`,
+                  borderRadius: 1
+                }}>
+                  <Typography variant="body2" sx={{ color: COLORS.warning, fontWeight: 600 }}>
+                    ⚠ 검토 대기중입니다
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: COLORS.textSecondary, display: 'block', mt: 1 }}>
+                    승인 후 제휴점으로 운영할 수 있습니다.
+                  </Typography>
+                </Box>
+              )}
+              
+              {partnership.status === 'REJECTED' && (
+                <Box sx={{ 
+                  mt: 3, 
+                  p: 2, 
+                  bgcolor: COLORS.backgroundCard, 
+                  border: `1px solid ${COLORS.danger}`,
+                  borderRadius: 1
+                }}>
+                  <Typography variant="body2" sx={{ color: COLORS.danger, fontWeight: 600 }}>
+                    ✕ 거절된 제휴 신청입니다
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: COLORS.textSecondary, display: 'block', mt: 1 }}>
+                    이 제휴점은 고객들에게 표시되지 않습니다.
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
         </TabPanel>
