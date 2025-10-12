@@ -60,3 +60,5 @@ public interface InquiryService {
     Long getPendingCount();
 }
 
+
+

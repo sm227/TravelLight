@@ -337,4 +337,33 @@ public class PartnershipController {
                     .body(CommonApiResponse.error("영업시간 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
+
+    @Operation(summary = "제휴점 전체 정보 수정", description = "제휴점의 모든 정보를 수정합니다. (어드민 전용)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "수정 성공", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "404", description = "제휴점을 찾을 수 없음", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "500", description = "서버 오류", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
+    })
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updatePartnership(
+            @Parameter(description = "제휴점 ID", required = true)
+            @PathVariable Long id,
+            @Parameter(description = "수정할 제휴점 정보", required = true)
+            @RequestBody PartnershipDto partnershipDto) {
+        try {
+            Partnership updatedPartnership = partnershipService.updatePartnership(id, partnershipDto);
+            return ResponseEntity.ok(CommonApiResponse.success("제휴점 정보가 성공적으로 수정되었습니다.", updatedPartnership));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(CommonApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("제휴점 정보 수정 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonApiResponse.error("제휴점 정보 수정 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
 }

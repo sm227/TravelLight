@@ -212,7 +212,7 @@ const AdminFAQs: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.post('/faqs', formData);
+      const response = await api.post('/faqs/admin', formData);
       
       if (response.data.success) {
         setSuccess('FAQ가 성공적으로 생성되었습니다.');
@@ -234,7 +234,7 @@ const AdminFAQs: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.put(`/faqs/${selectedFaq.id}`, formData);
+      const response = await api.put(`/faqs/admin/${selectedFaq.id}`, formData);
       
       if (response.data.success) {
         setSuccess('FAQ가 성공적으로 수정되었습니다.');
@@ -256,7 +256,7 @@ const AdminFAQs: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.delete(`/faqs/${faqId}`);
+      const response = await api.delete(`/faqs/admin/${faqId}`);
       
       if (response.data.success) {
         setSuccess('FAQ가 성공적으로 삭제되었습니다.');

@@ -8,6 +8,9 @@ import org.example.travellight.entity.FaqCategory;
 import org.example.travellight.entity.User;
 import org.example.travellight.exception.CustomException;
 import org.example.travellight.repository.FaqRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -27,8 +30,10 @@ public class FaqServiceImpl implements FaqService {
     private final FaqRepository faqRepository;
     
     @Override
+    @Cacheable(value = "faqs", key = "'all'")
     @Transactional(readOnly = true)
     public List<FaqDto.FaqResponse> getAllFaqs() {
+        log.debug("Fetching all FAQs from database");
         List<Faq> faqs = faqRepository.findByIsActiveTrueOrderBySortOrderAsc();
         return faqs.stream()
                 .map(this::convertToResponse)
@@ -36,12 +41,14 @@ public class FaqServiceImpl implements FaqService {
     }
     
     @Override
+    @Cacheable(value = "faqs", key = "'category_' + #category.name()")
     @Transactional(readOnly = true)
     public List<FaqDto.FaqResponse> getFaqsByCategory(FaqCategory category) {
         if (category == FaqCategory.ALL) {
             return getAllFaqs();
         }
         
+        log.debug("Fetching FAQs for category: {}", category);
         List<Faq> faqs = faqRepository.findByCategoryAndIsActiveTrueOrderBySortOrderAsc(category);
         return faqs.stream()
                 .map(this::convertToResponse)
@@ -62,12 +69,14 @@ public class FaqServiceImpl implements FaqService {
     }
     
     @Override
+    @Cacheable(value = "faqSearch", key = "#keyword.toLowerCase()", unless = "#result.isEmpty()")
     @Transactional(readOnly = true)
     public List<FaqDto.FaqResponse> searchFaqs(String keyword) {
         if (keyword == null || keyword.trim().isEmpty()) {
             return getAllFaqs();
         }
         
+        log.debug("Searching FAQs with keyword: {}", keyword);
         List<Faq> faqs = faqRepository.searchByKeyword(keyword.trim());
         return faqs.stream()
                 .map(this::convertToResponse)
@@ -75,6 +84,7 @@ public class FaqServiceImpl implements FaqService {
     }
     
     @Override
+    @Cacheable(value = "faqSearch", key = "'cat_' + #category.name() + '_' + #keyword.toLowerCase()", unless = "#result.isEmpty()")
     @Transactional(readOnly = true)
     public List<FaqDto.FaqResponse> searchFaqsByCategoryAndKeyword(FaqCategory category, String keyword) {
         if (category == FaqCategory.ALL) {
@@ -85,6 +95,7 @@ public class FaqServiceImpl implements FaqService {
             return getFaqsByCategory(category);
         }
         
+        log.debug("Searching FAQs with category: {} and keyword: {}", category, keyword);
         List<Faq> faqs = faqRepository.searchByCategoryAndKeyword(category, keyword.trim());
         return faqs.stream()
                 .map(this::convertToResponse)
@@ -108,8 +119,10 @@ public class FaqServiceImpl implements FaqService {
     }
     
     @Override
+    @Cacheable(value = "popularFaqs", key = "#limit")
     @Transactional(readOnly = true)
     public List<FaqDto.FaqResponse> getPopularFaqs(int limit) {
+        log.debug("Fetching top {} popular FAQs", limit);
         Pageable pageable = PageRequest.of(0, limit);
         List<Faq> faqs = faqRepository.findTopByViewCount(pageable);
         return faqs.stream()
@@ -118,6 +131,11 @@ public class FaqServiceImpl implements FaqService {
     }
     
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "faqs", allEntries = true),
+        @CacheEvict(value = "faqSearch", allEntries = true),
+        @CacheEvict(value = "popularFaqs", allEntries = true)
+    })
     @Transactional
     public FaqDto.FaqResponse createFaq(FaqDto.FaqRequest request, User admin) {
         log.info("Creating FAQ by admin: {}", admin.getEmail());
@@ -139,6 +157,11 @@ public class FaqServiceImpl implements FaqService {
     }
     
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "faqs", allEntries = true),
+        @CacheEvict(value = "faqSearch", allEntries = true),
+        @CacheEvict(value = "popularFaqs", allEntries = true)
+    })
     @Transactional
     public FaqDto.FaqResponse updateFaq(Long faqId, FaqDto.FaqUpdateRequest request, User admin) {
         log.info("Updating FAQ ID: {} by admin: {}", faqId, admin.getEmail());
@@ -171,6 +194,11 @@ public class FaqServiceImpl implements FaqService {
     }
     
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "faqs", allEntries = true),
+        @CacheEvict(value = "faqSearch", allEntries = true),
+        @CacheEvict(value = "popularFaqs", allEntries = true)
+    })
     @Transactional
     public void deleteFaq(Long faqId, User admin) {
         log.info("Deleting FAQ ID: {} by admin: {}", faqId, admin.getEmail());
@@ -199,6 +227,11 @@ public class FaqServiceImpl implements FaqService {
     }
     
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "faqs", allEntries = true),
+        @CacheEvict(value = "faqSearch", allEntries = true),
+        @CacheEvict(value = "popularFaqs", allEntries = true)
+    })
     @Transactional
     public FaqDto.FaqResponse toggleFaqActive(Long faqId, User admin) {
         log.info("Toggling FAQ active status ID: {} by admin: {}", faqId, admin.getEmail());
@@ -216,6 +249,11 @@ public class FaqServiceImpl implements FaqService {
     }
     
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "faqs", allEntries = true),
+        @CacheEvict(value = "faqSearch", allEntries = true),
+        @CacheEvict(value = "popularFaqs", allEntries = true)
+    })
     @Transactional
     public FaqDto.FaqResponse updateFaqOrder(Long faqId, Integer newOrder, User admin) {
         log.info("Updating FAQ order ID: {} to {} by admin: {}", faqId, newOrder, admin.getEmail());
@@ -266,4 +304,5 @@ public class FaqServiceImpl implements FaqService {
         return builder.build();
     }
 }
+
 

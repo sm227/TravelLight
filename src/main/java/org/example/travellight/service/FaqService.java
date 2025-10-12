@@ -85,3 +85,4 @@ public interface FaqService {
     FaqDto.FaqResponse updateFaqOrder(Long faqId, Integer newOrder, User admin);
 }
 
+

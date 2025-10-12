@@ -8,7 +8,13 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "faqs")
+@Table(name = "faqs", indexes = {
+    @Index(name = "idx_faq_category", columnList = "category"),
+    @Index(name = "idx_faq_is_active", columnList = "is_active"),
+    @Index(name = "idx_faq_sort_order", columnList = "sort_order"),
+    @Index(name = "idx_faq_category_active", columnList = "category, is_active, sort_order"),
+    @Index(name = "idx_faq_view_count", columnList = "view_count")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -89,4 +95,5 @@ public class Faq {
         this.viewCount++;
     }
 }
+
 
