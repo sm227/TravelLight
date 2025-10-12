@@ -5304,7 +5304,7 @@ const Map = () => {
                         alignItems: "flex-start",
                         mb: 1.5
                       }}>
-                        <Box>
+                        <Box sx={{ flex: 1 }}>
                           <Typography variant="h6" sx={{
                             fontWeight: 600,
                             fontSize: "16px",
@@ -5315,10 +5315,53 @@ const Map = () => {
                           </Typography>
                           <Typography variant="body2" sx={{
                             color: "#666",
-                            fontSize: "13px"
+                            fontSize: "13px",
+                            mb: 1
                           }}>
                             {reservation.reservationNumber}
                           </Typography>
+
+                          {/* 보관 상태 태그 */}
+                          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                            {storageStatuses[reservation.reservationNumber] && (
+                              <>
+                                {storageStatuses[reservation.reservationNumber].hasStorage ? (
+                                  <Chip
+                                    icon={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                          <CheckCircleIcon sx={{ fontSize: 14 }} /> :
+                                          <QrCodeIcon sx={{ fontSize: 14 }} />}
+                                    label={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                           '보관 중' : '이용 완료'}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{
+                                      backgroundColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                                      '#e8f5e8' : '#f3e5f5',
+                                      borderColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                                  '#4caf50' : '#9c27b0',
+                                      color: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                             '#2e7d32' : '#7b1fa2',
+                                      fontSize: '10px',
+                                      height: '22px'
+                                    }}
+                                  />
+                                ) : (
+                                  <Chip
+                                    label={t('waitingForStoreVisit')}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{
+                                      backgroundColor: '#fff3e0',
+                                      borderColor: '#ff9800',
+                                      color: '#e65100',
+                                      fontSize: '10px',
+                                      height: '22px'
+                                    }}
+                                  />
+                                )}
+                              </>
+                            )}
+                          </Box>
                         </Box>
                         <Chip
                           label={getStatusText(reservation.status)}
@@ -5329,7 +5372,8 @@ const Map = () => {
                             color: reservation.status === 'RESERVED' ? '#1976d2' :
                                    reservation.status === 'COMPLETED' ? '#7b1fa2' : '#ed6c02',
                             fontWeight: 500,
-                            fontSize: '11px'
+                            fontSize: '11px',
+                            height: '24px'
                           }}
                         />
                       </Box>
@@ -5503,46 +5547,63 @@ const Map = () => {
                                             flex: 1,
                                             backgroundColor: '#4CAF50',
                                             color: 'white',
-                                            fontSize: '11px',
-                                            py: 0.8,
-                                            opacity: 0.8
+                                            fontSize: '12px',
+                                            py: 1,
+                                            fontWeight: 600,
+                                            opacity: 0.9,
+                                            borderRadius: '8px',
+                                            '&.Mui-disabled': {
+                                              color: 'white'
+                                            }
                                           }}
                                         >
-                                          ✅ 리뷰 완료
+                                          ✅ 리뷰 작성 완료
                                         </Button>
                                         <Button
                                           variant="outlined"
-                                          size="small"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleEditReview(reservation);
                                           }}
                                           sx={{
-                                            borderColor: '#2196F3',
-                                            color: '#2196F3',
-                                            fontSize: '10px',
-                                            minWidth: 'auto',
-                                            px: 1
+                                            borderColor: '#1976d2',
+                                            color: '#1976d2',
+                                            fontSize: '12px',
+                                            minWidth: '50px',
+                                            px: 1.5,
+                                            py: 1,
+                                            fontWeight: 600,
+                                            borderRadius: '8px',
+                                            '&:hover': {
+                                              backgroundColor: '#e3f2fd',
+                                              borderColor: '#1565c0'
+                                            }
                                           }}
                                         >
-                                          ✏️
+                                          수정
                                         </Button>
                                         <Button
                                           variant="outlined"
-                                          size="small"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleDeleteReview(reservation);
                                           }}
                                           sx={{
-                                            borderColor: '#f44336',
-                                            color: '#f44336',
-                                            fontSize: '10px',
-                                            minWidth: 'auto',
-                                            px: 1
+                                            borderColor: '#d32f2f',
+                                            color: '#d32f2f',
+                                            fontSize: '12px',
+                                            minWidth: '50px',
+                                            px: 1.5,
+                                            py: 1,
+                                            fontWeight: 600,
+                                            borderRadius: '8px',
+                                            '&:hover': {
+                                              backgroundColor: '#ffebee',
+                                              borderColor: '#c62828'
+                                            }
                                           }}
                                         >
-                                          🗑️
+                                          삭제
                                         </Button>
                                       </Box>
                                     ) : (
@@ -5554,13 +5615,17 @@ const Map = () => {
                                           handleWriteReview(reservation);
                                         }}
                                         sx={{
-                                          backgroundColor: '#226fff',
+                                          backgroundColor: '#FF6B35',
                                           color: 'white',
+                                          fontWeight: 600,
+                                          fontSize: '13px',
+                                          py: 1.2,
+                                          borderRadius: '8px',
+                                          boxShadow: '0 2px 8px rgba(255, 107, 53, 0.25)',
                                           '&:hover': {
-                                            backgroundColor: '#E64A19'
-                                          },
-                                          fontSize: '12px',
-                                          py: 0.8
+                                            backgroundColor: '#E64A19',
+                                            boxShadow: '0 4px 12px rgba(255, 107, 53, 0.35)'
+                                          }
                                         }}
                                       >
                                         ⭐ 리뷰 작성하기
@@ -5573,44 +5638,6 @@ const Map = () => {
                           );
                         })()}
                       </Box>
-
-                      {/* 보관 상태 인디케이터 */}
-                      {storageStatuses[reservation.reservationNumber] && (
-                        <Box sx={{ mt: 1 }}>
-                          {storageStatuses[reservation.reservationNumber].hasStorage ? (
-                            <Chip
-                              icon={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                    <CheckCircleIcon sx={{ fontSize: 14 }} /> :
-                                    <QrCodeIcon sx={{ fontSize: 14 }} />}
-                              label={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                     '보관 중' : '이용 완료'}
-                              size="small"
-                              variant="outlined"
-                              sx={{
-                                backgroundColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                                '#e8f5e8' : '#f3e5f5',
-                                borderColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                            '#4caf50' : '#9c27b0',
-                                color: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                       '#2e7d32' : '#7b1fa2',
-                                fontSize: '10px'
-                              }}
-                            />
-                          ) : (
-                            <Chip
-                              label={t('waitingForStoreVisit')}
-                              size="small"
-                              variant="outlined"
-                              sx={{
-                                backgroundColor: '#fff3e0',
-                                borderColor: '#ff9800',
-                                color: '#e65100',
-                                fontSize: '10px'
-                              }}
-                            />
-                          )}
-                        </Box>
-                      )}
                     </Box>
                   ))}
                 </Box>
