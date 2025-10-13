@@ -16,11 +16,14 @@ services:
       - SPRING_REDIS_PORT=6379
       - REDIS_PORT=6379
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
     volumes:
       - ./logs:/app/logs
     depends_on:
       - redis
       - postgres
+      - elasticsearch
     networks:
       - elk
 
