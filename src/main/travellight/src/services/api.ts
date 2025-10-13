@@ -942,8 +942,9 @@ export const paymentService = {
   },
 
   // 결제 취소
-  cancelPayment: async (paymentId: string, cancelReason: string): Promise<ApiResponse<PaymentDto>> => {
-    const response = await api.post<ApiResponse<PaymentDto>>(`/payment/${paymentId}/cancel`, {
+  cancelPayment: async (paymentId: string, cancelReason: string): Promise<ApiResponse<any>> => {
+    const response = await api.post<ApiResponse<any>>('/payment/cancel', {
+      paymentId,
       cancelReason
     });
     return response.data;

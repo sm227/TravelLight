@@ -424,6 +424,89 @@ public class PaymentController {
         return dto;
     }
 
+    /**
+     * 결제 취소 (관리자용 - 요청 본문에서 paymentId 받음)
+     */
+    @PostMapping("/cancel")
+    public ResponseEntity<?> cancelPaymentAdmin(@RequestBody Map<String, String> request) {
+        try {
+            String paymentId = request.get("paymentId");
+            String cancelReason = request.get("cancelReason");
+
+            if (paymentId == null || paymentId.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "결제 ID가 필요합니다."));
+            }
+
+            if (cancelReason == null || cancelReason.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "취소 사유가 필요합니다."));
+            }
+
+            log.info("결제 취소 요청 (관리자): paymentId = {}, reason = {}", paymentId, cancelReason);
+
+            // 결제 정보 조회하여 userId 추출
+            Map<String, Object> paymentInfo = portOnePaymentService.verifyPayment(paymentId);
+            String userId = null;
+            try {
+                if (paymentInfo != null && paymentInfo.get("customData") != null) {
+                    String customDataStr = paymentInfo.get("customData").toString();
+                    if (customDataStr.contains("\"userId\":")) {
+                        int userIdStart = customDataStr.indexOf("\"userId\":") + 9;
+                        int userIdEnd = customDataStr.indexOf(",", userIdStart);
+                        if (userIdEnd == -1) {
+                            userIdEnd = customDataStr.indexOf("}", userIdStart);
+                        }
+                        userId = customDataStr.substring(userIdStart, userIdEnd).trim();
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Failed to extract userId from customData", e);
+            }
+
+            // MDC에 공통 정보 설정
+            org.slf4j.MDC.put("actionCategory", "PAYMENT");
+            org.slf4j.MDC.put("paymentId", paymentId);
+            org.slf4j.MDC.put("cancelReason", cancelReason);
+            if (userId != null) {
+                org.slf4j.MDC.put("userId", userId);
+            }
+
+            // 결제 취소 시도 로그
+            org.slf4j.MDC.put("action", "PAYMENT_CANCEL_ATTEMPT");
+            log.info("PAYMENT_CANCEL_ATTEMPT - PaymentId: {}, Reason: {}", paymentId, cancelReason);
+
+            // 1. 포트원 API를 통한 실제 결제 취소
+            portOnePaymentService.cancelPayment(paymentId, cancelReason);
+            log.info("포트원 결제 취소 완료: paymentId = {}", paymentId);
+
+            // 2. DB에 취소 정보 저장
+            paymentService.cancelPayment(paymentId, cancelReason);
+            log.info("DB 결제 취소 정보 저장 완료: paymentId = {}", paymentId);
+
+            // 결제 취소 성공 로그
+            org.slf4j.MDC.put("action", "PAYMENT_CANCEL_SUCCESS");
+            log.info("PAYMENT_CANCEL_SUCCESS - PaymentId: {}", paymentId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("paymentId", paymentId);
+            response.put("message", "결제가 성공적으로 취소되었습니다.");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            // 결제 취소 실패 로그
+            org.slf4j.MDC.put("action", "PAYMENT_CANCEL_FAIL");
+            org.slf4j.MDC.put("errorMessage", e.getMessage());
+            log.error("결제 취소 처리 중 오류 발생", e);
+            return ResponseEntity.internalServerError()
+                .body(Map.of("error", "결제 취소 처리 중 오류가 발생했습니다: " + e.getMessage()));
+        } finally {
+            org.slf4j.MDC.clear();
+        }
+    }
+
     @PostMapping("/{paymentId}/cancel")
     public ResponseEntity<CommonApiResponse> cancelPayment(@PathVariable String paymentId,
                                                            @RequestBody Map<String, String> request) {

@@ -94,6 +94,10 @@ const UserDetail = () => {
   const [activityLogFilter, setActivityLogFilter] = useState<string>('ALL');
   const [payments, setPayments] = useState<PaymentDto[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentDto | null>(null);
+  const [refundReason, setRefundReason] = useState('');
+  const [processingRefund, setProcessingRefund] = useState(false);
 
   // 사용자 정보 로드
   const loadUser = async () => {
@@ -138,16 +142,16 @@ const UserDetail = () => {
     }
   }, [tabValue, userId]);
 
-  // 결제분석 탭이 활성화될 때 결제 목록 로드
+  // 결제내역 또는 결제분석 탭이 활성화될 때 결제 목록 로드
   useEffect(() => {
-    if (tabValue === 2) {
+    if (tabValue === 2 || tabValue === 3) {
       loadPayments();
     }
   }, [tabValue, userId]);
 
   // 활동로그 탭이 활성화될 때 로그 목록 로드
   useEffect(() => {
-    if (tabValue === 5) {
+    if (tabValue === 6) {
       loadActivityLogs();
     }
   }, [tabValue, userId, activityLogFilter]);
@@ -324,19 +328,19 @@ const UserDetail = () => {
       setAlertMessage({type: 'error', message: '담당자와 클레임 내용을 모두 입력해주세요.'});
       return;
     }
-    
+
     if (!userId) {
       setAlertMessage({type: 'error', message: '사용자 정보를 찾을 수 없습니다.'});
       return;
     }
-    
+
     try {
       const response = await claimService.createClaim({
         userId: parseInt(userId),
         assignee: claimAssignee,
         content: claimText
       });
-      
+
       if (response.success) {
         setAlertMessage({type: 'success', message: '클레임이 저장되었습니다.'});
         setClaimAssignee('');
@@ -350,7 +354,57 @@ const UserDetail = () => {
       console.error('클레임 저장 중 오류:', error);
       setAlertMessage({type: 'error', message: '클레임 저장 중 오류가 발생했습니다.'});
     }
-    
+
+    setTimeout(() => setAlertMessage(null), 3000);
+  };
+
+  // 환불 요청 모달 열기
+  const handleOpenRefundModal = (payment: PaymentDto) => {
+    setSelectedPayment(payment);
+    setRefundModalOpen(true);
+    setRefundReason('');
+  };
+
+  // 환불 요청 모달 닫기
+  const handleCloseRefundModal = () => {
+    setRefundModalOpen(false);
+    setSelectedPayment(null);
+    setRefundReason('');
+  };
+
+  // 환불 처리
+  const handleRefundSubmit = async () => {
+    if (!selectedPayment) return;
+
+    if (!refundReason.trim()) {
+      setAlertMessage({type: 'error', message: '환불 사유를 입력해주세요.'});
+      return;
+    }
+
+    try {
+      setProcessingRefund(true);
+
+      // 실제 환불 API 호출
+      const response = await paymentService.cancelPayment(selectedPayment.paymentId, refundReason);
+
+      if (response.success) {
+        setAlertMessage({type: 'success', message: '환불 요청이 처리되었습니다.'});
+        handleCloseRefundModal();
+
+        // 결제 목록 새로고침
+        await loadPayments();
+      } else {
+        setAlertMessage({type: 'error', message: '환불 요청에 실패했습니다.'});
+      }
+
+    } catch (error: any) {
+      console.error('환불 처리 중 오류:', error);
+      const errorMessage = error.response?.data?.error || '환불 처리 중 오류가 발생했습니다.';
+      setAlertMessage({type: 'error', message: errorMessage});
+    } finally {
+      setProcessingRefund(false);
+    }
+
     setTimeout(() => setAlertMessage(null), 3000);
   };
 
@@ -1222,6 +1276,33 @@ const UserDetail = () => {
                         )}
                       </div>
                     )}
+
+                    {/* 환불 버튼 */}
+                    {payment.paymentStatus === 'PAID' && (
+                      <div style={{
+                        marginTop: '15px',
+                        paddingTop: '15px',
+                        borderTop: '1px solid #3f3f46',
+                        display: 'flex',
+                        justifyContent: 'flex-end'
+                      }}>
+                        <button
+                          onClick={() => handleOpenRefundModal(payment)}
+                          style={{
+                            padding: '8px 16px',
+                            backgroundColor: '#1f1f23',
+                            color: '#fafafa',
+                            border: '1px solid #ef4444',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          환불 요청
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1536,50 +1617,50 @@ const UserDetail = () => {
                           <div style={{
                             padding: '16px',
                             backgroundColor: '#27272a',
-                            border: '1px solid #10b981',
+                            border: '1px solid #3f3f46',
                             borderRadius: '4px'
                           }}>
                             <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>성공</div>
-                            <div style={{ color: '#10b981', fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
                               {successCount}건
                             </div>
-                            <div style={{ color: '#10b981', fontSize: '11px' }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '11px' }}>
                               성공률 {successRate}%
                             </div>
                           </div>
                           <div style={{
                             padding: '16px',
                             backgroundColor: '#27272a',
-                            border: '1px solid #ef4444',
+                            border: '1px solid #3f3f46',
                             borderRadius: '4px'
                           }}>
                             <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>실패</div>
-                            <div style={{ color: '#ef4444', fontSize: '18px', fontWeight: 'bold' }}>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
                               {failedCount}건
                             </div>
                           </div>
                           <div style={{
                             padding: '16px',
                             backgroundColor: '#27272a',
-                            border: '1px solid #f87171',
+                            border: '1px solid #3f3f46',
                             borderRadius: '4px'
                           }}>
                             <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>취소</div>
-                            <div style={{ color: '#f87171', fontSize: '18px', fontWeight: 'bold' }}>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
                               {cancelledCount}건
                             </div>
                           </div>
                           <div style={{
                             padding: '16px',
                             backgroundColor: '#27272a',
-                            border: '1px solid #f59e0b',
+                            border: '1px solid #3f3f46',
                             borderRadius: '4px'
                           }}>
                             <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>환불</div>
-                            <div style={{ color: '#f59e0b', fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
                               {refundedCount}건
                             </div>
-                            <div style={{ color: '#f59e0b', fontSize: '11px' }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '11px' }}>
                               환불률 {refundRate}%
                             </div>
                           </div>
@@ -1658,7 +1739,7 @@ const UserDetail = () => {
                             borderRadius: '4px'
                           }}>
                             <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>재결제율</div>
-                            <div style={{ color: '#10b981', fontSize: '18px', fontWeight: 'bold' }}>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
                               {repeatRate}%
                             </div>
                           </div>
@@ -1670,7 +1751,7 @@ const UserDetail = () => {
                           }}>
                             <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>결제 증가율</div>
                             <div style={{
-                              color: parseFloat(growthRate) >= 0 ? '#10b981' : '#ef4444',
+                              color: '#fafafa',
                               fontSize: '18px',
                               fontWeight: 'bold'
                             }}>
@@ -1680,11 +1761,11 @@ const UserDetail = () => {
                           <div style={{
                             padding: '16px',
                             backgroundColor: '#27272a',
-                            border: '1px solid #8b5cf6',
+                            border: '1px solid #3f3f46',
                             borderRadius: '4px'
                           }}>
                             <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>충성도 점수</div>
-                            <div style={{ color: '#8b5cf6', fontSize: '18px', fontWeight: 'bold' }}>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
                               {loyaltyScore}/100
                             </div>
                           </div>
@@ -1759,7 +1840,7 @@ const UserDetail = () => {
                             padding: '12px',
                             backgroundColor: '#1f1f23',
                             borderRadius: '4px',
-                            borderLeft: '3px solid #3b82f6'
+                            borderLeft: '3px solid #3f3f46'
                           }}>
                             <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>결제 금액 범위</div>
                             <div style={{ color: '#fafafa', fontSize: '13px' }}>
@@ -1770,7 +1851,7 @@ const UserDetail = () => {
                             padding: '12px',
                             backgroundColor: '#1f1f23',
                             borderRadius: '4px',
-                            borderLeft: '3px solid #10b981'
+                            borderLeft: '3px solid #3f3f46'
                           }}>
                             <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>결제 추세</div>
                             <div style={{ color: '#fafafa', fontSize: '13px' }}>
@@ -1781,7 +1862,7 @@ const UserDetail = () => {
                             padding: '12px',
                             backgroundColor: '#1f1f23',
                             borderRadius: '4px',
-                            borderLeft: '3px solid #f59e0b'
+                            borderLeft: '3px solid #3f3f46'
                           }}>
                             <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>계절성 패턴</div>
                             <div style={{ color: '#fafafa', fontSize: '13px' }}>
@@ -2253,6 +2334,141 @@ const UserDetail = () => {
           </div>
         </TabPanel>
       </div>
+
+      {/* 환불 요청 모달 */}
+      {refundModalOpen && selectedPayment && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#1f1f23',
+            border: '1px solid #27272a',
+            borderRadius: '8px',
+            padding: '30px',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{
+              margin: '0 0 20px 0',
+              color: '#fafafa',
+              fontSize: '18px',
+              fontWeight: 'bold'
+            }}>
+              환불 요청
+            </h3>
+
+            {/* 결제 정보 */}
+            <div style={{
+              marginBottom: '20px',
+              padding: '15px',
+              backgroundColor: '#27272a',
+              border: '1px solid #3f3f46',
+              borderRadius: '4px'
+            }}>
+              <div style={{ marginBottom: '10px' }}>
+                <span style={{ color: '#a1a1aa', fontSize: '12px' }}>결제 ID: </span>
+                <span style={{ color: '#3b82f6', fontSize: '12px', fontFamily: 'monospace' }}>
+                  {selectedPayment.paymentId}
+                </span>
+              </div>
+              <div style={{ marginBottom: '10px' }}>
+                <span style={{ color: '#a1a1aa', fontSize: '12px' }}>결제 금액: </span>
+                <span style={{ color: '#fafafa', fontSize: '14px', fontWeight: 'bold' }}>
+                  {(selectedPayment.paymentAmount || 0).toLocaleString()}원
+                </span>
+              </div>
+              <div>
+                <span style={{ color: '#a1a1aa', fontSize: '12px' }}>결제일시: </span>
+                <span style={{ color: '#fafafa', fontSize: '12px' }}>
+                  {selectedPayment.paymentTime ? formatDateTime(selectedPayment.paymentTime) : '-'}
+                </span>
+              </div>
+            </div>
+
+            {/* 환불 사유 입력 */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                color: '#fafafa',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}>
+                환불 사유 <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <textarea
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="환불 사유를 상세히 입력해주세요..."
+                rows={5}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: '#27272a',
+                  color: '#fafafa',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+
+            {/* 버튼 */}
+            <div style={{
+              display: 'flex',
+              gap: '10px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={handleCloseRefundModal}
+                disabled={processingRefund}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#27272a',
+                  color: '#fafafa',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '4px',
+                  cursor: processingRefund ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  opacity: processingRefund ? 0.5 : 1
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleRefundSubmit}
+                disabled={processingRefund || !refundReason.trim()}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#ef4444',
+                  color: '#fafafa',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: (processingRefund || !refundReason.trim()) ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  opacity: (processingRefund || !refundReason.trim()) ? 0.5 : 1
+                }}
+              >
+                {processingRefund ? '처리 중...' : '환불 요청'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

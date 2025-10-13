@@ -39,4 +39,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     // 거래 ID로 조회
     Optional<Payment> findByTransactionId(String transactionId);
+
+    // 사용자 ID로 모든 결제 내역 조회
+    @Query("SELECT p FROM Payment p WHERE p.reservation.user.id = :userId ORDER BY p.createdAt DESC")
+    List<Payment> findAllByUserId(@Param("userId") Long userId);
 }
