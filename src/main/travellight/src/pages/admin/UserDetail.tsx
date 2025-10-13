@@ -4,7 +4,7 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import { adminUserService, AdminUserResponse, claimService, ClaimResponse, activityLogService, ActivityLogDto } from '../../services/api';
+import { adminUserService, AdminUserResponse, claimService, ClaimResponse, activityLogService, ActivityLogDto, paymentService, type PaymentDto } from '../../services/api';
 import { getMyReservations } from '../../services/reservationService';
 import { ReservationDto } from '../../types/reservation';
 
@@ -92,6 +92,12 @@ const UserDetail = () => {
   const [activityLogs, setActivityLogs] = useState<ActivityLogDto[]>([]);
   const [loadingActivityLogs, setLoadingActivityLogs] = useState(false);
   const [activityLogFilter, setActivityLogFilter] = useState<string>('ALL');
+  const [payments, setPayments] = useState<PaymentDto[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentDto | null>(null);
+  const [refundReason, setRefundReason] = useState('');
+  const [processingRefund, setProcessingRefund] = useState(false);
 
   // 사용자 정보 로드
   const loadUser = async () => {
@@ -136,9 +142,16 @@ const UserDetail = () => {
     }
   }, [tabValue, userId]);
 
+  // 결제내역 또는 결제분석 탭이 활성화될 때 결제 목록 로드
+  useEffect(() => {
+    if (tabValue === 2 || tabValue === 3) {
+      loadPayments();
+    }
+  }, [tabValue, userId]);
+
   // 활동로그 탭이 활성화될 때 로그 목록 로드
   useEffect(() => {
-    if (tabValue === 5) {
+    if (tabValue === 6) {
       loadActivityLogs();
     }
   }, [tabValue, userId, activityLogFilter]);
@@ -206,6 +219,32 @@ const UserDetail = () => {
       console.error('예약 목록 로드 중 오류:', error);
     } finally {
       setLoadingReservations(false);
+    }
+  };
+
+  // 결제 목록 로드
+  const loadPayments = async () => {
+    if (!userId) {
+      console.log('userId가 없습니다');
+      return;
+    }
+
+    try {
+      console.log('결제 목록 로드 시작 - userId:', userId);
+      setLoadingPayments(true);
+      const response = await paymentService.getPaymentsByUserId(parseInt(userId));
+      console.log('결제 API 응답:', response);
+      if (response.success) {
+        console.log('결제 데이터:', response.data);
+        setPayments(response.data);
+      } else {
+        console.log('API 응답 실패:', response);
+      }
+    } catch (error) {
+      console.error('결제 목록 로드 중 오류:', error);
+      setAlertMessage({type: 'error', message: '결제 목록을 불러오는데 실패했습니다.'});
+    } finally {
+      setLoadingPayments(false);
     }
   };
 
@@ -289,19 +328,19 @@ const UserDetail = () => {
       setAlertMessage({type: 'error', message: '담당자와 클레임 내용을 모두 입력해주세요.'});
       return;
     }
-    
+
     if (!userId) {
       setAlertMessage({type: 'error', message: '사용자 정보를 찾을 수 없습니다.'});
       return;
     }
-    
+
     try {
       const response = await claimService.createClaim({
         userId: parseInt(userId),
         assignee: claimAssignee,
         content: claimText
       });
-      
+
       if (response.success) {
         setAlertMessage({type: 'success', message: '클레임이 저장되었습니다.'});
         setClaimAssignee('');
@@ -315,7 +354,57 @@ const UserDetail = () => {
       console.error('클레임 저장 중 오류:', error);
       setAlertMessage({type: 'error', message: '클레임 저장 중 오류가 발생했습니다.'});
     }
-    
+
+    setTimeout(() => setAlertMessage(null), 3000);
+  };
+
+  // 환불 요청 모달 열기
+  const handleOpenRefundModal = (payment: PaymentDto) => {
+    setSelectedPayment(payment);
+    setRefundModalOpen(true);
+    setRefundReason('');
+  };
+
+  // 환불 요청 모달 닫기
+  const handleCloseRefundModal = () => {
+    setRefundModalOpen(false);
+    setSelectedPayment(null);
+    setRefundReason('');
+  };
+
+  // 환불 처리
+  const handleRefundSubmit = async () => {
+    if (!selectedPayment) return;
+
+    if (!refundReason.trim()) {
+      setAlertMessage({type: 'error', message: '환불 사유를 입력해주세요.'});
+      return;
+    }
+
+    try {
+      setProcessingRefund(true);
+
+      // 실제 환불 API 호출
+      const response = await paymentService.cancelPayment(selectedPayment.paymentId, refundReason);
+
+      if (response.success) {
+        setAlertMessage({type: 'success', message: '환불 요청이 처리되었습니다.'});
+        handleCloseRefundModal();
+
+        // 결제 목록 새로고침
+        await loadPayments();
+      } else {
+        setAlertMessage({type: 'error', message: '환불 요청에 실패했습니다.'});
+      }
+
+    } catch (error: any) {
+      console.error('환불 처리 중 오류:', error);
+      const errorMessage = error.response?.data?.error || '환불 처리 중 오류가 발생했습니다.';
+      setAlertMessage({type: 'error', message: errorMessage});
+    } finally {
+      setProcessingRefund(false);
+    }
+
     setTimeout(() => setAlertMessage(null), 3000);
   };
 
@@ -541,7 +630,7 @@ const UserDetail = () => {
           borderBottom: '1px solid #27272a',
           display: 'flex'
         }}>
-          {['고객정보', '예약분석', '결제분석', '마케팅', '클레임내역', '활동로그'].map((label, index) => (
+          {['고객정보', '예약분석', '결제내역', '결제분석', '마케팅', '클레임내역', '활동로그'].map((label, index) => (
             <button
               key={index}
               onClick={() => setTabValue(index)}
@@ -897,13 +986,339 @@ const UserDetail = () => {
 
         {/* 결제분석 탭 */}
         <TabPanel value={tabValue} index={2}>
-          <div style={{ 
+          <div style={{
             backgroundColor: '#1f1f23',
             border: '1px solid #27272a',
             borderRadius: '4px',
             padding: '20px'
           }}>
-            <h3 style={{ 
+            <h3 style={{
+              marginBottom: '15px',
+              color: '#fafafa',
+              fontSize: '16px',
+              margin: '0 0 15px 0',
+              fontWeight: 'bold',
+              borderBottom: '1px solid #27272a',
+              paddingBottom: '10px'
+            }}>
+              결제 내역
+            </h3>
+
+            {loadingPayments ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: '#a1a1aa',
+                fontSize: '14px'
+              }}>
+                <CircularProgress size={20} />
+                결제 내역을 불러오는 중...
+              </div>
+            ) : payments.length === 0 ? (
+              <div style={{ color: '#a1a1aa', fontSize: '14px' }}>
+                결제 내역이 없습니다.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {payments.map((payment) => (
+                  <div
+                    key={payment.id}
+                    style={{
+                      padding: '20px',
+                      backgroundColor: '#27272a',
+                      border: '1px solid #3f3f46',
+                      borderRadius: '4px'
+                    }}
+                  >
+                    {/* 결제 상태 및 금액 */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      marginBottom: '15px',
+                      paddingBottom: '15px',
+                      borderBottom: '1px solid #3f3f46'
+                    }}>
+                      <div>
+                        <div style={{
+                          color: '#fafafa',
+                          fontSize: '18px',
+                          fontWeight: 'bold',
+                          marginBottom: '8px'
+                        }}>
+                          {(payment.paymentAmount || 0).toLocaleString()}원
+                        </div>
+                        <div style={{
+                          color: '#a1a1aa',
+                          fontSize: '12px'
+                        }}>
+                          {payment.paymentTime ? formatDateTime(payment.paymentTime) : '-'}
+                        </div>
+                      </div>
+                      <span style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#1f1f23',
+                        color: payment.paymentStatus === 'PAID' ? '#10b981' :
+                               payment.paymentStatus === 'CANCELLED' ? '#f87171' :
+                               payment.paymentStatus === 'REFUNDED' ? '#f59e0b' :
+                               payment.paymentStatus === 'FAILED' ? '#ef4444' : '#fafafa',
+                        border: `1px solid ${payment.paymentStatus === 'PAID' ? '#10b981' :
+                                         payment.paymentStatus === 'CANCELLED' ? '#f87171' :
+                                         payment.paymentStatus === 'REFUNDED' ? '#f59e0b' :
+                                         payment.paymentStatus === 'FAILED' ? '#ef4444' : '#3f3f46'}`,
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                      }}>
+                        {payment.paymentStatus}
+                      </span>
+                    </div>
+
+                    {/* 결제 정보 그리드 */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                      gap: '12px'
+                    }}>
+                      {/* 결제 ID */}
+                      <div>
+                        <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
+                          결제 ID
+                        </div>
+                        <div style={{
+                          color: '#3b82f6',
+                          fontSize: '12px',
+                          fontFamily: 'monospace',
+                          wordBreak: 'break-all'
+                        }}>
+                          {payment.paymentId}
+                        </div>
+                      </div>
+
+                      {/* 결제 수단 */}
+                      <div>
+                        <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
+                          결제 수단
+                        </div>
+                        <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                          {payment.paymentMethod === 'card' ? '카드' :
+                           payment.paymentMethod === 'easypay' ? '간편결제' :
+                           payment.paymentMethod || '-'}
+                        </div>
+                      </div>
+
+                      {/* 카드사 */}
+                      {payment.cardCompany && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
+                            카드사
+                          </div>
+                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                            {payment.cardCompany}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 카드 타입 */}
+                      {payment.cardType && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
+                            카드 타입
+                          </div>
+                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                            {payment.cardType}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 카드 번호 */}
+                      {payment.cardNumber && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
+                            카드 번호
+                          </div>
+                          <div style={{
+                            color: '#a1a1aa',
+                            fontSize: '12px',
+                            fontFamily: 'monospace'
+                          }}>
+                            {payment.cardNumber}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 카드명 */}
+                      {payment.cardName && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
+                            카드명
+                          </div>
+                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                            {payment.cardName}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 할부 정보 */}
+                      {payment.installmentMonth !== undefined && payment.installmentMonth !== null && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
+                            할부
+                          </div>
+                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                            {payment.installmentMonth === 0 ? '일시불' : `${payment.installmentMonth}개월`}
+                            {payment.isInterestFree && (
+                              <span style={{
+                                marginLeft: '6px',
+                                color: '#10b981',
+                                fontSize: '11px'
+                              }}>
+                                (무이자)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 승인번호 */}
+                      {payment.approvalNumber && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
+                            승인번호
+                          </div>
+                          <div style={{
+                            color: '#fafafa',
+                            fontSize: '12px',
+                            fontFamily: 'monospace'
+                          }}>
+                            {payment.approvalNumber}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* PG사 */}
+                      {payment.paymentProvider && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
+                            PG사
+                          </div>
+                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                            {payment.paymentProvider}
+                            {payment.channelName && (
+                              <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '2px' }}>
+                                {payment.channelName}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 간편결제 */}
+                      {payment.easyPayProvider && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
+                            간편결제
+                          </div>
+                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                            {payment.easyPayProvider}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 거래 ID */}
+                      {payment.transactionId && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
+                            거래 ID
+                          </div>
+                          <div style={{
+                            color: '#a1a1aa',
+                            fontSize: '11px',
+                            fontFamily: 'monospace',
+                            wordBreak: 'break-all'
+                          }}>
+                            {payment.transactionId}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 취소/환불 정보 */}
+                    {(payment.cancelReason || payment.refundAmount) && (
+                      <div style={{
+                        marginTop: '15px',
+                        paddingTop: '15px',
+                        borderTop: '1px solid #3f3f46'
+                      }}>
+                        {payment.refundAmount && (
+                          <div style={{ marginBottom: '8px' }}>
+                            <span style={{ color: '#a1a1aa', fontSize: '12px' }}>환불 금액: </span>
+                            <span style={{ color: '#f59e0b', fontSize: '13px', fontWeight: 'bold' }}>
+                              {payment.refundAmount.toLocaleString()}원
+                            </span>
+                          </div>
+                        )}
+                        {payment.cancelReason && (
+                          <div>
+                            <span style={{ color: '#a1a1aa', fontSize: '12px' }}>취소/환불 사유: </span>
+                            <span style={{ color: '#fafafa', fontSize: '12px' }}>
+                              {payment.cancelReason}
+                            </span>
+                          </div>
+                        )}
+                        {payment.cancelledAt && (
+                          <div style={{ marginTop: '4px' }}>
+                            <span style={{ color: '#a1a1aa', fontSize: '11px' }}>
+                              취소일시: {formatDateTime(payment.cancelledAt)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 환불 버튼 */}
+                    {payment.paymentStatus === 'PAID' && (
+                      <div style={{
+                        marginTop: '15px',
+                        paddingTop: '15px',
+                        borderTop: '1px solid #3f3f46',
+                        display: 'flex',
+                        justifyContent: 'flex-end'
+                      }}>
+                        <button
+                          onClick={() => handleOpenRefundModal(payment)}
+                          style={{
+                            padding: '8px 16px',
+                            backgroundColor: '#1f1f23',
+                            color: '#fafafa',
+                            border: '1px solid #ef4444',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          환불 요청
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabPanel>
+
+        {/* 결제분석 탭 */}
+        <TabPanel value={tabValue} index={3}>
+          <div style={{
+            backgroundColor: '#1f1f23',
+            border: '1px solid #27272a',
+            borderRadius: '4px',
+            padding: '20px'
+          }}>
+            <h3 style={{
               marginBottom: '15px',
               color: '#fafafa',
               fontSize: '16px',
@@ -914,14 +1329,558 @@ const UserDetail = () => {
             }}>
               결제 분석
             </h3>
-            <div style={{ color: '#a1a1aa', fontSize: '14px' }}>
-              결제 내역이 없습니다.
-            </div>
+
+            {loadingPayments ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: '#a1a1aa',
+                fontSize: '14px'
+              }}>
+                <CircularProgress size={20} />
+                결제 분석 데이터를 불러오는 중...
+              </div>
+            ) : payments.length === 0 ? (
+              <div style={{ color: '#a1a1aa', fontSize: '14px' }}>
+                결제 내역이 없어 분석을 수행할 수 없습니다.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* 기본 통계 */}
+                <div>
+                  <h4 style={{
+                    color: '#fafafa',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    marginBottom: '12px'
+                  }}>
+                    기본 통계
+                  </h4>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '12px'
+                  }}>
+                    {(() => {
+                      const totalAmount = payments.reduce((sum, p) => sum + (p.paymentAmount || 0), 0);
+                      const paidPayments = payments.filter(p => p.paymentStatus === 'PAID');
+                      const paymentCount = paidPayments.length;
+                      const averageAmount = paymentCount > 0 ? Math.round(totalAmount / paymentCount) : 0;
+
+                      // 결제 빈도 계산
+                      let paymentFrequency = '-';
+                      if (paidPayments.length >= 2) {
+                        const sortedPayments = [...paidPayments]
+                          .filter(p => p.paymentTime)
+                          .sort((a, b) => new Date(a.paymentTime!).getTime() - new Date(b.paymentTime!).getTime());
+
+                        if (sortedPayments.length >= 2) {
+                          const firstPayment = new Date(sortedPayments[0].paymentTime!);
+                          const lastPayment = new Date(sortedPayments[sortedPayments.length - 1].paymentTime!);
+                          const daysDiff = Math.ceil((lastPayment.getTime() - firstPayment.getTime()) / (1000 * 60 * 60 * 24));
+
+                          if (daysDiff > 0) {
+                            const frequency = daysDiff / sortedPayments.length;
+                            paymentFrequency = frequency < 7 ? `${Math.round(frequency)}일마다` :
+                                              frequency < 30 ? `${Math.round(frequency / 7)}주마다` :
+                                              `${Math.round(frequency / 30)}개월마다`;
+                          }
+                        }
+                      } else if (paidPayments.length === 1) {
+                        paymentFrequency = '첫 결제';
+                      }
+
+                      return (
+                        <>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>총 결제 금액</div>
+                            <div style={{ color: '#fafafa', fontSize: '20px', fontWeight: 'bold' }}>
+                              {totalAmount.toLocaleString()}원
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>평균 결제 금액</div>
+                            <div style={{ color: '#fafafa', fontSize: '20px', fontWeight: 'bold' }}>
+                              {averageAmount.toLocaleString()}원
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>결제 건수</div>
+                            <div style={{ color: '#fafafa', fontSize: '20px', fontWeight: 'bold' }}>
+                              {paymentCount}건
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>결제 빈도</div>
+                            <div style={{ color: '#fafafa', fontSize: '20px', fontWeight: 'bold' }}>
+                              {paymentFrequency}
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* 결제 방법별 분포 */}
+                <div>
+                  <h4 style={{
+                    color: '#fafafa',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    marginBottom: '12px'
+                  }}>
+                    결제 방법별 분포
+                  </h4>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                    gap: '12px'
+                  }}>
+                    {(() => {
+                      const methodCounts = payments.reduce((acc, p) => {
+                        const method = p.paymentMethod || '기타';
+                        acc[method] = (acc[method] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>);
+
+                      const total = payments.length;
+
+                      return Object.entries(methodCounts).map(([method, count]) => {
+                        const percentage = ((count / total) * 100).toFixed(1);
+                        return (
+                          <div key={method} style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '8px' }}>
+                              {method === 'card' ? '카드' : method === 'easypay' ? '간편결제' : method}
+                            </div>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
+                              {count}회
+                            </div>
+                            <div style={{ color: '#10b981', fontSize: '12px' }}>
+                              {percentage}%
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+                {/* 결제 패턴 분석 */}
+                <div>
+                  <h4 style={{
+                    color: '#fafafa',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    marginBottom: '12px'
+                  }}>
+                    결제 패턴 분석
+                  </h4>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                    gap: '12px'
+                  }}>
+                    {/* 결제 시간대 분포 */}
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: '#27272a',
+                      border: '1px solid #3f3f46',
+                      borderRadius: '4px'
+                    }}>
+                      <div style={{ color: '#fafafa', fontSize: '13px', fontWeight: 'bold', marginBottom: '12px' }}>
+                        결제 시간대 분포
+                      </div>
+                      {(() => {
+                        const hourCounts = payments
+                          .filter(p => p.paymentTime)
+                          .reduce((acc, p) => {
+                            const hour = new Date(p.paymentTime!).getHours();
+                            const timeSlot = hour < 6 ? '새벽(00-06시)' :
+                                           hour < 12 ? '오전(06-12시)' :
+                                           hour < 18 ? '오후(12-18시)' : '저녁(18-24시)';
+                            acc[timeSlot] = (acc[timeSlot] || 0) + 1;
+                            return acc;
+                          }, {} as Record<string, number>);
+
+                        return Object.entries(hourCounts).map(([timeSlot, count]) => (
+                          <div key={timeSlot} style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            padding: '8px 0',
+                            borderBottom: '1px solid #3f3f46'
+                          }}>
+                            <span style={{ color: '#a1a1aa', fontSize: '12px' }}>{timeSlot}</span>
+                            <span style={{ color: '#fafafa', fontSize: '12px', fontWeight: 'bold' }}>{count}회</span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+
+                    {/* 월별 결제 트렌드 */}
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: '#27272a',
+                      border: '1px solid #3f3f46',
+                      borderRadius: '4px'
+                    }}>
+                      <div style={{ color: '#fafafa', fontSize: '13px', fontWeight: 'bold', marginBottom: '12px' }}>
+                        월별 결제 트렌드
+                      </div>
+                      {(() => {
+                        const monthCounts = payments
+                          .filter(p => p.paymentTime)
+                          .reduce((acc, p) => {
+                            const date = new Date(p.paymentTime!);
+                            const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                            acc[month] = (acc[month] || 0) + 1;
+                            return acc;
+                          }, {} as Record<string, number>);
+
+                        return Object.entries(monthCounts)
+                          .sort((a, b) => b[0].localeCompare(a[0]))
+                          .slice(0, 6)
+                          .map(([month, count]) => (
+                            <div key={month} style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              padding: '8px 0',
+                              borderBottom: '1px solid #3f3f46'
+                            }}>
+                              <span style={{ color: '#a1a1aa', fontSize: '12px' }}>{month}</span>
+                              <span style={{ color: '#fafafa', fontSize: '12px', fontWeight: 'bold' }}>{count}회</span>
+                            </div>
+                          ));
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 결제 상태 분석 */}
+                <div>
+                  <h4 style={{
+                    color: '#fafafa',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    marginBottom: '12px'
+                  }}>
+                    결제 상태 분석
+                  </h4>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '12px'
+                  }}>
+                    {(() => {
+                      const statusCounts = payments.reduce((acc, p) => {
+                        acc[p.paymentStatus] = (acc[p.paymentStatus] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>);
+
+                      const total = payments.length;
+                      const successCount = statusCounts['PAID'] || 0;
+                      const failedCount = statusCounts['FAILED'] || 0;
+                      const cancelledCount = statusCounts['CANCELLED'] || 0;
+                      const refundedCount = statusCounts['REFUNDED'] || 0;
+
+                      const successRate = total > 0 ? ((successCount / total) * 100).toFixed(1) : '0';
+                      const refundRate = successCount > 0 ? ((refundedCount / successCount) * 100).toFixed(1) : '0';
+
+                      return (
+                        <>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>성공</div>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
+                              {successCount}건
+                            </div>
+                            <div style={{ color: '#a1a1aa', fontSize: '11px' }}>
+                              성공률 {successRate}%
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>실패</div>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
+                              {failedCount}건
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>취소</div>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
+                              {cancelledCount}건
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>환불</div>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
+                              {refundedCount}건
+                            </div>
+                            <div style={{ color: '#a1a1aa', fontSize: '11px' }}>
+                              환불률 {refundRate}%
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* 고객 결제 특성 */}
+                <div>
+                  <h4 style={{
+                    color: '#fafafa',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    marginBottom: '12px'
+                  }}>
+                    고객 결제 특성
+                  </h4>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '12px'
+                  }}>
+                    {(() => {
+                      const paidPayments = payments.filter(p => p.paymentStatus === 'PAID');
+                      const totalAmount = paidPayments.reduce((sum, p) => sum + (p.paymentAmount || 0), 0);
+                      const avgAmount = paidPayments.length > 0 ? Math.round(totalAmount / paidPayments.length) : 0;
+
+                      // 재결제율 계산
+                      const repeatRate = paidPayments.length > 1 ?
+                        (((paidPayments.length - 1) / paidPayments.length) * 100).toFixed(1) : '0';
+
+                      // 결제 증가율 계산 (최근 3개월 vs 이전 3개월)
+                      const now = new Date();
+                      const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+                      const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+
+                      const recentPayments = paidPayments.filter(p =>
+                        p.paymentTime && new Date(p.paymentTime) >= threeMonthsAgo
+                      );
+                      const previousPayments = paidPayments.filter(p =>
+                        p.paymentTime && new Date(p.paymentTime) >= sixMonthsAgo && new Date(p.paymentTime) < threeMonthsAgo
+                      );
+
+                      const recentAmount = recentPayments.reduce((sum, p) => sum + (p.paymentAmount || 0), 0);
+                      const previousAmount = previousPayments.reduce((sum, p) => sum + (p.paymentAmount || 0), 0);
+
+                      const growthRate = previousAmount > 0 ?
+                        (((recentAmount - previousAmount) / previousAmount) * 100).toFixed(1) : '0';
+
+                      // 충성도 점수 (0-100)
+                      const loyaltyScore = Math.min(100, Math.round(
+                        (paidPayments.length * 10) + // 결제 횟수
+                        (parseFloat(repeatRate) * 0.5) + // 재결제율
+                        (parseFloat(growthRate) > 0 ? Math.min(20, parseFloat(growthRate)) : 0) // 증가율
+                      ));
+
+                      return (
+                        <>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>고객 등급별 평균</div>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
+                              {avgAmount.toLocaleString()}원
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>재결제율</div>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
+                              {repeatRate}%
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>결제 증가율</div>
+                            <div style={{
+                              color: '#fafafa',
+                              fontSize: '18px',
+                              fontWeight: 'bold'
+                            }}>
+                              {parseFloat(growthRate) >= 0 ? '+' : ''}{growthRate}%
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '16px',
+                            backgroundColor: '#27272a',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px' }}>충성도 점수</div>
+                            <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
+                              {loyaltyScore}/100
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* 비즈니스 인사이트 */}
+                <div>
+                  <h4 style={{
+                    color: '#fafafa',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    marginBottom: '12px'
+                  }}>
+                    비즈니스 인사이트
+                  </h4>
+                  <div style={{
+                    padding: '16px',
+                    backgroundColor: '#27272a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '4px'
+                  }}>
+                    {(() => {
+                      const paidPayments = payments.filter(p => p.paymentStatus === 'PAID');
+
+                      if (paidPayments.length === 0) {
+                        return <div style={{ color: '#a1a1aa', fontSize: '13px' }}>분석할 데이터가 충분하지 않습니다.</div>;
+                      }
+
+                      // 최고/최저 결제 금액
+                      const amounts = paidPayments.map(p => p.paymentAmount || 0);
+                      const maxAmount = Math.max(...amounts);
+                      const minAmount = Math.min(...amounts);
+
+                      // 결제 증가 추세
+                      const sortedPayments = [...paidPayments]
+                        .filter(p => p.paymentTime)
+                        .sort((a, b) => new Date(a.paymentTime!).getTime() - new Date(b.paymentTime!).getTime());
+
+                      let trend = '안정적';
+                      if (sortedPayments.length >= 3) {
+                        const firstHalf = sortedPayments.slice(0, Math.floor(sortedPayments.length / 2));
+                        const secondHalf = sortedPayments.slice(Math.floor(sortedPayments.length / 2));
+
+                        const firstAvg = firstHalf.reduce((sum, p) => sum + (p.paymentAmount || 0), 0) / firstHalf.length;
+                        const secondAvg = secondHalf.reduce((sum, p) => sum + (p.paymentAmount || 0), 0) / secondHalf.length;
+
+                        if (secondAvg > firstAvg * 1.2) trend = '급증';
+                        else if (secondAvg > firstAvg * 1.05) trend = '증가';
+                        else if (secondAvg < firstAvg * 0.8) trend = '감소';
+                      }
+
+                      // 계절성 패턴
+                      const monthlyAmounts = paidPayments.reduce((acc, p) => {
+                        if (p.paymentTime) {
+                          const month = new Date(p.paymentTime).getMonth();
+                          acc[month] = (acc[month] || 0) + (p.paymentAmount || 0);
+                        }
+                        return acc;
+                      }, {} as Record<number, number>);
+
+                      const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+                      const peakMonth = Object.entries(monthlyAmounts).length > 0 ?
+                        monthNames[parseInt(Object.entries(monthlyAmounts).sort((a, b) => b[1] - a[1])[0][0])] : '-';
+
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div style={{
+                            padding: '12px',
+                            backgroundColor: '#1f1f23',
+                            borderRadius: '4px',
+                            borderLeft: '3px solid #3f3f46'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>결제 금액 범위</div>
+                            <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                              최저: {minAmount.toLocaleString()}원 ~ 최고: {maxAmount.toLocaleString()}원
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '12px',
+                            backgroundColor: '#1f1f23',
+                            borderRadius: '4px',
+                            borderLeft: '3px solid #3f3f46'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>결제 추세</div>
+                            <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                              {trend} 패턴 (최근 vs 과거 비교)
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '12px',
+                            backgroundColor: '#1f1f23',
+                            borderRadius: '4px',
+                            borderLeft: '3px solid #3f3f46'
+                          }}>
+                            <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>계절성 패턴</div>
+                            <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                              {peakMonth !== '-' ? `피크 시즌: ${peakMonth}` : '데이터 수집 중'}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </TabPanel>
 
         {/* 마케팅 탭 */}
-        <TabPanel value={tabValue} index={3}>
+        <TabPanel value={tabValue} index={4}>
           <div style={{ 
             backgroundColor: '#1f1f23',
             border: '1px solid #27272a',
@@ -993,7 +1952,7 @@ const UserDetail = () => {
         </TabPanel>
 
         {/* 클레임내역 탭 */}
-        <TabPanel value={tabValue} index={4}>
+        <TabPanel value={tabValue} index={5}>
           <div style={{ 
             backgroundColor: '#1f1f23',
             border: '1px solid #27272a',
@@ -1211,8 +2170,8 @@ const UserDetail = () => {
           </div>
         </TabPanel>
 
-        {/* 활동로그 탭 */}
-        <TabPanel value={tabValue} index={5}>
+        {/* 활동로그 */}
+        <TabPanel value={tabValue} index={6}>
           <div style={{
             backgroundColor: '#1f1f23',
             border: '1px solid #27272a',
@@ -1375,6 +2334,141 @@ const UserDetail = () => {
           </div>
         </TabPanel>
       </div>
+
+      {/* 환불 요청 모달 */}
+      {refundModalOpen && selectedPayment && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#1f1f23',
+            border: '1px solid #27272a',
+            borderRadius: '8px',
+            padding: '30px',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{
+              margin: '0 0 20px 0',
+              color: '#fafafa',
+              fontSize: '18px',
+              fontWeight: 'bold'
+            }}>
+              환불 요청
+            </h3>
+
+            {/* 결제 정보 */}
+            <div style={{
+              marginBottom: '20px',
+              padding: '15px',
+              backgroundColor: '#27272a',
+              border: '1px solid #3f3f46',
+              borderRadius: '4px'
+            }}>
+              <div style={{ marginBottom: '10px' }}>
+                <span style={{ color: '#a1a1aa', fontSize: '12px' }}>결제 ID: </span>
+                <span style={{ color: '#3b82f6', fontSize: '12px', fontFamily: 'monospace' }}>
+                  {selectedPayment.paymentId}
+                </span>
+              </div>
+              <div style={{ marginBottom: '10px' }}>
+                <span style={{ color: '#a1a1aa', fontSize: '12px' }}>결제 금액: </span>
+                <span style={{ color: '#fafafa', fontSize: '14px', fontWeight: 'bold' }}>
+                  {(selectedPayment.paymentAmount || 0).toLocaleString()}원
+                </span>
+              </div>
+              <div>
+                <span style={{ color: '#a1a1aa', fontSize: '12px' }}>결제일시: </span>
+                <span style={{ color: '#fafafa', fontSize: '12px' }}>
+                  {selectedPayment.paymentTime ? formatDateTime(selectedPayment.paymentTime) : '-'}
+                </span>
+              </div>
+            </div>
+
+            {/* 환불 사유 입력 */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                color: '#fafafa',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}>
+                환불 사유 <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <textarea
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="환불 사유를 상세히 입력해주세요..."
+                rows={5}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: '#27272a',
+                  color: '#fafafa',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+
+            {/* 버튼 */}
+            <div style={{
+              display: 'flex',
+              gap: '10px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={handleCloseRefundModal}
+                disabled={processingRefund}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#27272a',
+                  color: '#fafafa',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '4px',
+                  cursor: processingRefund ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  opacity: processingRefund ? 0.5 : 1
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleRefundSubmit}
+                disabled={processingRefund || !refundReason.trim()}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#ef4444',
+                  color: '#fafafa',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: (processingRefund || !refundReason.trim()) ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  opacity: (processingRefund || !refundReason.trim()) ? 0.5 : 1
+                }}
+              >
+                {processingRefund ? '처리 중...' : '환불 요청'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

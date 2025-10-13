@@ -3838,7 +3838,7 @@ const Map = () => {
       console.log("예약 저장 성공:", response.data);
       setSubmittedReservation(response.data);
       setReservationSuccess(true);
-      return true;
+      return response.data;
     } catch (error) {
       console.error("=== 예약 저장 중 오류 발생 ===");
       console.error("Error while saving reservation:", error);
@@ -4328,36 +4328,79 @@ const Map = () => {
 
           // 결제 검증 성공 후에만 예약 정보 저장
           console.log("=== 예약 정보 저장 시작 ===");
-          const reservationResult = await submitReservation(payment.paymentId);
-          console.log("예약 저장 결과:", reservationResult);
-          if (reservationResult) {
-            console.log("=== 예약 저장 성공, PaymentId 업데이트 시작 ===");
+          const reservationData = await submitReservation(payment.paymentId);
+          console.log("예약 저장 결과:", reservationData);
+          if (reservationData) {
+            console.log("=== 예약 저장 성공, 결제 정보 업데이트 시작 ===");
 
-            // 예약 저장 성공 후 paymentId 업데이트
-            if (submittedReservation?.reservationNumber && payment.paymentId) {
+            // 예약 저장 성공 후 Payment 테이블에 저장
+            if (reservationData.reservationNumber && payment.paymentId) {
               try {
-                console.log("PaymentId 업데이트 요청:", {
-                  reservationNumber: submittedReservation.reservationNumber,
+                console.log("Payment 테이블 저장 요청:", {
+                  reservationNumber: reservationData.reservationNumber,
                   paymentId: payment.paymentId
                 });
-                
-                const updateResponse = await fetch(`/api/reservations/${submittedReservation.reservationNumber}/payment-id`, {
+
+                const savePaymentResponse = await fetch(`/api/payment/save`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    paymentId: payment.paymentId,
+                    reservationNumber: reservationData.reservationNumber
+                  }),
+                });
+
+                if (savePaymentResponse.ok) {
+                  const saveResult = await savePaymentResponse.json();
+                  console.log("Payment 테이블 저장 성공:", saveResult);
+                } else {
+                  const errorText = await savePaymentResponse.text();
+                  console.error("Payment 테이블 저장 실패:", errorText);
+                }
+              } catch (saveError) {
+                console.error("Payment 테이블 저장 중 오류:", saveError);
+              }
+
+              // Reservation 테이블에도 상세 결제 정보 업데이트 (기존 필드 유지하려면)
+              try {
+                console.log("Reservation 상세 결제 정보 업데이트 요청:", {
+                  reservationNumber: reservationData.reservationNumber,
+                  paymentId: payment.paymentId,
+                  paymentMethod: paymentMethod === "paypal" ? "paypal" : "card",
+                  paymentAmount: totalPrice,
+                  paymentStatus: paymentComplete.paymentStatus || "PAID",
+                  paymentProvider: paymentComplete.paymentProvider,
+                  cardCompany: paymentComplete.cardCompany,
+                  cardType: paymentComplete.cardType
+                });
+
+                const updateResponse = await fetch(`/api/reservations/${reservationData.reservationNumber}/detailed-payment-info`, {
                   method: 'PUT',
                   headers: {
                     'Content-Type': 'application/json',
                   },
                   body: JSON.stringify({
-                    paymentId: payment.paymentId
+                    paymentId: payment.paymentId,
+                    paymentMethod: paymentMethod === "paypal" ? "paypal" : "card",
+                    paymentAmount: totalPrice,
+                    paymentStatus: paymentComplete.paymentStatus || "PAID",
+                    paymentProvider: paymentComplete.paymentProvider,
+                    cardCompany: paymentComplete.cardCompany,
+                    cardType: paymentComplete.cardType
                   }),
                 });
 
                 if (updateResponse.ok) {
-                  console.log("PaymentId 업데이트 성공");
+                  const updateResult = await updateResponse.json();
+                  console.log("Reservation 상세 결제 정보 업데이트 성공:", updateResult);
                 } else {
-                  console.error("PaymentId 업데이트 실패:", await updateResponse.text());
+                  const errorText = await updateResponse.text();
+                  console.error("Reservation 상세 결제 정보 업데이트 실패:", errorText);
                 }
               } catch (updateError) {
-                console.error("PaymentId 업데이트 중 오류:", updateError);
+                console.error("Reservation 상세 결제 정보 업데이트 중 오류:", updateError);
               }
             }
 
