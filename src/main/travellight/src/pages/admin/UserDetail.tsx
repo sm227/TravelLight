@@ -2089,7 +2089,7 @@ const UserDetail = () => {
           </div>
         </TabPanel>
 
-        {/* 활동로그 탭 */}
+        {/* 활동로그 */}
         <TabPanel value={tabValue} index={6}>
           <div style={{
             backgroundColor: '#1f1f23',
