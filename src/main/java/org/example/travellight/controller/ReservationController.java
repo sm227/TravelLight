@@ -93,6 +93,100 @@ public class ReservationController {
         }
     }
     
+    @PutMapping("/{reservationNumber}/payment-info")
+    public ResponseEntity<CommonApiResponse> updatePaymentInfo(@PathVariable String reservationNumber,
+                                                               @RequestBody Map<String, Object> request) {
+        try {
+            String paymentId = (String) request.get("paymentId");
+            String paymentMethod = (String) request.get("paymentMethod");
+            Integer paymentAmount = (Integer) request.get("paymentAmount");
+            
+            if (paymentId == null || paymentId.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(CommonApiResponse.error("결제 ID가 필요합니다."));
+            }
+            
+            if (paymentMethod == null || paymentMethod.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(CommonApiResponse.error("결제 방법이 필요합니다."));
+            }
+            
+            if (paymentAmount == null) {
+                return ResponseEntity.badRequest()
+                    .body(CommonApiResponse.error("결제 금액이 필요합니다."));
+            }
+            
+            logger.info("예약 결제 정보 업데이트 요청: reservationNumber = {}, paymentId = {}, paymentMethod = {}, paymentAmount = {}", 
+                       reservationNumber, paymentId, paymentMethod, paymentAmount);
+            
+            // 요청 데이터 상세 로깅
+            logger.info("요청 본문 데이터: {}", request);
+            
+            reservationService.updatePaymentInfo(reservationNumber, paymentId, paymentMethod, paymentAmount);
+            
+            logger.info("예약 결제 정보 업데이트 성공: reservationNumber = {}", reservationNumber);
+            
+            return ResponseEntity.ok(CommonApiResponse.success("결제 정보가 성공적으로 업데이트되었습니다.", null));
+            
+        } catch (Exception e) {
+            logger.error("예약 결제 정보 업데이트 중 오류 발생: reservationNumber = {}", reservationNumber, e);
+            return ResponseEntity.badRequest()
+                .body(CommonApiResponse.error("결제 정보 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+    
+    @PutMapping("/{reservationNumber}/detailed-payment-info")
+    public ResponseEntity<CommonApiResponse> updateDetailedPaymentInfo(@PathVariable String reservationNumber,
+                                                                     @RequestBody Map<String, Object> request) {
+        try {
+            String paymentId = (String) request.get("paymentId");
+            String paymentMethod = (String) request.get("paymentMethod");
+            Integer paymentAmount = (Integer) request.get("paymentAmount");
+            String paymentStatus = (String) request.get("paymentStatus");
+            String paymentProvider = (String) request.get("paymentProvider");
+            String cardCompany = (String) request.get("cardCompany");
+            String cardType = (String) request.get("cardType");
+            
+            if (paymentId == null || paymentId.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(CommonApiResponse.error("결제 ID가 필요합니다."));
+            }
+            
+            if (paymentMethod == null || paymentMethod.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(CommonApiResponse.error("결제 방법이 필요합니다."));
+            }
+            
+            if (paymentAmount == null) {
+                return ResponseEntity.badRequest()
+                    .body(CommonApiResponse.error("결제 금액이 필요합니다."));
+            }
+            
+            if (paymentStatus == null || paymentStatus.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(CommonApiResponse.error("결제 상태가 필요합니다."));
+            }
+            
+            logger.info("예약 상세 결제 정보 업데이트 요청: reservationNumber = {}, paymentId = {}, paymentMethod = {}, paymentAmount = {}, paymentStatus = {}, paymentProvider = {}, cardCompany = {}, cardType = {}", 
+                       reservationNumber, paymentId, paymentMethod, paymentAmount, paymentStatus, paymentProvider, cardCompany, cardType);
+            
+            // 요청 데이터 상세 로깅
+            logger.info("상세 요청 본문 데이터: {}", request);
+            
+            reservationService.updateDetailedPaymentInfo(reservationNumber, paymentId, paymentMethod, paymentAmount, 
+                                                       paymentStatus, paymentProvider, cardCompany, cardType);
+            
+            logger.info("예약 상세 결제 정보 업데이트 성공: reservationNumber = {}", reservationNumber);
+            
+            return ResponseEntity.ok(CommonApiResponse.success("상세 결제 정보가 성공적으로 업데이트되었습니다.", null));
+            
+        } catch (Exception e) {
+            logger.error("예약 상세 결제 정보 업데이트 중 오류 발생: reservationNumber = {}", reservationNumber, e);
+            return ResponseEntity.badRequest()
+                .body(CommonApiResponse.error("상세 결제 정보 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+    
     @GetMapping("/{id}")
     public ResponseEntity<ReservationDto> getReservationById(@PathVariable Long id) {
         ReservationDto reservation = reservationService.getReservationById(id);

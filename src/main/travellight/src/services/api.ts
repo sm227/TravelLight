@@ -881,4 +881,82 @@ export const activityLogService = {
   }
 };
 
+// ==================== Payment API ====================
+
+export interface PaymentDto {
+  id: number;
+  reservationId: number;
+  paymentId: string;
+  transactionId?: string;
+  merchantId?: string;
+  storeId?: string;
+  paymentMethod: string;
+  paymentProvider?: string;
+  easyPayProvider?: string;
+  cardCompany?: string;
+  cardType?: string;
+  cardNumber?: string;
+  cardName?: string;
+  installmentMonth?: number;
+  isInterestFree?: boolean;
+  approvalNumber?: string;
+  paymentAmount?: number;
+  paymentStatus: string;
+  paymentTime?: string;
+  cancelledAt?: string;
+  cancelReason?: string;
+  refundAmount?: number;
+  channelType?: string;
+  channelId?: string;
+  channelKey?: string;
+  channelName?: string;
+  pgMerchantId?: string;
+  pgTransactionId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const paymentService = {
+  // 결제 ID로 결제 정보 조회
+  getPaymentByPaymentId: async (paymentId: string): Promise<ApiResponse<PaymentDto>> => {
+    const response = await api.get<ApiResponse<PaymentDto>>(`/payment/${paymentId}`);
+    return response.data;
+  },
+
+  // 예약 번호로 결제 정보 조회
+  getPaymentByReservationNumber: async (reservationNumber: string): Promise<ApiResponse<PaymentDto>> => {
+    const response = await api.get<ApiResponse<PaymentDto>>(`/payment/reservation/${reservationNumber}`);
+    return response.data;
+  },
+
+  // 예약 ID로 모든 결제 내역 조회
+  getPaymentsByReservationId: async (reservationId: number): Promise<ApiResponse<PaymentDto[]>> => {
+    const response = await api.get<ApiResponse<PaymentDto[]>>(`/payment/reservation/${reservationId}/all`);
+    return response.data;
+  },
+
+  // 사용자 ID로 모든 결제 내역 조회
+  getPaymentsByUserId: async (userId: number): Promise<ApiResponse<PaymentDto[]>> => {
+    const response = await api.get<ApiResponse<PaymentDto[]>>(`/payment/user/${userId}`);
+    return response.data;
+  },
+
+  // 결제 취소
+  cancelPayment: async (paymentId: string, cancelReason: string): Promise<ApiResponse<PaymentDto>> => {
+    const response = await api.post<ApiResponse<PaymentDto>>(`/payment/${paymentId}/cancel`, {
+      cancelReason
+    });
+    return response.data;
+  },
+
+  // 결제 환불
+  refundPayment: async (paymentId: string, refundAmount: number, refundReason: string): Promise<ApiResponse<PaymentDto>> => {
+    const response = await api.post<ApiResponse<PaymentDto>>(`/payment/${paymentId}/refund`, {
+      refundAmount,
+      refundReason
+    });
+    return response.data;
+  }
+};
+
 export default api;
