@@ -20,6 +20,9 @@ services:
       - ./logs:/app/logs
     depends_on:
       - redis
+      - postgres
+    networks:
+      - elk
 
   redis:
     image: redis:7-alpine
@@ -29,6 +32,8 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
+    networks:
+      - elk
 
   # PostgreSQL 서비스 추가
   postgres:
