@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/kimbh/IdeaProjects/TravelLight/src/main/java/org/example/travellight/controller/**)",
+      "Read(//c/Users/kimbh/IdeaProjects/TravelLight/src/main/java/org/example/travellight/entity/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

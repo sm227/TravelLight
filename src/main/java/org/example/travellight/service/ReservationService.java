@@ -32,6 +32,13 @@ public interface ReservationService {
     // 예약의 결제 ID 업데이트
     void updatePaymentId(String reservationNumber, String paymentId);
     
+    // 예약의 결제 정보 업데이트 (결제 방법, 금액, 시간 포함)
+    void updatePaymentInfo(String reservationNumber, String paymentId, String paymentMethod, Integer paymentAmount);
+    
+    // 예약의 상세 결제 정보 업데이트 (결제 상태, 제공자, 카드사 등 포함)
+    void updateDetailedPaymentInfo(String reservationNumber, String paymentId, String paymentMethod, Integer paymentAmount, 
+                                 String paymentStatus, String paymentProvider, String cardCompany, String cardType);
+    
     // 예약 상태를 COMPLETED로 업데이트 (매장 용량 복원)
     void updateReservationStatusToCompleted(String reservationNumber);
     

@@ -296,6 +296,66 @@ public class ReservationServiceImpl implements ReservationService {
     
     @Override
     @Transactional
+    public void updatePaymentInfo(String reservationNumber, String paymentId, String paymentMethod, Integer paymentAmount) {
+        logger.info("결제 정보 업데이트 시작: reservationNumber={}, paymentId={}, paymentMethod={}, paymentAmount={}", 
+                   reservationNumber, paymentId, paymentMethod, paymentAmount);
+        
+        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber)
+                .orElseThrow(() -> new RuntimeException("예약을 찾을 수 없습니다: " + reservationNumber));
+        
+        logger.info("예약 엔티티 조회 성공: id={}, status={}", reservation.getId(), reservation.getStatus());
+        
+        // 결제 정보 업데이트
+        reservation.setPaymentId(paymentId);
+        reservation.setPaymentMethod(paymentMethod);
+        reservation.setPaymentAmount(paymentAmount);
+        reservation.setPaymentTime(LocalDateTime.now());
+        
+        logger.info("예약 엔티티 필드 설정 완료: paymentId={}, paymentMethod={}, paymentAmount={}, paymentTime={}", 
+                   reservation.getPaymentId(), reservation.getPaymentMethod(), 
+                   reservation.getPaymentAmount(), reservation.getPaymentTime());
+        
+        Reservation savedReservation = reservationRepository.save(reservation);
+        
+        logger.info("예약 결제 정보 업데이트 완료: reservationNumber={}, paymentId={}, paymentMethod={}, paymentAmount={}", 
+                   reservationNumber, savedReservation.getPaymentId(), savedReservation.getPaymentMethod(), savedReservation.getPaymentAmount());
+    }
+    
+    @Override
+    @Transactional
+    public void updateDetailedPaymentInfo(String reservationNumber, String paymentId, String paymentMethod, Integer paymentAmount, 
+                                        String paymentStatus, String paymentProvider, String cardCompany, String cardType) {
+        logger.info("상세 결제 정보 업데이트 시작: reservationNumber={}, paymentId={}, paymentMethod={}, paymentAmount={}, paymentStatus={}, paymentProvider={}, cardCompany={}, cardType={}", 
+                   reservationNumber, paymentId, paymentMethod, paymentAmount, paymentStatus, paymentProvider, cardCompany, cardType);
+        
+        Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber)
+                .orElseThrow(() -> new RuntimeException("예약을 찾을 수 없습니다: " + reservationNumber));
+        
+        logger.info("예약 엔티티 조회 성공: id={}, status={}", reservation.getId(), reservation.getStatus());
+        
+        // 상세 결제 정보 업데이트
+        reservation.setPaymentId(paymentId);
+        reservation.setPaymentMethod(paymentMethod);
+        reservation.setPaymentAmount(paymentAmount);
+        reservation.setPaymentTime(LocalDateTime.now());
+        reservation.setPaymentStatus(paymentStatus);
+        reservation.setPaymentProvider(paymentProvider);
+        reservation.setCardCompany(cardCompany);
+        reservation.setCardType(cardType);
+        
+        logger.info("예약 엔티티 상세 필드 설정 완료: paymentStatus={}, paymentProvider={}, cardCompany={}, cardType={}", 
+                   reservation.getPaymentStatus(), reservation.getPaymentProvider(), 
+                   reservation.getCardCompany(), reservation.getCardType());
+        
+        Reservation savedReservation = reservationRepository.save(reservation);
+        
+        logger.info("예약 상세 결제 정보 업데이트 완료: reservationNumber={}, paymentStatus={}, paymentProvider={}, cardCompany={}, cardType={}", 
+                   reservationNumber, savedReservation.getPaymentStatus(), savedReservation.getPaymentProvider(), 
+                   savedReservation.getCardCompany(), savedReservation.getCardType());
+    }
+    
+    @Override
+    @Transactional
     public void updateReservationStatusToCompleted(String reservationNumber) {
         Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber)
                 .orElseThrow(() -> new RuntimeException("예약을 찾을 수 없습니다: " + reservationNumber));
@@ -432,6 +492,13 @@ public class ReservationServiceImpl implements ReservationService {
                 .storageType(reservation.getStorageType())
                 .status(reservation.getStatus())
                 .paymentId(reservation.getPaymentId())
+                .paymentMethod(reservation.getPaymentMethod())
+                .paymentAmount(reservation.getPaymentAmount())
+                .paymentTime(reservation.getPaymentTime())
+                .paymentStatus(reservation.getPaymentStatus())
+                .paymentProvider(reservation.getPaymentProvider())
+                .cardCompany(reservation.getCardCompany())
+                .cardType(reservation.getCardType())
                 .createdAt(reservation.getCreatedAt())
                 .build();
     }

@@ -9,8 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -185,6 +183,91 @@ public class PartnershipService {
                 System.err.println("사용자 역할 업데이트 중 오류 발생: " + e.getMessage());
                 // 역할 업데이트 실패해도 파트너십 상태는 변경
             }
+        }
+        
+        return partnershipRepository.save(partnership);
+    }
+
+    @Transactional
+    public Partnership updatePartnership(Long id, PartnershipDto dto) {
+        Partnership partnership = partnershipRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("제휴점을 찾을 수 없습니다: " + id));
+        
+        // 기본 정보 업데이트
+        if (dto.getBusinessName() != null) {
+            partnership.setBusinessName(dto.getBusinessName());
+        }
+        if (dto.getOwnerName() != null) {
+            partnership.setOwnerName(dto.getOwnerName());
+        }
+        if (dto.getEmail() != null) {
+            partnership.setEmail(dto.getEmail());
+        }
+        if (dto.getPhone() != null) {
+            partnership.setPhone(dto.getPhone());
+        }
+        if (dto.getAddress() != null) {
+            partnership.setAddress(dto.getAddress());
+        }
+        
+        // 좌표 업데이트
+        if (dto.getLatitude() != 0) {
+            partnership.setLatitude(dto.getLatitude());
+        }
+        if (dto.getLongitude() != 0) {
+            partnership.setLongitude(dto.getLongitude());
+        }
+        
+        // 사업체 정보 업데이트
+        if (dto.getBusinessType() != null) {
+            partnership.setBusinessType(dto.getBusinessType());
+        }
+        if (dto.getSpaceSize() != null) {
+            partnership.setSpaceSize(dto.getSpaceSize());
+        }
+        if (dto.getAdditionalInfo() != null) {
+            partnership.setAdditionalInfo(dto.getAdditionalInfo());
+        }
+        
+        // 보관 용량 업데이트
+        if (dto.getSmallBagsAvailable() != null) {
+            partnership.setSmallBagsAvailable(dto.getSmallBagsAvailable());
+        }
+        if (dto.getMediumBagsAvailable() != null) {
+            partnership.setMediumBagsAvailable(dto.getMediumBagsAvailable());
+        }
+        if (dto.getLargeBagsAvailable() != null) {
+            partnership.setLargeBagsAvailable(dto.getLargeBagsAvailable());
+        }
+        
+        // 24시간 운영 여부 업데이트
+        partnership.setIs24Hours(dto.isIs24Hours());
+        
+        // 영업시간 업데이트
+        if (dto.getBusinessHours() != null) {
+            Map<String, String> businessHoursMap = new HashMap<>();
+            
+            if (dto.isIs24Hours()) {
+                // 24시간 영업인 경우 모든 요일을 '24시간'으로 설정
+                businessHoursMap.put("MONDAY", "24시간");
+                businessHoursMap.put("TUESDAY", "24시간");
+                businessHoursMap.put("WEDNESDAY", "24시간");
+                businessHoursMap.put("THURSDAY", "24시간");
+                businessHoursMap.put("FRIDAY", "24시간");
+                businessHoursMap.put("SATURDAY", "24시간");
+                businessHoursMap.put("SUNDAY", "24시간");
+            } else {
+                // 일반 영업시간 설정
+                for (Map.Entry<String, PartnershipDto.BusinessHourDto> entry : dto.getBusinessHours().entrySet()) {
+                    String day = convertDayToEnglish(entry.getKey());
+                    PartnershipDto.BusinessHourDto hourDto = entry.getValue();
+                    
+                    if (hourDto.isEnabled()) {
+                        businessHoursMap.put(day, hourDto.getOpen() + "-" + hourDto.getClose());
+                    }
+                }
+            }
+            partnership.setBusinessHours(businessHoursMap);
         }
         
         return partnershipRepository.save(partnership);

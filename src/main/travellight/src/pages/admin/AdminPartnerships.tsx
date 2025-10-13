@@ -190,7 +190,7 @@ const AdminPartnerships: React.FC = () => {
                 
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Chip
-                        label={`대기중: ${filteredPartnerships.filter(p => p.status === 'PENDING').length}개`}
+                        label={`검토중: ${filteredPartnerships.filter(p => p.status === 'PENDING').length}개`}
                         size="small"
                         sx={{
                             bgcolor: alpha(COLORS.warning, 0.15),
@@ -201,7 +201,7 @@ const AdminPartnerships: React.FC = () => {
                         }}
                     />
                     <Chip
-                        label={`승인됨: ${filteredPartnerships.filter(p => p.status === 'APPROVED').length}개`}
+                        label={`운영중: ${filteredPartnerships.filter(p => p.status === 'APPROVED').length}개`}
                         size="small"
                         sx={{
                             bgcolor: alpha(COLORS.success, 0.15),
@@ -458,8 +458,8 @@ const AdminPartnerships: React.FC = () => {
                                     <TableCell sx={{ py: 1.75, px: 2 }}>
                                         <Chip 
                                             label={
-                                                partnership.status === 'PENDING' ? '대기중' : 
-                                                partnership.status === 'APPROVED' ? '승인' : '거절'
+                                                partnership.status === 'PENDING' ? '검토중' : 
+                                                partnership.status === 'APPROVED' ? '운영중' : '거절'
                                             }
                                             size="small"
                                             sx={{

@@ -9,11 +9,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AWSServiceStatusDto {
+public class ServerServiceStatusDto {
     private String serviceName;
     private String status; // healthy, degraded, unhealthy
     private Integer responseTime;
     private String lastChecked;
-    private String endpoint;
-    private String region;
+    private String details;
 } 

@@ -49,6 +49,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import StarIcon from "@mui/icons-material/Star";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
+import DirectionsIcon from "@mui/icons-material/Directions";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import LuggageIcon from "@mui/icons-material/Luggage";
@@ -185,9 +186,40 @@ const Map = () => {
     "portone"
   ); // 기본값을 포트원으로 설정
   const [storageDuration, setStorageDuration] = useState("day");
-  const [storageDate, setStorageDate] = useState("");
-  const [storageStartTime, setStorageStartTime] = useState("");
-  const [storageEndTime, setStorageEndTime] = useState("");
+
+  // 초기 날짜와 시간 설정 함수 (30분 단위)
+  const getInitialDateTime = () => {
+    const now = new Date();
+    const todayDate = now.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+
+    // 현재 시간 + 1시간을 시작 시간으로, 30분 단위로 반올림
+    const startTime = new Date(now.getTime() + 60 * 60 * 1000);
+    const startMinutes = startTime.getMinutes();
+    const roundedStartMinutes = startMinutes < 30 ? 0 : 30;
+    startTime.setMinutes(roundedStartMinutes);
+    startTime.setSeconds(0);
+
+    const startHour = startTime.getHours().toString().padStart(2, '0');
+    const startMinute = roundedStartMinutes.toString().padStart(2, '0');
+    const startTimeStr = `${startHour}:${startMinute}`;
+
+    // 시작 시간 + 1시간을 종료 시간으로 (30분 단위 유지)
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+    const endHour = endTime.getHours().toString().padStart(2, '0');
+    const endMinute = endTime.getMinutes().toString().padStart(2, '0');
+    const endTimeStr = `${endHour}:${endMinute}`;
+
+    return {
+      date: todayDate,
+      startTime: startTimeStr,
+      endTime: endTimeStr
+    };
+  };
+
+  const initialDateTime = getInitialDateTime();
+  const [storageDate, setStorageDate] = useState(initialDateTime.date);
+  const [storageStartTime, setStorageStartTime] = useState(initialDateTime.startTime);
+  const [storageEndTime, setStorageEndTime] = useState(initialDateTime.endTime);
   // 시간 유효성 상태 추가
   const [isTimeValid, setIsTimeValid] = useState(true);
   // 종료 날짜 상태 추가
@@ -3806,7 +3838,7 @@ const Map = () => {
       console.log("예약 저장 성공:", response.data);
       setSubmittedReservation(response.data);
       setReservationSuccess(true);
-      return true;
+      return response.data;
     } catch (error) {
       console.error("=== 예약 저장 중 오류 발생 ===");
       console.error("Error while saving reservation:", error);
@@ -4243,8 +4275,27 @@ const Map = () => {
       console.log("========================");
 
       if (payment.code !== undefined) {
-        // 결제 실패
+        // 결제 실패 또는 사용자 취소
         console.error("결제 실패:", payment.code, payment.message);
+
+        // 결제 취소 로그를 백엔드에 전송
+        try {
+          await fetch("/api/admin/activity-logs/payment-cancel", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              userId: user?.id,
+              reason: payment.message || "사용자가 결제 창을 닫음",
+              paymentMethod: paymentMethod === "paypal" ? "paypal" : "card",
+              amount: totalPrice.toString(),
+            }),
+          });
+        } catch (error) {
+          console.error("결제 취소 로그 전송 실패:", error);
+        }
+
         setReservationError(`결제 실패: ${payment.message}`);
         setIsProcessingPayment(false);
         return;
@@ -4277,36 +4328,79 @@ const Map = () => {
 
           // 결제 검증 성공 후에만 예약 정보 저장
           console.log("=== 예약 정보 저장 시작 ===");
-          const reservationResult = await submitReservation(payment.paymentId);
-          console.log("예약 저장 결과:", reservationResult);
-          if (reservationResult) {
-            console.log("=== 예약 저장 성공, PaymentId 업데이트 시작 ===");
+          const reservationData = await submitReservation(payment.paymentId);
+          console.log("예약 저장 결과:", reservationData);
+          if (reservationData) {
+            console.log("=== 예약 저장 성공, 결제 정보 업데이트 시작 ===");
 
-            // 예약 저장 성공 후 paymentId 업데이트
-            if (submittedReservation?.reservationNumber && payment.paymentId) {
+            // 예약 저장 성공 후 Payment 테이블에 저장
+            if (reservationData.reservationNumber && payment.paymentId) {
               try {
-                console.log("PaymentId 업데이트 요청:", {
-                  reservationNumber: submittedReservation.reservationNumber,
+                console.log("Payment 테이블 저장 요청:", {
+                  reservationNumber: reservationData.reservationNumber,
                   paymentId: payment.paymentId
                 });
-                
-                const updateResponse = await fetch(`/api/reservations/${submittedReservation.reservationNumber}/payment-id`, {
+
+                const savePaymentResponse = await fetch(`/api/payment/save`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    paymentId: payment.paymentId,
+                    reservationNumber: reservationData.reservationNumber
+                  }),
+                });
+
+                if (savePaymentResponse.ok) {
+                  const saveResult = await savePaymentResponse.json();
+                  console.log("Payment 테이블 저장 성공:", saveResult);
+                } else {
+                  const errorText = await savePaymentResponse.text();
+                  console.error("Payment 테이블 저장 실패:", errorText);
+                }
+              } catch (saveError) {
+                console.error("Payment 테이블 저장 중 오류:", saveError);
+              }
+
+              // Reservation 테이블에도 상세 결제 정보 업데이트 (기존 필드 유지하려면)
+              try {
+                console.log("Reservation 상세 결제 정보 업데이트 요청:", {
+                  reservationNumber: reservationData.reservationNumber,
+                  paymentId: payment.paymentId,
+                  paymentMethod: paymentMethod === "paypal" ? "paypal" : "card",
+                  paymentAmount: totalPrice,
+                  paymentStatus: paymentComplete.paymentStatus || "PAID",
+                  paymentProvider: paymentComplete.paymentProvider,
+                  cardCompany: paymentComplete.cardCompany,
+                  cardType: paymentComplete.cardType
+                });
+
+                const updateResponse = await fetch(`/api/reservations/${reservationData.reservationNumber}/detailed-payment-info`, {
                   method: 'PUT',
                   headers: {
                     'Content-Type': 'application/json',
                   },
                   body: JSON.stringify({
-                    paymentId: payment.paymentId
+                    paymentId: payment.paymentId,
+                    paymentMethod: paymentMethod === "paypal" ? "paypal" : "card",
+                    paymentAmount: totalPrice,
+                    paymentStatus: paymentComplete.paymentStatus || "PAID",
+                    paymentProvider: paymentComplete.paymentProvider,
+                    cardCompany: paymentComplete.cardCompany,
+                    cardType: paymentComplete.cardType
                   }),
                 });
 
                 if (updateResponse.ok) {
-                  console.log("PaymentId 업데이트 성공");
+                  const updateResult = await updateResponse.json();
+                  console.log("Reservation 상세 결제 정보 업데이트 성공:", updateResult);
                 } else {
-                  console.error("PaymentId 업데이트 실패:", await updateResponse.text());
+                  const errorText = await updateResponse.text();
+                  console.error("Reservation 상세 결제 정보 업데이트 실패:", errorText);
                 }
               } catch (updateError) {
-                console.error("PaymentId 업데이트 중 오류:", updateError);
+                console.error("Reservation 상세 결제 정보 업데이트 중 오류:", updateError);
               }
             }
 
@@ -4361,6 +4455,25 @@ const Map = () => {
       }
     } catch (error) {
       console.error("포트원 결제 처리 중 오류:", error);
+
+      // 결제 오류 로그를 백엔드에 전송
+      try {
+        await fetch("/api/admin/activity-logs/payment-cancel", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: user?.id,
+            reason: `결제 처리 중 오류 발생: ${error}`,
+            paymentMethod: paymentMethod === "paypal" ? "paypal" : "card",
+            amount: totalPrice.toString(),
+          }),
+        });
+      } catch (logError) {
+        console.error("결제 오류 로그 전송 실패:", logError);
+      }
+
       setReservationError("결제 처리 중 오류가 발생했습니다.");
     } finally {
       setIsProcessingPayment(false);
@@ -5143,16 +5256,16 @@ const Map = () => {
                         sx={{
                           backgroundColor: '#03C75A',
                           color: 'white',
-                          fontWeight: 600,
-                          fontSize: '12px',
+                          fontWeight: 500,
+                          fontSize: '14px',
                           py: 1,
                           borderRadius: '6px',
                           '&:hover': {
-                            backgroundColor: '#029B4A'
+                            backgroundColor: '#02a74a'
                           }
                         }}
                       >
-                        🗺️ 네이버맵 길찾기
+                        네이버맵 길찾기
                       </Button>
                     </Box>
                   )}
@@ -5240,32 +5353,100 @@ const Map = () => {
                         alignItems: "flex-start",
                         mb: 1.5
                       }}>
-                        <Box>
-                          <Typography variant="h6" sx={{
-                            fontWeight: 600,
-                            fontSize: "16px",
-                            color: "#333",
-                            mb: 0.5
-                          }}>
-                            {reservation.placeName}
-                          </Typography>
+                        <Box sx={{ flex: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            <Typography variant="h6" sx={{
+                              fontWeight: 600,
+                              fontSize: "16px",
+                              color: "#333"
+                            }}>
+                              {reservation.placeName}
+                            </Typography>
+                            {reservation.status === 'RESERVED' && (
+                              <Button
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openNaverMap(reservation);
+                                }}
+                                sx={{
+                                  backgroundColor: '#f5f5f5',
+                                  color: '#666',
+                                  fontSize: '11px',
+                                  fontWeight: 500,
+                                  px: 1,
+                                  py: 0.3,
+                                  minWidth: 'auto',
+                                  borderRadius: '4px',
+                                  border: '1px solid #e0e0e0',
+                                  '&:hover': {
+                                    backgroundColor: '#e8e8e8',
+                                    borderColor: '#d0d0d0'
+                                  }
+                                }}
+                              >
+                                길찾기
+                              </Button>
+                            )}
+                          </Box>
                           <Typography variant="body2" sx={{
                             color: "#666",
-                            fontSize: "13px"
+                            fontSize: "13px",
+                            mb: 1
                           }}>
                             {reservation.reservationNumber}
                           </Typography>
+
+                          {/* 보관 상태 태그 */}
+                          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                            {storageStatuses[reservation.reservationNumber] && (
+                              <>
+                                {storageStatuses[reservation.reservationNumber].hasStorage ? (
+                                  <Chip
+                                    icon={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                          <CheckCircleIcon sx={{ fontSize: 13 }} /> :
+                                          <QrCodeIcon sx={{ fontSize: 13 }} />}
+                                    label={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                           '보관 중' : '이용 완료'}
+                                    size="small"
+                                    sx={{
+                                      backgroundColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
+                                                      '#f5f5f5' : '#fafafa',
+                                      border: '1px solid #e0e0e0',
+                                      color: '#666',
+                                      fontSize: '11px',
+                                      height: '24px',
+                                      fontWeight: 500
+                                    }}
+                                  />
+                                ) : (
+                                  <Chip
+                                    label={t('waitingForStoreVisit')}
+                                    size="small"
+                                    sx={{
+                                      backgroundColor: '#f5f5f5',
+                                      border: '1px solid #e0e0e0',
+                                      color: '#666',
+                                      fontSize: '11px',
+                                      height: '24px',
+                                      fontWeight: 500
+                                    }}
+                                  />
+                                )}
+                              </>
+                            )}
+                          </Box>
                         </Box>
                         <Chip
                           label={getStatusText(reservation.status)}
                           size="small"
                           sx={{
-                            backgroundColor: reservation.status === 'RESERVED' ? '#e3f2fd' :
-                                           reservation.status === 'COMPLETED' ? '#f3e5f5' : '#fff3e0',
-                            color: reservation.status === 'RESERVED' ? '#1976d2' :
-                                   reservation.status === 'COMPLETED' ? '#7b1fa2' : '#ed6c02',
+                            backgroundColor: '#f5f5f5',
+                            border: '1px solid #e0e0e0',
+                            color: '#666',
                             fontWeight: 500,
-                            fontSize: '11px'
+                            fontSize: '11px',
+                            height: '24px'
                           }}
                         />
                       </Box>
@@ -5380,29 +5561,6 @@ const Map = () => {
                               
                               {/* 액션 버튼들 - 배달 여부와 관계없이 항상 표시 */}
                               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                                {/* 예약 상태별 버튼들 */}
-                                {reservation.status === 'RESERVED' && (
-                                  <Button
-                                    fullWidth
-                                    variant="contained"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openNaverMap(reservation);
-                                    }}
-                                    sx={{
-                                      backgroundColor: '#03C75A',
-                                      color: 'white',
-                                      '&:hover': {
-                                        backgroundColor: '#02a74a'
-                                      },
-                                      fontSize: '12px',
-                                      py: 0.8
-                                    }}
-                                  >
-                                    네이버맵 길찾기
-                                  </Button>
-                                )}
-                                
                                 {/* 배달 신청 버튼 - 배달이 없는 경우에만 표시 */}
                                 {!hasDelivery && (
                                   <Button
@@ -5416,11 +5574,13 @@ const Map = () => {
                                     sx={{
                                       borderColor: '#1976d2',
                                       color: '#1976d2',
+                                      fontWeight: 500,
+                                      fontSize: '14px',
+                                      py: 0.9,
+                                      borderRadius: '6px',
                                       '&:hover': {
                                         backgroundColor: '#e3f2fd'
-                                      },
-                                      fontSize: '12px',
-                                      py: 0.8
+                                      }
                                     }}
                                   >
                                     배달 신청하기
@@ -5439,46 +5599,61 @@ const Map = () => {
                                             flex: 1,
                                             backgroundColor: '#4CAF50',
                                             color: 'white',
-                                            fontSize: '11px',
-                                            py: 0.8,
-                                            opacity: 0.8
+                                            fontSize: '14px',
+                                            py: 0.9,
+                                            fontWeight: 500,
+                                            borderRadius: '6px',
+                                            '&.Mui-disabled': {
+                                              color: 'white',
+                                              opacity: 0.8
+                                            }
                                           }}
                                         >
-                                          ✅ 리뷰 완료
+                                          리뷰 작성 완료
                                         </Button>
                                         <Button
                                           variant="outlined"
-                                          size="small"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleEditReview(reservation);
                                           }}
                                           sx={{
-                                            borderColor: '#2196F3',
-                                            color: '#2196F3',
-                                            fontSize: '10px',
-                                            minWidth: 'auto',
-                                            px: 1
+                                            borderColor: '#1976d2',
+                                            color: '#1976d2',
+                                            fontSize: '14px',
+                                            minWidth: '50px',
+                                            px: 1.5,
+                                            py: 0.9,
+                                            fontWeight: 500,
+                                            borderRadius: '6px',
+                                            '&:hover': {
+                                              backgroundColor: '#e3f2fd'
+                                            }
                                           }}
                                         >
-                                          ✏️
+                                          수정
                                         </Button>
                                         <Button
                                           variant="outlined"
-                                          size="small"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleDeleteReview(reservation);
                                           }}
                                           sx={{
-                                            borderColor: '#f44336',
-                                            color: '#f44336',
-                                            fontSize: '10px',
-                                            minWidth: 'auto',
-                                            px: 1
+                                            borderColor: '#d32f2f',
+                                            color: '#d32f2f',
+                                            fontSize: '14px',
+                                            minWidth: '50px',
+                                            px: 1.5,
+                                            py: 0.9,
+                                            fontWeight: 500,
+                                            borderRadius: '6px',
+                                            '&:hover': {
+                                              backgroundColor: '#ffebee'
+                                            }
                                           }}
                                         >
-                                          🗑️
+                                          삭제
                                         </Button>
                                       </Box>
                                     ) : (
@@ -5490,16 +5665,18 @@ const Map = () => {
                                           handleWriteReview(reservation);
                                         }}
                                         sx={{
-                                          backgroundColor: '#226fff',
+                                          backgroundColor: '#FF6B35',
                                           color: 'white',
+                                          fontWeight: 500,
+                                          fontSize: '14px',
+                                          py: 0.9,
+                                          borderRadius: '6px',
                                           '&:hover': {
                                             backgroundColor: '#E64A19'
-                                          },
-                                          fontSize: '12px',
-                                          py: 0.8
+                                          }
                                         }}
                                       >
-                                        ⭐ 리뷰 작성하기
+                                        리뷰 작성하기
                                       </Button>
                                     )}
                                   </>
@@ -5509,44 +5686,6 @@ const Map = () => {
                           );
                         })()}
                       </Box>
-
-                      {/* 보관 상태 인디케이터 */}
-                      {storageStatuses[reservation.reservationNumber] && (
-                        <Box sx={{ mt: 1 }}>
-                          {storageStatuses[reservation.reservationNumber].hasStorage ? (
-                            <Chip
-                              icon={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                    <CheckCircleIcon sx={{ fontSize: 14 }} /> :
-                                    <QrCodeIcon sx={{ fontSize: 14 }} />}
-                              label={storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                     '보관 중' : '이용 완료'}
-                              size="small"
-                              variant="outlined"
-                              sx={{
-                                backgroundColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                                '#e8f5e8' : '#f3e5f5',
-                                borderColor: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                            '#4caf50' : '#9c27b0',
-                                color: storageStatuses[reservation.reservationNumber].status === 'STORED' ?
-                                       '#2e7d32' : '#7b1fa2',
-                                fontSize: '10px'
-                              }}
-                            />
-                          ) : (
-                            <Chip
-                              label={t('waitingForStoreVisit')}
-                              size="small"
-                              variant="outlined"
-                              sx={{
-                                backgroundColor: '#fff3e0',
-                                borderColor: '#ff9800',
-                                color: '#e65100',
-                                fontSize: '10px'
-                              }}
-                            />
-                          )}
-                        </Box>
-                      )}
                     </Box>
                   ))}
                 </Box>

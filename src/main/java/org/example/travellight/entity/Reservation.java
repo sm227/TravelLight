@@ -70,6 +70,27 @@ public class Reservation {
     @Column(name = "payment_id")
     private String paymentId; // 포트원 결제 ID
     
+    @Column(name = "payment_method")
+    private String paymentMethod; // 결제 방법 (card, paypal)
+    
+    @Column(name = "payment_amount")
+    private Integer paymentAmount; // 결제 금액
+    
+    @Column(name = "payment_time")
+    private LocalDateTime paymentTime; // 결제 시간
+    
+    @Column(name = "payment_status")
+    private String paymentStatus; // 결제 상태 (PAID, FAILED, CANCELLED, REFUNDED)
+    
+    @Column(name = "payment_provider")
+    private String paymentProvider; // 결제 제공자 (portone, paypal, tosspayments 등)
+    
+    @Column(name = "card_company")
+    private String cardCompany; // 카드사명 (신한, 삼성, 현대 등)
+    
+    @Column(name = "card_type")
+    private String cardType; // 카드 타입 (신용카드, 체크카드, 할부카드 등)
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
@@ -83,6 +104,10 @@ public class Reservation {
     @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Review> reviews = new ArrayList<>();
+
+    @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Payment> payments = new ArrayList<>();
     
     @PrePersist
     protected void onCreate() {
@@ -118,7 +143,17 @@ public class Reservation {
         reviews.remove(review);
         review.setReservation(null);
     }
-    
+
+    public void addPayment(Payment payment) {
+        payments.add(payment);
+        payment.setReservation(this);
+    }
+
+    public void removePayment(Payment payment) {
+        payments.remove(payment);
+        payment.setReservation(null);
+    }
+
     // 리뷰 작성 가능 여부 확인 (서비스 완료 상태일 때만 가능)
     public boolean canWriteReview() {
         return "COMPLETED".equals(this.status);
