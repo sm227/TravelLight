@@ -134,7 +134,7 @@ const UserDetail = () => {
 
   // 클레임내역 탭이 활성화될 때 클레임 목록 로드
   useEffect(() => {
-    if (tabValue === 4) {
+    if (tabValue === 5) {
       loadClaims();
     }
   }, [tabValue, userId]);
@@ -2007,7 +2007,7 @@ const UserDetail = () => {
 
         {/* 클레임내역 탭 */}
         <TabPanel value={tabValue} index={5}>
-          <div style={{ 
+          <div style={{
             backgroundColor: '#1f1f23',
             border: '1px solid #27272a',
             borderRadius: '4px',
