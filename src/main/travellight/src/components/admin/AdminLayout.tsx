@@ -32,7 +32,8 @@ import {
   RateReview as RateReviewIcon,
   Logout as LogoutIcon,
   QuestionAnswer as QuestionAnswerIcon,
-  LiveHelp as LiveHelpIcon
+  LiveHelp as LiveHelpIcon,
+  LocalOffer as LocalOfferIcon
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../services/AuthContext';
@@ -97,6 +98,7 @@ const AdminLayout = () => {
         { text: 'FAQ 관리', icon: <QuestionAnswerIcon />, path: '/admin/faqs' },
         { text: '문의 관리', icon: <LiveHelpIcon />, path: '/admin/inquiries' },
         { text: '리뷰 관리', icon: <RateReviewIcon />, path: '/admin/reviews' },
+        { text: '쿠폰 관리', icon: <LocalOfferIcon />, path: '/admin/coupons' },
       ]
     },
     {
