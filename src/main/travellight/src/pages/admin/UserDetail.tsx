@@ -98,6 +98,10 @@ const UserDetail = () => {
   const [selectedPayment, setSelectedPayment] = useState<PaymentDto | null>(null);
   const [refundReason, setRefundReason] = useState('');
   const [processingRefund, setProcessingRefund] = useState(false);
+  const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  const [selectedClaim, setSelectedClaim] = useState<ClaimResponse | null>(null);
+  const [resolutionText, setResolutionText] = useState('');
+  const [processingResolve, setProcessingResolve] = useState(false);
 
   // 사용자 정보 로드
   const loadUser = async () => {
@@ -403,6 +407,56 @@ const UserDetail = () => {
       setAlertMessage({type: 'error', message: errorMessage});
     } finally {
       setProcessingRefund(false);
+    }
+
+    setTimeout(() => setAlertMessage(null), 3000);
+  };
+
+  // 클레임 처리 모달 열기
+  const handleOpenResolveModal = (claim: ClaimResponse) => {
+    setSelectedClaim(claim);
+    setResolveModalOpen(true);
+    setResolutionText('');
+  };
+
+  // 클레임 처리 모달 닫기
+  const handleCloseResolveModal = () => {
+    setResolveModalOpen(false);
+    setSelectedClaim(null);
+    setResolutionText('');
+  };
+
+  // 클레임 처리
+  const handleResolveSubmit = async () => {
+    if (!selectedClaim) return;
+
+    if (!resolutionText.trim()) {
+      setAlertMessage({type: 'error', message: '처리 내역을 입력해주세요.'});
+      return;
+    }
+
+    try {
+      setProcessingResolve(true);
+
+      // 클레임 처리 API 호출
+      const response = await claimService.resolveClaim(selectedClaim.id, resolutionText);
+
+      if (response.success) {
+        setAlertMessage({type: 'success', message: '클레임이 처리되었습니다.'});
+        handleCloseResolveModal();
+
+        // 클레임 목록 새로고침
+        await loadClaims();
+      } else {
+        setAlertMessage({type: 'error', message: '클레임 처리에 실패했습니다.'});
+      }
+
+    } catch (error: any) {
+      console.error('클레임 처리 중 오류:', error);
+      const errorMessage = error.response?.data?.error || '클레임 처리 중 오류가 발생했습니다.';
+      setAlertMessage({type: 'error', message: errorMessage});
+    } finally {
+      setProcessingResolve(false);
     }
 
     setTimeout(() => setAlertMessage(null), 3000);
@@ -2087,7 +2141,7 @@ const UserDetail = () => {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {claims.map((claim) => (
-                    <div 
+                    <div
                       key={claim.id}
                       style={{
                         padding: '15px',
@@ -2096,23 +2150,23 @@ const UserDetail = () => {
                         borderRadius: '4px'
                       }}
                     >
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'flex-start',
                         marginBottom: '10px'
                       }}>
                         <div>
-                          <div style={{ 
-                            color: '#fafafa', 
-                            fontSize: '14px', 
+                          <div style={{
+                            color: '#fafafa',
+                            fontSize: '14px',
                             fontWeight: 'bold',
                             marginBottom: '5px'
                           }}>
                             담당자: {claim.assignee}
                           </div>
-                          <div style={{ 
-                            color: '#a1a1aa', 
+                          <div style={{
+                            color: '#a1a1aa',
                             fontSize: '12px'
                           }}>
                             {formatDateTime(claim.createdAt)}
@@ -2129,8 +2183,8 @@ const UserDetail = () => {
                           {claim.status === 'RESOLVED' ? '해결됨' : '진행중'}
                         </span>
                       </div>
-                      <div style={{ 
-                        color: '#fafafa', 
+                      <div style={{
+                        color: '#fafafa',
                         fontSize: '14px',
                         lineHeight: '1.4',
                         marginBottom: '10px'
@@ -2145,21 +2199,56 @@ const UserDetail = () => {
                           borderRadius: '4px',
                           marginTop: '10px'
                         }}>
-                          <div style={{ 
-                            color: '#8c8', 
-                            fontSize: '12px', 
+                          <div style={{
+                            color: '#8c8',
+                            fontSize: '12px',
                             fontWeight: 'bold',
                             marginBottom: '5px'
                           }}>
                             해결 내용:
                           </div>
-                          <div style={{ 
-                            color: '#fafafa', 
+                          <div style={{
+                            color: '#fafafa',
                             fontSize: '13px',
                             lineHeight: '1.4'
                           }}>
                             {claim.resolution}
                           </div>
+                          {claim.resolvedAt && (
+                            <div style={{
+                              color: '#a1a1aa',
+                              fontSize: '11px',
+                              marginTop: '5px'
+                            }}>
+                              처리일시: {formatDateTime(claim.resolvedAt)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {/* 완료 버튼 - 진행중 상태일 때만 표시 */}
+                      {claim.status !== 'RESOLVED' && (
+                        <div style={{
+                          marginTop: '10px',
+                          paddingTop: '10px',
+                          borderTop: '1px solid #3f3f46',
+                          display: 'flex',
+                          justifyContent: 'flex-end'
+                        }}>
+                          <button
+                            onClick={() => handleOpenResolveModal(claim)}
+                            style={{
+                              padding: '6px 14px',
+                              backgroundColor: '#1f1f23',
+                              color: '#fafafa',
+                              border: '1px solid #27272a',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            처리하기
+                          </button>
                         </div>
                       )}
                     </div>
@@ -2464,6 +2553,160 @@ const UserDetail = () => {
                 }}
               >
                 {processingRefund ? '처리 중...' : '환불 요청'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 클레임 처리 모달 */}
+      {resolveModalOpen && selectedClaim && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#1f1f23',
+            border: '1px solid #27272a',
+            borderRadius: '8px',
+            padding: '30px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{
+              margin: '0 0 20px 0',
+              color: '#fafafa',
+              fontSize: '18px',
+              fontWeight: 'bold'
+            }}>
+              클레임 처리
+            </h3>
+
+            {/* 클레임 정보 */}
+            <div style={{
+              marginBottom: '20px',
+              padding: '15px',
+              backgroundColor: '#27272a',
+              border: '1px solid #3f3f46',
+              borderRadius: '4px'
+            }}>
+              <div style={{ marginBottom: '10px' }}>
+                <span style={{ color: '#a1a1aa', fontSize: '12px' }}>담당자: </span>
+                <span style={{ color: '#fafafa', fontSize: '13px', fontWeight: 'bold' }}>
+                  {selectedClaim.assignee}
+                </span>
+              </div>
+              <div style={{ marginBottom: '10px' }}>
+                <span style={{ color: '#a1a1aa', fontSize: '12px' }}>등록일시: </span>
+                <span style={{ color: '#fafafa', fontSize: '12px' }}>
+                  {formatDateTime(selectedClaim.createdAt)}
+                </span>
+              </div>
+              <div style={{
+                marginTop: '12px',
+                paddingTop: '12px',
+                borderTop: '1px solid #3f3f46'
+              }}>
+                <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '6px' }}>
+                  클레임 내용:
+                </div>
+                <div style={{
+                  color: '#fafafa',
+                  fontSize: '13px',
+                  lineHeight: '1.5',
+                  whiteSpace: 'pre-wrap'
+                }}>
+                  {selectedClaim.content}
+                </div>
+              </div>
+            </div>
+
+            {/* 처리 내역 입력 */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                color: '#fafafa',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}>
+                상세 처리 내역 <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <textarea
+                value={resolutionText}
+                onChange={(e) => setResolutionText(e.target.value)}
+                placeholder="클레임 처리 내역을 상세히 입력해주세요...&#10;&#10;"
+                rows={8}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: '#27272a',
+                  color: '#fafafa',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                  lineHeight: '1.5'
+                }}
+              />
+              <div style={{
+                marginTop: '6px',
+                color: '#a1a1aa',
+                fontSize: '11px'
+              }}>
+                * 처리 내역은 클레임 히스토리에 영구 저장됩니다.
+              </div>
+            </div>
+
+            {/* 버튼 */}
+            <div style={{
+              display: 'flex',
+              gap: '10px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={handleCloseResolveModal}
+                disabled={processingResolve}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#27272a',
+                  color: '#fafafa',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '4px',
+                  cursor: processingResolve ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  opacity: processingResolve ? 0.5 : 1
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleResolveSubmit}
+                disabled={processingResolve || !resolutionText.trim()}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#10b981',
+                  color: '#fafafa',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: (processingResolve || !resolutionText.trim()) ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  opacity: (processingResolve || !resolutionText.trim()) ? 0.5 : 1
+                }}
+              >
+                {processingResolve ? '처리 중...' : '처리 완료'}
               </button>
             </div>
           </div>
