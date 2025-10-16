@@ -147,7 +147,7 @@ const TermsPage = () => {
                             회사가 제공하는 서비스는 다음과 같습니다:
                         </ContentText>
                         <Box component="ol" sx={{ pl: 3, color: '#64748B', lineHeight: 1.7 }}>
-                            <li>짐 보관 서비스 (유인 보관, 무인 보관)</li>
+                            <li>짐 보관 서비스 (유인 보관)</li>
                             <li>짐 배송 서비스</li>
                             <li>짐 픽업 및 드롭오프 서비스</li>
                             <li>기타 여행 관련 부가 서비스</li>

@@ -20,7 +20,12 @@ import {
     Tooltip,
     TextField,
     InputAdornment,
-    Stack
+    Stack,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    DialogContentText
 } from '@mui/material';
 import {
     CheckCircle as CheckCircleIcon,
@@ -68,6 +73,18 @@ interface Partnership {
     submissionId: string;
     createdAt: string;
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    smallBagsAvailable?: number;
+    mediumBagsAvailable?: number;
+    largeBagsAvailable?: number;
+    storePictures?: string[];
+    amenities?: string[];
+    insuranceAvailable?: boolean;
+    businessRegistrationUrl?: string;
+    bankBookUrl?: string;
+    accountNumber?: string;
+    bankName?: string;
+    accountHolder?: string;
+    rejectionReason?: string;
 }
 
 const AdminPartnerships: React.FC = () => {
@@ -75,6 +92,12 @@ const AdminPartnerships: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
+    
+    // 거부 다이얼로그 상태
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const [selectedPartnershipId, setSelectedPartnershipId] = useState<number | null>(null);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         fetchPartnerships();
@@ -91,9 +114,17 @@ const AdminPartnerships: React.FC = () => {
         }
     };
 
-    const handleStatusChange = async (id: number, newStatus: 'APPROVED' | 'REJECTED') => {
+    const handleStatusChange = async (id: number, newStatus: 'APPROVED' | 'REJECTED', reason?: string) => {
         try {
-            const response = await axios.put(`/api/partnership/${id}/status`, { status: newStatus });
+            setSubmitting(true);
+            const payload: { status: string; rejectionReason?: string } = { status: newStatus };
+            
+            // 거부 시 거부 사유 추가
+            if (newStatus === 'REJECTED' && reason) {
+                payload.rejectionReason = reason;
+            }
+            
+            const response = await axios.put(`/api/partnership/${id}/status`, payload);
             const successMessage = response.data.message;
             toast.success(successMessage);
             
@@ -103,15 +134,53 @@ const AdminPartnerships: React.FC = () => {
                     autoClose: 5000,
                     position: 'top-center'
                 });
+            } else if (newStatus === 'REJECTED') {
+                // 거부 시 이메일 발송 안내
+                toast.info('거부 사유가 파트너 이메일로 전송되었습니다.', {
+                    autoClose: 5000,
+                    position: 'top-center'
+                });
             }
             
             fetchPartnerships();
+            
+            // 다이얼로그 닫기 및 초기화
+            setRejectDialogOpen(false);
+            setSelectedPartnershipId(null);
+            setRejectionReason('');
         } catch (error: unknown) {
             const errorMessage = axios.isAxiosError(error) && error.response?.data?.message 
                 ? error.response.data.message 
                 : '상태 업데이트에 실패했습니다.';
             toast.error(errorMessage);
+        } finally {
+            setSubmitting(false);
         }
+    };
+    
+    // 거부 버튼 클릭 핸들러
+    const handleRejectClick = (id: number) => {
+        setSelectedPartnershipId(id);
+        setRejectDialogOpen(true);
+    };
+    
+    // 거부 다이얼로그 확인
+    const handleRejectConfirm = () => {
+        if (!selectedPartnershipId) return;
+        
+        if (!rejectionReason.trim()) {
+            toast.error('거부 사유를 입력해주세요.');
+            return;
+        }
+        
+        handleStatusChange(selectedPartnershipId, 'REJECTED', rejectionReason.trim());
+    };
+    
+    // 거부 다이얼로그 취소
+    const handleRejectCancel = () => {
+        setRejectDialogOpen(false);
+        setSelectedPartnershipId(null);
+        setRejectionReason('');
     };
 
     const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -532,7 +601,7 @@ const AdminPartnerships: React.FC = () => {
                                                     size="small"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleStatusChange(partnership.id, 'REJECTED');
+                                                        handleRejectClick(partnership.id);
                                                     }}
                                                     disabled={partnership.status === 'REJECTED'}
                                                     sx={{
@@ -574,6 +643,136 @@ const AdminPartnerships: React.FC = () => {
                     </Typography>
                 </Box>
             )}
+            
+            {/* 거부 사유 입력 다이얼로그 */}
+            <Dialog
+                open={rejectDialogOpen}
+                onClose={handleRejectCancel}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        bgcolor: COLORS.backgroundCard,
+                        border: `1px solid ${COLORS.borderSecondary}`,
+                        borderRadius: 0
+                    }
+                }}
+            >
+                <DialogTitle sx={{ 
+                    color: COLORS.textPrimary,
+                    borderBottom: `1px solid ${COLORS.borderSecondary}`,
+                    pb: 2
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CancelIcon sx={{ color: COLORS.danger }} />
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            제휴 신청 거부
+                        </Typography>
+                    </Box>
+                </DialogTitle>
+                
+                <DialogContent sx={{ mt: 3 }}>
+                    <DialogContentText sx={{ color: COLORS.textSecondary, mb: 3 }}>
+                        거부 사유를 입력해주세요. 입력하신 내용은 신청자의 이메일로 전송됩니다.
+                    </DialogContentText>
+                    
+                    <TextField
+                        autoFocus
+                        fullWidth
+                        multiline
+                        rows={6}
+                        label="거부 사유"
+                        placeholder="예: 매장 위치가 서비스 가능 지역이 아닙니다.&#10;필요한 서류가 제출되지 않았습니다.&#10;사업자 정보가 확인되지 않습니다."
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        required
+                        sx={{
+                            '& .MuiInputBase-root': {
+                                bgcolor: COLORS.backgroundSurface,
+                                color: COLORS.textPrimary
+                            },
+                            '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: COLORS.borderSecondary
+                            },
+                            '& .MuiInputLabel-root': {
+                                color: COLORS.textSecondary
+                            },
+                            '& .MuiInputLabel-root.Mui-focused': {
+                                color: COLORS.danger
+                            },
+                            '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                borderColor: COLORS.danger,
+                                borderWidth: 2
+                            }
+                        }}
+                        helperText={`${rejectionReason.length}/500자`}
+                        inputProps={{ maxLength: 500 }}
+                    />
+                    
+                    <Box sx={{ 
+                        mt: 3, 
+                        p: 2, 
+                        bgcolor: alpha(COLORS.danger, 0.1),
+                        border: `1px solid ${alpha(COLORS.danger, 0.3)}`,
+                        borderRadius: 1
+                    }}>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, fontSize: '0.875rem' }}>
+                            <strong style={{ color: COLORS.danger }}>⚠️ 주의:</strong> 거부 처리 시 해당 내용이 신청자에게 이메일로 전송되며, 
+                            제휴 신청 상태가 "거절"로 변경됩니다.
+                        </Typography>
+                    </Box>
+                </DialogContent>
+                
+                <DialogActions sx={{ 
+                    p: 3, 
+                    borderTop: `1px solid ${COLORS.borderSecondary}`,
+                    gap: 1
+                }}>
+                    <Button
+                        onClick={handleRejectCancel}
+                        disabled={submitting}
+                        sx={{
+                            color: COLORS.textSecondary,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            '&:hover': {
+                                bgcolor: COLORS.backgroundHover
+                            }
+                        }}
+                    >
+                        취소
+                    </Button>
+                    <Button
+                        onClick={handleRejectConfirm}
+                        disabled={submitting || !rejectionReason.trim()}
+                        variant="contained"
+                        sx={{
+                            bgcolor: COLORS.danger,
+                            color: '#fff',
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            px: 3,
+                            '&:hover': {
+                                bgcolor: COLORS.danger,
+                                opacity: 0.8
+                            },
+                            '&:disabled': {
+                                bgcolor: COLORS.textMuted,
+                                color: COLORS.backgroundCard
+                            }
+                        }}
+                    >
+                        {submitting ? (
+                            <>
+                                <CircularProgress size={16} sx={{ mr: 1, color: '#fff' }} />
+                                처리 중...
+                            </>
+                        ) : (
+                            '거부 확인'
+                        )}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

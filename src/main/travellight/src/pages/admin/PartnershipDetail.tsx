@@ -22,7 +22,13 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  alpha
 } from '@mui/material';
 import {
   ArrowBack,
@@ -35,7 +41,11 @@ import {
   Phone,
   Email,
   AccessTime,
-  Info
+  Info,
+  Image,
+  Description,
+  AccountBalance,
+  LocalOffer
 } from '@mui/icons-material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -81,6 +91,15 @@ interface Partnership {
   smallBagsAvailable?: number;
   mediumBagsAvailable?: number;
   largeBagsAvailable?: number;
+  storePictures?: string[];
+  amenities?: string[];
+  insuranceAvailable?: boolean;
+  businessRegistrationUrl?: string;
+  bankBookUrl?: string;
+  accountNumber?: string;
+  bankName?: string;
+  accountHolder?: string;
+  rejectionReason?: string;
 }
 
 interface BusinessHourEdit {
@@ -136,6 +155,15 @@ const PartnershipDetail = () => {
   const [editData, setEditData] = useState<Partial<Partnership>>({});
   const [alertMessage, setAlertMessage] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [editBusinessHours, setEditBusinessHours] = useState<Record<string, BusinessHourEdit>>({});
+  
+  // 거부 다이얼로그 상태
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  
+  // 편의시설 및 이미지 편집 상태
+  const [newAmenity, setNewAmenity] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // 운영시간 파싱 함수
   const parseBusinessHours = (businessHours: Record<string, string>): Record<string, BusinessHourEdit> => {
@@ -237,9 +265,17 @@ const PartnershipDetail = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus: 'APPROVED' | 'REJECTED') => {
+  const handleStatusChange = async (newStatus: 'APPROVED' | 'REJECTED', reason?: string) => {
     try {
-      const response = await axios.put(`/api/partnership/${partnershipId}/status`, { status: newStatus });
+      setSubmitting(true);
+      const payload: { status: string; rejectionReason?: string } = { status: newStatus };
+      
+      // 거부 시 거부 사유 추가
+      if (newStatus === 'REJECTED' && reason) {
+        payload.rejectionReason = reason;
+      }
+      
+      const response = await axios.put(`/api/partnership/${partnershipId}/status`, payload);
       toast.success(response.data.message);
       
       if (newStatus === 'APPROVED') {
@@ -247,13 +283,45 @@ const PartnershipDetail = () => {
           autoClose: 5000,
           position: 'top-center'
         });
+      } else if (newStatus === 'REJECTED') {
+        toast.info('거부 사유가 파트너 이메일로 전송되었습니다.', {
+          autoClose: 5000,
+          position: 'top-center'
+        });
       }
       
       loadPartnership();
+      
+      // 다이얼로그 닫기 및 초기화
+      setRejectDialogOpen(false);
+      setRejectionReason('');
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || '상태 업데이트에 실패했습니다.';
       toast.error(errorMessage);
+    } finally {
+      setSubmitting(false);
     }
+  };
+  
+  // 거부 버튼 클릭 핸들러
+  const handleRejectClick = () => {
+    setRejectDialogOpen(true);
+  };
+  
+  // 거부 다이얼로그 확인
+  const handleRejectConfirm = () => {
+    if (!rejectionReason.trim()) {
+      toast.error('거부 사유를 입력해주세요.');
+      return;
+    }
+    
+    handleStatusChange('REJECTED', rejectionReason.trim());
+  };
+  
+  // 거부 다이얼로그 취소
+  const handleRejectCancel = () => {
+    setRejectDialogOpen(false);
+    setRejectionReason('');
   };
 
   const handleInputChange = (field: keyof Partnership, value: any) => {
@@ -270,6 +338,95 @@ const PartnershipDetail = () => {
         ...prev[day],
         [field]: value
       }
+    }));
+  };
+
+  // 편의시설 추가
+  const handleAddAmenity = () => {
+    if (!newAmenity.trim()) {
+      toast.error('편의시설 이름을 입력해주세요.');
+      return;
+    }
+
+    const currentAmenities = editData.amenities || partnership?.amenities || [];
+    if (currentAmenities.includes(newAmenity.trim())) {
+      toast.error('이미 등록된 편의시설입니다.');
+      return;
+    }
+
+    setEditData(prev => ({
+      ...prev,
+      amenities: [...currentAmenities, newAmenity.trim()]
+    }));
+    setNewAmenity('');
+  };
+
+  // 편의시설 제거
+  const handleRemoveAmenity = (amenityToRemove: string) => {
+    setEditData(prev => ({
+      ...prev,
+      amenities: (prev.amenities || partnership?.amenities || []).filter(a => a !== amenityToRemove)
+    }));
+  };
+
+  // 이미지 업로드 (Base64 변환)
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingImage(true);
+    try {
+      const newImages: string[] = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // 파일 크기 체크 (5MB 제한)
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name}: 파일 크기가 5MB를 초과합니다.`);
+          continue;
+        }
+
+        // 이미지 파일인지 확인
+        if (!file.type.startsWith('image/')) {
+          toast.error(`${file.name}: 이미지 파일만 업로드 가능합니다.`);
+          continue;
+        }
+
+        // Base64로 변환
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        newImages.push(base64);
+      }
+
+      if (newImages.length > 0) {
+        const currentPictures = editData.storePictures || partnership?.storePictures || [];
+        setEditData(prev => ({
+          ...prev,
+          storePictures: [...currentPictures, ...newImages]
+        }));
+        toast.success(`${newImages.length}개의 이미지가 추가되었습니다.`);
+      }
+    } catch (error) {
+      console.error('이미지 업로드 오류:', error);
+      toast.error('이미지 업로드 중 오류가 발생했습니다.');
+    } finally {
+      setUploadingImage(false);
+      // 파일 input 초기화
+      event.target.value = '';
+    }
+  };
+
+  // 이미지 제거
+  const handleRemoveImage = (index: number) => {
+    setEditData(prev => ({
+      ...prev,
+      storePictures: (prev.storePictures || partnership?.storePictures || []).filter((_, i) => i !== index)
     }));
   };
 
@@ -458,6 +615,8 @@ const PartnershipDetail = () => {
           <Tab label="기본 정보" />
           <Tab label="운영 정보" />
           <Tab label="보관 용량" />
+          <Tab label="매장 정보" />
+          <Tab label="서류 & 계좌" />
           <Tab label="관리" />
         </Tabs>
 
@@ -949,6 +1108,437 @@ const PartnershipDetail = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                    <Typography variant="h6" sx={{ color: COLORS.textPrimary, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Image sx={{ color: COLORS.accentPrimary }} />
+                      매장 사진
+                    </Typography>
+                    {editMode && (
+                      <Button
+                        variant="contained"
+                        component="label"
+                        disabled={uploadingImage}
+                        startIcon={uploadingImage ? <CircularProgress size={16} /> : <Image />}
+                        sx={{
+                          bgcolor: COLORS.accentPrimary,
+                          '&:hover': { bgcolor: COLORS.accentPrimary, opacity: 0.8 }
+                        }}
+                      >
+                        {uploadingImage ? '업로드 중...' : '사진 추가'}
+                        <input
+                          type="file"
+                          hidden
+                          multiple
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                        />
+                      </Button>
+                    )}
+                  </Box>
+                  {(editData.storePictures || partnership.storePictures) && (editData.storePictures || partnership.storePictures || []).length > 0 ? (
+                    <Grid container spacing={2}>
+                      {(editData.storePictures || partnership.storePictures || []).map((picture, index) => (
+                        <Grid item xs={12} sm={6} md={4} key={index}>
+                          <Box sx={{
+                            position: 'relative',
+                            paddingTop: '75%',
+                            bgcolor: COLORS.backgroundCard,
+                            borderRadius: 1,
+                            overflow: 'hidden',
+                            border: `1px solid ${COLORS.borderSecondary}`
+                          }}>
+                            <img
+                              src={picture}
+                              alt={`매장 사진 ${index + 1}`}
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                              }}
+                            />
+                            {editMode && (
+                              <IconButton
+                                onClick={() => handleRemoveImage(index)}
+                                sx={{
+                                  position: 'absolute',
+                                  top: 8,
+                                  right: 8,
+                                  bgcolor: alpha(COLORS.danger, 0.9),
+                                  color: 'white',
+                                  '&:hover': {
+                                    bgcolor: COLORS.danger
+                                  }
+                                }}
+                                size="small"
+                              >
+                                <Cancel />
+                              </IconButton>
+                            )}
+                          </Box>
+                          <Typography variant="caption" sx={{ color: COLORS.textSecondary, display: 'block', mt: 1, textAlign: 'center' }}>
+                            사진 {index + 1}
+                          </Typography>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  ) : (
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      py: 4,
+                      color: COLORS.textMuted,
+                      bgcolor: COLORS.backgroundCard,
+                      borderRadius: 1,
+                      border: `1px solid ${COLORS.borderSecondary}`
+                    }}>
+                      <Image sx={{ fontSize: '3rem', mb: 1, opacity: 0.3 }} />
+                      <Typography variant="body2">
+                        등록된 매장 사진이 없습니다
+                      </Typography>
+                      {editMode && (
+                        <Button
+                          variant="outlined"
+                          component="label"
+                          disabled={uploadingImage}
+                          sx={{
+                            mt: 2,
+                            color: COLORS.accentPrimary,
+                            borderColor: COLORS.accentPrimary
+                          }}
+                        >
+                          사진 추가하기
+                          <input
+                            type="file"
+                            hidden
+                            multiple
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                          />
+                        </Button>
+                      )}
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12}>
+              <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
+                <CardContent>
+                  <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocalOffer sx={{ color: COLORS.accentPrimary }} />
+                    편의시설 및 서비스
+                  </Typography>
+                  <Stack spacing={2}>
+                    <Box>
+                      <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1.5 }}>
+                        제공 편의시설
+                      </Typography>
+                      
+                      {/* 편의시설 추가 (편집 모드) */}
+                      {editMode && (
+                        <Box sx={{ mb: 2 }}>
+                          <Stack direction="row" spacing={1}>
+                            <TextField
+                              size="small"
+                              placeholder="편의시설 입력 (예: WiFi, 에어컨, CCTV)"
+                              value={newAmenity}
+                              onChange={(e) => setNewAmenity(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddAmenity();
+                                }
+                              }}
+                              sx={{
+                                flex: 1,
+                                '& .MuiInputBase-input': { color: COLORS.textPrimary },
+                                '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.borderSecondary }
+                              }}
+                            />
+                            <Button
+                              variant="contained"
+                              onClick={handleAddAmenity}
+                              sx={{
+                                bgcolor: COLORS.accentPrimary,
+                                '&:hover': { bgcolor: COLORS.accentPrimary, opacity: 0.8 }
+                              }}
+                            >
+                              추가
+                            </Button>
+                          </Stack>
+                        </Box>
+                      )}
+
+                      {/* 편의시설 목록 */}
+                      {(editData.amenities || partnership.amenities) && (editData.amenities || partnership.amenities || []).length > 0 ? (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                          {(editData.amenities || partnership.amenities || []).map((amenity, index) => (
+                            <Chip
+                              key={index}
+                              label={amenity}
+                              size="medium"
+                              onDelete={editMode ? () => handleRemoveAmenity(amenity) : undefined}
+                              deleteIcon={editMode ? <Cancel /> : undefined}
+                              sx={{
+                                bgcolor: alpha(COLORS.accentPrimary, 0.15),
+                                color: COLORS.accentPrimary,
+                                fontWeight: 600,
+                                border: `1px solid ${alpha(COLORS.accentPrimary, 0.3)}`,
+                                '& .MuiChip-deleteIcon': {
+                                  color: COLORS.danger,
+                                  '&:hover': {
+                                    color: COLORS.danger,
+                                    opacity: 0.8
+                                  }
+                                }
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body1" sx={{ color: COLORS.textMuted }}>
+                          {editMode ? '편의시설을 추가해주세요' : '등록된 편의시설이 없습니다'}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Divider sx={{ bgcolor: COLORS.borderSecondary }} />
+                    <Box>
+                      <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                        보험 가능 여부
+                      </Typography>
+                      {editMode ? (
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={editData.insuranceAvailable ?? partnership.insuranceAvailable ?? false}
+                              onChange={(e) => handleInputChange('insuranceAvailable', e.target.checked)}
+                              sx={{
+                                '& .MuiSwitch-switchBase.Mui-checked': {
+                                  color: COLORS.success
+                                }
+                              }}
+                            />
+                          }
+                          label={
+                            <Typography variant="body2" sx={{ color: COLORS.textPrimary }}>
+                              {editData.insuranceAvailable ?? partnership.insuranceAvailable ? '보험 가능' : '보험 불가'}
+                            </Typography>
+                          }
+                        />
+                      ) : (
+                        <Chip
+                          label={partnership.insuranceAvailable ? '보험 가능' : '보험 불가'}
+                          sx={{
+                            bgcolor: partnership.insuranceAvailable 
+                              ? alpha(COLORS.success, 0.15) 
+                              : alpha(COLORS.textMuted, 0.15),
+                            color: partnership.insuranceAvailable ? COLORS.success : COLORS.textMuted,
+                            fontWeight: 600,
+                            border: `1px solid ${partnership.insuranceAvailable 
+                              ? alpha(COLORS.success, 0.3) 
+                              : alpha(COLORS.textMuted, 0.3)}`
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={4}>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
+                <CardContent>
+                  <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Description sx={{ color: COLORS.accentPrimary }} />
+                    사업자등록증
+                  </Typography>
+                  {partnership.businessRegistrationUrl ? (
+                    <Box>
+                      <Box sx={{
+                        position: 'relative',
+                        width: '100%',
+                        maxWidth: '500px',
+                        mx: 'auto',
+                        bgcolor: COLORS.backgroundCard,
+                        borderRadius: 1,
+                        overflow: 'hidden',
+                        border: `1px solid ${COLORS.borderSecondary}`
+                      }}>
+                        <img
+                          src={partnership.businessRegistrationUrl}
+                          alt="사업자등록증"
+                          style={{
+                            width: '100%',
+                            height: 'auto',
+                            display: 'block'
+                          }}
+                        />
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        href={partnership.businessRegistrationUrl}
+                        target="_blank"
+                        sx={{
+                          mt: 2,
+                          display: 'block',
+                          mx: 'auto',
+                          color: COLORS.accentPrimary,
+                          borderColor: COLORS.accentPrimary,
+                          '&:hover': {
+                            borderColor: COLORS.accentPrimary,
+                            bgcolor: alpha(COLORS.accentPrimary, 0.1)
+                          }
+                        }}
+                      >
+                        새 탭에서 크게 보기
+                      </Button>
+                    </Box>
+                  ) : (
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      py: 6,
+                      color: COLORS.textMuted,
+                      bgcolor: COLORS.backgroundCard,
+                      borderRadius: 1,
+                      border: `1px solid ${COLORS.borderSecondary}`
+                    }}>
+                      <Description sx={{ fontSize: '3rem', mb: 1, opacity: 0.3 }} />
+                      <Typography variant="body2">
+                        사업자등록증이 등록되지 않았습니다
+                      </Typography>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
+                <CardContent>
+                  <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AccountBalance sx={{ color: COLORS.accentPrimary }} />
+                    통장사본
+                  </Typography>
+                  {partnership.bankBookUrl ? (
+                    <Box>
+                      <Box sx={{
+                        position: 'relative',
+                        width: '100%',
+                        maxWidth: '500px',
+                        mx: 'auto',
+                        bgcolor: COLORS.backgroundCard,
+                        borderRadius: 1,
+                        overflow: 'hidden',
+                        border: `1px solid ${COLORS.borderSecondary}`
+                      }}>
+                        <img
+                          src={partnership.bankBookUrl}
+                          alt="통장사본"
+                          style={{
+                            width: '100%',
+                            height: 'auto',
+                            display: 'block'
+                          }}
+                        />
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        href={partnership.bankBookUrl}
+                        target="_blank"
+                        sx={{
+                          mt: 2,
+                          display: 'block',
+                          mx: 'auto',
+                          color: COLORS.accentPrimary,
+                          borderColor: COLORS.accentPrimary,
+                          '&:hover': {
+                            borderColor: COLORS.accentPrimary,
+                            bgcolor: alpha(COLORS.accentPrimary, 0.1)
+                          }
+                        }}
+                      >
+                        새 탭에서 크게 보기
+                      </Button>
+                    </Box>
+                  ) : (
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      py: 6,
+                      color: COLORS.textMuted,
+                      bgcolor: COLORS.backgroundCard,
+                      borderRadius: 1,
+                      border: `1px solid ${COLORS.borderSecondary}`
+                    }}>
+                      <AccountBalance sx={{ fontSize: '3rem', mb: 1, opacity: 0.3 }} />
+                      <Typography variant="body2">
+                        통장사본이 등록되지 않았습니다
+                      </Typography>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12}>
+              <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
+                <CardContent>
+                  <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AccountBalance sx={{ color: COLORS.accentPrimary }} />
+                    계좌 정보
+                  </Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={4}>
+                      <Box>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
+                          은행명
+                        </Typography>
+                        <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                          {partnership.bankName || '-'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <Box>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
+                          계좌번호
+                        </Typography>
+                        <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                          {partnership.accountNumber || '-'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <Box>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 0.5 }}>
+                          예금주
+                        </Typography>
+                        <Typography variant="body1" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                          {partnership.accountHolder || '-'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={5}>
           <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
             <CardContent>
               <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 3 }}>
@@ -996,7 +1586,7 @@ const PartnershipDetail = () => {
                 <Button
                   variant="contained"
                   startIcon={<Cancel />}
-                  onClick={() => handleStatusChange('REJECTED')}
+                  onClick={handleRejectClick}
                   disabled={partnership.status === 'REJECTED'}
                   sx={{
                     bgcolor: COLORS.danger,
@@ -1062,6 +1652,136 @@ const PartnershipDetail = () => {
           </Card>
         </TabPanel>
       </Paper>
+      
+      {/* 거부 사유 입력 다이얼로그 */}
+      <Dialog
+        open={rejectDialogOpen}
+        onClose={handleRejectCancel}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: COLORS.backgroundCard,
+            border: `1px solid ${COLORS.borderSecondary}`,
+            borderRadius: 0
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          color: COLORS.textPrimary,
+          borderBottom: `1px solid ${COLORS.borderSecondary}`,
+          pb: 2
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Cancel sx={{ color: COLORS.danger }} />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              제휴 신청 거부
+            </Typography>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ mt: 3 }}>
+          <DialogContentText sx={{ color: COLORS.textSecondary, mb: 3 }}>
+            거부 사유를 입력해주세요. 입력하신 내용은 신청자의 이메일로 전송됩니다.
+          </DialogContentText>
+          
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={6}
+            label="거부 사유"
+            placeholder="예: 매장 위치가 서비스 가능 지역이 아닙니다.&#10;필요한 서류가 제출되지 않았습니다.&#10;사업자 정보가 확인되지 않습니다."
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            required
+            sx={{
+              '& .MuiInputBase-root': {
+                bgcolor: COLORS.backgroundSurface,
+                color: COLORS.textPrimary
+              },
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: COLORS.borderSecondary
+              },
+              '& .MuiInputLabel-root': {
+                color: COLORS.textSecondary
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: COLORS.danger
+              },
+              '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: COLORS.danger,
+                borderWidth: 2
+              }
+            }}
+            helperText={`${rejectionReason.length}/500자`}
+            inputProps={{ maxLength: 500 }}
+          />
+          
+          <Box sx={{ 
+            mt: 3, 
+            p: 2, 
+            bgcolor: alpha(COLORS.danger, 0.1),
+            border: `1px solid ${alpha(COLORS.danger, 0.3)}`,
+            borderRadius: 1
+          }}>
+            <Typography variant="body2" sx={{ color: COLORS.textSecondary, fontSize: '0.875rem' }}>
+              <strong style={{ color: COLORS.danger }}>⚠️ 주의:</strong> 거부 처리 시 해당 내용이 신청자에게 이메일로 전송되며, 
+              제휴 신청 상태가 "거절"로 변경됩니다.
+            </Typography>
+          </Box>
+        </DialogContent>
+        
+        <DialogActions sx={{ 
+          p: 3, 
+          borderTop: `1px solid ${COLORS.borderSecondary}`,
+          gap: 1
+        }}>
+          <Button
+            onClick={handleRejectCancel}
+            disabled={submitting}
+            sx={{
+              color: COLORS.textSecondary,
+              textTransform: 'none',
+              fontWeight: 600,
+              '&:hover': {
+                bgcolor: COLORS.backgroundHover
+              }
+            }}
+          >
+            취소
+          </Button>
+          <Button
+            onClick={handleRejectConfirm}
+            disabled={submitting || !rejectionReason.trim()}
+            variant="contained"
+            sx={{
+              bgcolor: COLORS.danger,
+              color: '#fff',
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+              '&:hover': {
+                bgcolor: COLORS.danger,
+                opacity: 0.8
+              },
+              '&:disabled': {
+                bgcolor: COLORS.textMuted,
+                color: COLORS.backgroundCard
+              }
+            }}
+          >
+            {submitting ? (
+              <>
+                <CircularProgress size={16} sx={{ mr: 1, color: '#fff' }} />
+                처리 중...
+              </>
+            ) : (
+              '거부 확인'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

@@ -102,28 +102,6 @@ interface NaverMap {
   getZoom(): number; // getZoom 메서드 추가
 }
 
-// 제휴점 정보 타입 정의
-interface Partnership {
-  id: number;
-  businessName: string;
-  ownerName: string;
-  email: string;
-  phone: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  businessType: string;
-  spaceSize: string;
-  additionalInfo: string;
-  agreeTerms: boolean;
-  is24Hours: boolean;
-  businessHours: Record<string, BusinessHourDto>;
-  status: string;
-  smallBagsAvailable?: number;
-  mediumBagsAvailable?: number;
-  largeBagsAvailable?: number;
-}
-
 // 비즈니스 시간 타입 정의
 interface BusinessHourDto {
   enabled: boolean;
@@ -279,6 +257,10 @@ const Map = () => {
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
   const [selectedReservationForReview, setSelectedReservationForReview] = useState<ReservationDto | null>(null);
   const [reviewStatuses, setReviewStatuses] = useState<{[key: number]: boolean}>({});
+  const [reviewStats, setReviewStats] = useState<{averageRating: number, totalReviews: number}>({
+    averageRating: 0,
+    totalReviews: 0
+  });
   const [editingReview, setEditingReview] = useState<any>(null);
 
   // 배달 관련 상태
@@ -1162,6 +1144,31 @@ const Map = () => {
     showReservations: initialShowReservations = false,
   } = (location.state as any) || {};
 
+  // 선택된 장소의 리뷰 통계 가져오기
+  useEffect(() => {
+    const fetchReviewStats = async () => {
+      if (selectedPlace && selectedPlace.place_name && selectedPlace.address_name) {
+        try {
+          const response = await reviewService.getPlaceReviewSummary(
+            selectedPlace.place_name, 
+            selectedPlace.address_name
+          );
+          setReviewStats({
+            averageRating: response.data.averageRating || 0,
+            totalReviews: response.data.totalReviews || 0
+          });
+        } catch (error) {
+          console.error('리뷰 통계 조회 실패:', error);
+          setReviewStats({ averageRating: 0, totalReviews: 0 });
+        }
+      } else {
+        setReviewStats({ averageRating: 0, totalReviews: 0 });
+      }
+    };
+
+    fetchReviewStats();
+  }, [selectedPlace]);
+
   // Navbar에서 예약 목록 요청 처리
   useEffect(() => {
     if (initialShowReservations && isAuthenticated) {
@@ -1967,6 +1974,13 @@ const Map = () => {
               opening_hours: partnership.is24Hours
                 ? t('open24Hours')
                 : formatBusinessHours(partnership.businessHours),
+              // Partnership 추가 데이터
+              storePictures: partnership.storePictures || [],
+              amenities: partnership.amenities || [],
+              insuranceAvailable: partnership.insuranceAvailable || false,
+              smallBagsAvailable: partnership.smallBagsAvailable,
+              mediumBagsAvailable: partnership.mediumBagsAvailable,
+              largeBagsAvailable: partnership.largeBagsAvailable,
             };
 
             setSelectedPlace(placeData);
@@ -5799,29 +5813,72 @@ const Map = () => {
                   </Box>
 
                   {/* 매장 정보 */}
-                  <Box sx={{ flex: 1, px: 1, py: 2 }}>
-                    {/* 헤더 */}
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="h5" sx={{ 
-                        fontWeight: 700, 
-                        color: "#1a1a1a",
-                        mb: 1,
-                        lineHeight: 1.2
+                  <Box sx={{ flex: 1 }}>
+                    {/* 매장 사진 배너 */}
+                    {selectedPlace.storePictures && selectedPlace.storePictures.length > 0 && (
+                      <Box sx={{ 
+                        position: 'relative',
+                        width: '100%',
+                        height: '200px',
+                        overflow: 'hidden',
+                        mb: 2
                       }}>
-                        {selectedPlace.place_name}
-                      </Typography>
+                        <Box
+                          component="img"
+                          src={selectedPlace.storePictures[0]}
+                          alt={selectedPlace.place_name}
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                        {selectedPlace.storePictures.length > 1 && (
+                          <Box sx={{
+                            position: 'absolute',
+                            bottom: 12,
+                            right: 12,
+                            bgcolor: 'rgba(0, 0, 0, 0.6)',
+                            color: 'white',
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: 600
+                          }}>
+                            +{selectedPlace.storePictures.length - 1}
+                          </Box>
+                        )}
+                      </Box>
+                    )}
+
+                    <Box sx={{ px: 1, py: 2 }}>
+                      {/* 헤더 */}
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="h5" sx={{ 
+                          fontWeight: 700, 
+                          color: "#1a1a1a",
+                          mb: 1,
+                          lineHeight: 1.2
+                        }}>
+                          {selectedPlace.place_name}
+                        </Typography>
                       
                       <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                          <StarIcon sx={{ color: "#ffc107", fontSize: 16 }} />
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            4.5
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: "#666" }}>
-                            (127)
-                          </Typography>
-                        </Box>
-                        <Typography variant="body2" sx={{ color: "#666" }}>•</Typography>
+                        {reviewStats.totalReviews > 0 && (
+                          <>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              <StarIcon sx={{ color: "#ffc107", fontSize: 16 }} />
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {reviewStats.averageRating.toFixed(1)}
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: "#666" }}>
+                                ({reviewStats.totalReviews})
+                              </Typography>
+                            </Box>
+                            <Typography variant="body2" sx={{ color: "#666" }}>•</Typography>
+                          </>
+                        )}
                         <Typography variant="body2" sx={{ 
                           color: isCurrentlyOpen(selectedPlace) ? "#4caf50" : "#f44336", 
                           fontWeight: 600 
@@ -5889,36 +5946,45 @@ const Map = () => {
                         {t('facilities')}
                       </Typography>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                        <Chip
-                          icon={<SecurityIcon sx={{ fontSize: 16 }} />}
-                          label={t('security24Hours')}
-                          size="small"
-                          variant="outlined"
-                          sx={{ 
-                            borderColor: "#e0e0e0",
-                            backgroundColor: "white"
-                          }}
-                        />
-                        <Chip
-                          icon={<ShieldIcon sx={{ fontSize: 16 }} />}
-                          label={t('damageInsurance')}
-                          size="small"
-                          variant="outlined"
-                          sx={{ 
-                            borderColor: "#e0e0e0",
-                            backgroundColor: "white"
-                          }}
-                        />
-                        <Chip
-                          icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
-                          label={t('immediateUse')}
-                          size="small"
-                          variant="outlined"
-                          sx={{ 
-                            borderColor: "#e0e0e0",
-                            backgroundColor: "white"
-                          }}
-                        />
+                        {selectedPlace.amenities && selectedPlace.amenities.length > 0 ? (
+                          selectedPlace.amenities.map((amenity: string, index: number) => (
+                            <Chip
+                              key={index}
+                              icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
+                              label={amenity}
+                              size="small"
+                              variant="outlined"
+                              sx={{ 
+                                borderColor: "#e0e0e0",
+                                backgroundColor: "white"
+                              }}
+                            />
+                          ))
+                        ) : (
+                          <Chip
+                            icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
+                            label={t('basicFacilities') || '기본 보관 서비스'}
+                            size="small"
+                            variant="outlined"
+                            sx={{ 
+                              borderColor: "#e0e0e0",
+                              backgroundColor: "white"
+                            }}
+                          />
+                        )}
+                        {selectedPlace.insuranceAvailable && (
+                          <Chip
+                            icon={<ShieldIcon sx={{ fontSize: 16 }} />}
+                            label={t('damageInsurance')}
+                            size="small"
+                            variant="outlined"
+                            sx={{ 
+                              borderColor: "#10b981",
+                              backgroundColor: "#f0fdf4",
+                              color: "#10b981"
+                            }}
+                          />
+                        )}
                         {selectedPlace.phone && (
                           <Chip
                             icon={<PhoneIcon sx={{ fontSize: 16 }} />}
@@ -5933,9 +5999,10 @@ const Map = () => {
                         )}
                       </Box>
                     </Box>
+                    </Box>
 
                     {/* 탭 네비게이션 */}
-                    <Box sx={{ mb: 2 }}>
+                    <Box sx={{ px: 1, mb: 2 }}>
                       <Box sx={{ 
                         display: "flex", 
                         borderBottom: 1, 
@@ -7939,7 +8006,24 @@ const Map = () => {
                       return;
                     }
 
-                    setSelectedPlace(place);
+                    // Partnership 데이터 찾기
+                    const partnership = partnerships.find(p => 
+                      p.businessName === place.place_name &&
+                      p.address === place.address_name
+                    );
+
+                    // Partnership 추가 데이터 포함
+                    const enrichedPlace = {
+                      ...place,
+                      storePictures: partnership?.storePictures || [],
+                      amenities: partnership?.amenities || [],
+                      insuranceAvailable: partnership?.insuranceAvailable || false,
+                      smallBagsAvailable: partnership?.smallBagsAvailable,
+                      mediumBagsAvailable: partnership?.mediumBagsAvailable,
+                      largeBagsAvailable: partnership?.largeBagsAvailable,
+                    };
+
+                    setSelectedPlace(enrichedPlace);
                     setShowReservations(false); // 예약목록 숨기기
                     const moveLatLng = new window.naver.maps.LatLng(
                       place.y,
@@ -8225,7 +8309,24 @@ const Map = () => {
                 <Box
                   key={index}
                   onClick={() => {
-                    setSelectedPlace(place);
+                    // Partnership 데이터 찾기
+                    const partnership = partnerships.find(p => 
+                      p.businessName === place.place_name &&
+                      p.address === place.address_name
+                    );
+
+                    // Partnership 추가 데이터 포함
+                    const enrichedPlace = {
+                      ...place,
+                      storePictures: partnership?.storePictures || [],
+                      amenities: partnership?.amenities || [],
+                      insuranceAvailable: partnership?.insuranceAvailable || false,
+                      smallBagsAvailable: partnership?.smallBagsAvailable,
+                      mediumBagsAvailable: partnership?.mediumBagsAvailable,
+                      largeBagsAvailable: partnership?.largeBagsAvailable,
+                    };
+
+                    setSelectedPlace(enrichedPlace);
                     setShowReservations(false); // 예약목록 숨기기
                   }}
                   sx={{
