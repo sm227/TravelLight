@@ -193,4 +193,71 @@ public class EmailServiceImpl implements EmailService {
         
         return emailBuilder.toString();
     }
+
+    @Override
+    public boolean sendPartnershipRejectionEmail(String email, String businessName, String rejectionReason) {
+        logger.info("파트너십 거부 이메일 전송 요청: {}", email);
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            
+            // 수신자 설정
+            helper.setTo(email);
+            // 제목 설정
+            helper.setSubject("[TravelLight] 제휴 신청 결과 안내");
+            // 메일 내용 생성
+            String emailContent = createPartnershipRejectionEmailContent(businessName, rejectionReason);
+            // HTML 형식으로 메일 내용 설정
+            helper.setText(emailContent, true);
+            
+            // 메일 전송
+            mailSender.send(message);
+            logger.info("파트너십 거부 이메일이 {}에게 성공적으로 전송되었습니다.", email);
+            return true;
+        } catch (MessagingException e) {
+            logger.error("파트너십 거부 이메일 전송 중 오류가 발생했습니다: {}", e.getMessage(), e);
+            return false;
+        } catch (Exception e) {
+            logger.error("예상치 못한 오류 발생: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 파트너십 거부 이메일 내용을 생성합니다.
+     * 
+     * @param businessName 사업체 이름
+     * @param rejectionReason 거부 사유
+     * @return HTML 형식의 이메일 내용
+     */
+    private String createPartnershipRejectionEmailContent(String businessName, String rejectionReason) {
+        StringBuilder emailBuilder = new StringBuilder();
+        emailBuilder.append("<html><body style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>");
+        emailBuilder.append("<div style='background-color: #e74c3c; color: white; padding: 20px; text-align: center;'>");
+        emailBuilder.append("<h1>TravelLight 제휴 신청 결과</h1>");
+        emailBuilder.append("</div>");
+        
+        emailBuilder.append("<div style='padding: 20px;'>");
+        emailBuilder.append("<p>안녕하세요,</p>");
+        emailBuilder.append("<p><strong>").append(businessName).append("</strong>의 제휴 신청에 대해 안내드립니다.</p>");
+        emailBuilder.append("<p>신중한 검토 결과, 아쉽게도 현재 귀하의 제휴 신청을 승인하기 어려운 상황입니다.</p>");
+        
+        emailBuilder.append("<div style='background-color: #f7f7f7; padding: 20px; border-radius: 5px; margin: 20px 0;'>");
+        emailBuilder.append("<h3 style='color: #e74c3c; margin-top: 0;'>거부 사유</h3>");
+        emailBuilder.append("<p style='white-space: pre-wrap; color: #333;'>").append(rejectionReason != null && !rejectionReason.isEmpty() ? rejectionReason : "자세한 사항은 고객센터로 문의해 주시기 바랍니다.").append("</p>");
+        emailBuilder.append("</div>");
+        
+        emailBuilder.append("<p>위의 사항을 보완하신 후 재신청하실 수 있습니다.</p>");
+        emailBuilder.append("<p>궁금하신 사항이 있으시면 언제든지 고객센터로 문의해 주시기 바랍니다.</p>");
+        emailBuilder.append("<p>감사합니다.<br>TravelLight 팀</p>");
+        emailBuilder.append("</div>");
+        
+        emailBuilder.append("<div style='background-color: #f2f2f2; padding: 15px; text-align: center; font-size: 12px;'>");
+        emailBuilder.append("<p>© 2023 TravelLight. All rights reserved.</p>");
+        emailBuilder.append("<p>이 이메일은 자동으로 발송되었습니다. 회신하지 마시기 바랍니다.</p>");
+        emailBuilder.append("</div>");
+        emailBuilder.append("</body></html>");
+        
+        return emailBuilder.toString();
+    }
 } 

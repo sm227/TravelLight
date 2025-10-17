@@ -20,4 +20,14 @@ public interface EmailService {
      * @return 이메일 전송 성공 여부
      */
     boolean sendPasswordResetVerificationEmail(String email, String verificationCode);
+    
+    /**
+     * 파트너십 거부 이메일을 보냅니다.
+     * 
+     * @param email 수신자 이메일
+     * @param businessName 사업체 이름
+     * @param rejectionReason 거부 사유
+     * @return 이메일 전송 성공 여부
+     */
+    boolean sendPartnershipRejectionEmail(String email, String businessName, String rejectionReason);
 } 

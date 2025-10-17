@@ -1,5 +1,6 @@
 package org.example.travellight.dto;
 
+import java.util.List;
 import java.util.Map;
 
 public class PartnershipDto {
@@ -19,6 +20,18 @@ public class PartnershipDto {
     private Integer smallBagsAvailable;
     private Integer mediumBagsAvailable;
     private Integer largeBagsAvailable;
+
+    // 새로운 필드들
+    private List<String> storePictures;
+    private List<String> amenities;
+    private Boolean insuranceAvailable;
+    private Boolean hidden;
+    private String businessRegistrationUrl;
+    private String bankBookUrl;
+    private String accountNumber;
+    private String bankName;
+    private String accountHolder;
+    private String rejectionReason;
 
     // Inner 클래스로 비즈니스 시간 DTO 정의
     public static class BusinessHourDto {
@@ -179,5 +192,85 @@ public class PartnershipDto {
 
     public void setLargeBagsAvailable(Integer largeBagsAvailable) {
         this.largeBagsAvailable = largeBagsAvailable;
+    }
+
+    public List<String> getStorePictures() {
+        return storePictures;
+    }
+
+    public void setStorePictures(List<String> storePictures) {
+        this.storePictures = storePictures;
+    }
+
+    public List<String> getAmenities() {
+        return amenities;
+    }
+
+    public void setAmenities(List<String> amenities) {
+        this.amenities = amenities;
+    }
+
+    public Boolean getInsuranceAvailable() {
+        return insuranceAvailable;
+    }
+
+    public void setInsuranceAvailable(Boolean insuranceAvailable) {
+        this.insuranceAvailable = insuranceAvailable;
+    }
+
+    public Boolean getHidden() {
+        return hidden;
+    }
+
+    public void setHidden(Boolean hidden) {
+        this.hidden = hidden;
+    }
+
+    public String getBusinessRegistrationUrl() {
+        return businessRegistrationUrl;
+    }
+
+    public void setBusinessRegistrationUrl(String businessRegistrationUrl) {
+        this.businessRegistrationUrl = businessRegistrationUrl;
+    }
+
+    public String getBankBookUrl() {
+        return bankBookUrl;
+    }
+
+    public void setBankBookUrl(String bankBookUrl) {
+        this.bankBookUrl = bankBookUrl;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
+    }
+
+    public String getBankName() {
+        return bankName;
+    }
+
+    public void setBankName(String bankName) {
+        this.bankName = bankName;
+    }
+
+    public String getAccountHolder() {
+        return accountHolder;
+    }
+
+    public void setAccountHolder(String accountHolder) {
+        this.accountHolder = accountHolder;
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
     }
 }

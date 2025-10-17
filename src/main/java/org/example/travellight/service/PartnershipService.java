@@ -28,6 +28,9 @@ public class PartnershipService {
     
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private EmailService emailService;
 
     public PartnershipService(PartnershipRepository partnershipRepository, AddressTsService addressTsService) {
         this.addressTsService = addressTsService;
@@ -93,6 +96,35 @@ public class PartnershipService {
         partnership.setSmallBagsAvailable(dto.getSmallBagsAvailable());
         partnership.setMediumBagsAvailable(dto.getMediumBagsAvailable());
         partnership.setLargeBagsAvailable(dto.getLargeBagsAvailable());
+
+        // 새로운 필드들 매핑
+        if (dto.getStorePictures() != null) {
+            partnership.setStorePictures(dto.getStorePictures());
+        }
+        if (dto.getAmenities() != null) {
+            partnership.setAmenities(dto.getAmenities());
+        }
+        if (dto.getInsuranceAvailable() != null) {
+            partnership.setInsuranceAvailable(dto.getInsuranceAvailable());
+        }
+        if (dto.getHidden() != null) {
+            partnership.setHidden(dto.getHidden());
+        }
+        if (dto.getBusinessRegistrationUrl() != null) {
+            partnership.setBusinessRegistrationUrl(dto.getBusinessRegistrationUrl());
+        }
+        if (dto.getBankBookUrl() != null) {
+            partnership.setBankBookUrl(dto.getBankBookUrl());
+        }
+        if (dto.getAccountNumber() != null) {
+            partnership.setAccountNumber(dto.getAccountNumber());
+        }
+        if (dto.getBankName() != null) {
+            partnership.setBankName(dto.getBankName());
+        }
+        if (dto.getAccountHolder() != null) {
+            partnership.setAccountHolder(dto.getAccountHolder());
+        }
 
         // 영업시간 정보 변환 및 설정
         Map<String, String> businessHoursMap = new HashMap<>();
@@ -163,7 +195,7 @@ public class PartnershipService {
     }
 
     @Transactional
-    public Partnership updatePartnershipStatus(Long id, String newStatus) {
+    public Partnership updatePartnershipStatus(Long id, String newStatus, String rejectionReason) {
         Partnership partnership = partnershipRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("제휴점을 찾을 수 없습니다: " + id));
         
@@ -182,6 +214,22 @@ public class PartnershipService {
             } catch (Exception e) {
                 System.err.println("사용자 역할 업데이트 중 오류 발생: " + e.getMessage());
                 // 역할 업데이트 실패해도 파트너십 상태는 변경
+            }
+        }
+        
+        // REJECTED 상태로 변경되면 거부 사유를 저장하고 이메일 발송
+        if ("REJECTED".equals(newStatus)) {
+            partnership.setRejectionReason(rejectionReason);
+            try {
+                emailService.sendPartnershipRejectionEmail(
+                    partnership.getEmail(), 
+                    partnership.getBusinessName(), 
+                    rejectionReason
+                );
+                System.out.println("거부 이메일이 전송되었습니다: " + partnership.getEmail());
+            } catch (Exception e) {
+                System.err.println("거부 이메일 전송 중 오류 발생: " + e.getMessage());
+                // 이메일 전송 실패해도 파트너십 상태는 변경
             }
         }
         
@@ -238,6 +286,35 @@ public class PartnershipService {
         }
         if (dto.getLargeBagsAvailable() != null) {
             partnership.setLargeBagsAvailable(dto.getLargeBagsAvailable());
+        }
+        
+        // 새로운 필드들 업데이트
+        if (dto.getStorePictures() != null) {
+            partnership.setStorePictures(dto.getStorePictures());
+        }
+        if (dto.getAmenities() != null) {
+            partnership.setAmenities(dto.getAmenities());
+        }
+        if (dto.getInsuranceAvailable() != null) {
+            partnership.setInsuranceAvailable(dto.getInsuranceAvailable());
+        }
+        if (dto.getHidden() != null) {
+            partnership.setHidden(dto.getHidden());
+        }
+        if (dto.getBusinessRegistrationUrl() != null) {
+            partnership.setBusinessRegistrationUrl(dto.getBusinessRegistrationUrl());
+        }
+        if (dto.getBankBookUrl() != null) {
+            partnership.setBankBookUrl(dto.getBankBookUrl());
+        }
+        if (dto.getAccountNumber() != null) {
+            partnership.setAccountNumber(dto.getAccountNumber());
+        }
+        if (dto.getBankName() != null) {
+            partnership.setBankName(dto.getBankName());
+        }
+        if (dto.getAccountHolder() != null) {
+            partnership.setAccountHolder(dto.getAccountHolder());
         }
         
         // 24시간 운영 여부 업데이트
@@ -361,5 +438,31 @@ public class PartnershipService {
                     return storageStatus;
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 제휴점을 해제합니다.
+     * 
+     * @param id 제휴점 ID
+     * @return 해제된 제휴점 정보
+     */
+    @Transactional
+    public Partnership terminatePartnership(Long id) {
+        Partnership partnership = partnershipRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("제휴점을 찾을 수 없습니다: " + id));
+        
+        // 상태를 TERMINATED로 변경
+        partnership.setStatus("TERMINATED");
+        
+        // 해당 사용자의 역할을 USER로 다시 변경
+        try {
+            userService.updateUserRoleByEmail(partnership.getEmail(), "USER");
+            System.out.println("사용자 역할이 USER로 업데이트되었습니다: " + partnership.getEmail());
+        } catch (Exception e) {
+            System.err.println("사용자 역할 업데이트 중 오류 발생: " + e.getMessage());
+            // 역할 업데이트 실패해도 파트너십 상태는 변경
+        }
+        
+        return partnershipRepository.save(partnership);
     }
 }
