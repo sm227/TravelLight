@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -130,12 +131,13 @@ const erpTheme = createTheme({
 });
 
 const AdminInquiries: React.FC = () => {
+  const navigate = useNavigate();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [tabValue, setTabValue] = useState(0); // 0: 전체, 1: 답변대기, 2: 답변완료
-  
+
   // 다이얼로그 상태
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
@@ -362,12 +364,43 @@ const AdminInquiries: React.FC = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ color: COLORS.textPrimary }}>
-                          {inquiry.user?.name || '-'}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: COLORS.textMuted }}>
-                          {inquiry.email}
-                        </Typography>
+                        {inquiry.user ? (
+                          <Box
+                            onClick={() => navigate(`/admin/users/${inquiry.user!.id}`)}
+                            sx={{
+                              cursor: 'pointer',
+                              '&:hover': {
+                                '& .user-name': {
+                                  color: COLORS.accentPrimary,
+                                  textDecoration: 'underline'
+                                }
+                              }
+                            }}
+                          >
+                            <Typography
+                              className="user-name"
+                              variant="body2"
+                              sx={{
+                                color: COLORS.textPrimary,
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              {inquiry.user.name}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: COLORS.textMuted }}>
+                              {inquiry.email}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Box>
+                            <Typography variant="body2" sx={{ color: COLORS.textPrimary }}>
+                              -
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: COLORS.textMuted }}>
+                              {inquiry.email}
+                            </Typography>
+                          </Box>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Chip
