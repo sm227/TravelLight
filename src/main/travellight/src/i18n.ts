@@ -772,7 +772,7 @@ const resources = {
       applyNow: '지금 신청하기',
 
       customerTestimonials: '고객 후기',
-      customerTestimonialsDescription: 'TravelLight를 이용한 실제 고객들의 생생한 이용 후기를 확인해보세요. 여행자들이 신뢰하는 이유가 있습니다.',
+      customerTestimonialsDescription: 'Travelight를 이용한 실제 고객들의 생생한 이용 후기를 확인해보세요. 여행자들이 신뢰하는 이유가 있습니다.',
       testimonialsFooter: '모든 후기는 실제 서비스를 이용한 인증된 고객의 리뷰입니다.'
     }
   }
