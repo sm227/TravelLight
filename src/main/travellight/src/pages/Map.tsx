@@ -81,6 +81,8 @@ import ReviewForm from '../components/reviews/ReviewForm';
 import { reviewService, Partnership, partnershipService, DeliveryRequest, DeliveryResponse } from '../services/api';
 import QrCodeIcon from '@mui/icons-material/QrCode';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import CouponSelectModal from '../components/CouponSelectModal';
+import { UserCoupon } from '../services/couponService';
 
 declare global {
   interface Window {
@@ -159,6 +161,7 @@ const Map = () => {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [isCouponApplying, setIsCouponApplying] = useState(false);
   const [couponError, setCouponError] = useState("");
+  const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
 
   // 검색 결과 영역 표시 여부 결정
   const shouldShowResultArea = () => {
@@ -3740,13 +3743,17 @@ const Map = () => {
     return true;
   };
 
-  // 쿠폰 검증 함수 (적용 버튼 클릭 시)
-  const applyCoupon = async () => {
-    if (!couponCode.trim()) {
-      setCouponError("쿠폰 코드를 입력해주세요.");
+  // 쿠폰 모달 열기
+  const handleOpenCouponModal = () => {
+    if (!user) {
+      alert("로그인이 필요합니다.");
       return;
     }
+    setIsCouponModalOpen(true);
+  };
 
+  // 쿠폰 선택 시 처리
+  const handleSelectCoupon = async (coupon: UserCoupon) => {
     if (!user) {
       setCouponError("로그인이 필요합니다.");
       return;
@@ -3756,12 +3763,12 @@ const Map = () => {
     setCouponError("");
 
     try {
-      // 쿠폰 검증 API 호출 (실제 사용하지 않음)
+      // 쿠폰 검증 API 호출
       const response = await axios.post(
         '/api/user-coupons/validate',
         {
           userId: user.id,
-          couponCode: couponCode.trim().toUpperCase(),
+          couponCode: coupon.code,
           purchaseAmount: totalPrice
         },
         {
@@ -3773,10 +3780,11 @@ const Map = () => {
 
       if (response.data.success) {
         const couponData = response.data.data;
+        setCouponCode(coupon.code);
         setAppliedCoupon(couponData);
         setCouponDiscount(couponData.discountAmount);
         setCouponError("");
-        alert(`쿠폰이 확인되었습니다! ${couponData.discountAmount.toLocaleString()}원 할인`);
+        alert(`쿠폰이 적용되었습니다! ${couponData.discountAmount.toLocaleString()}원 할인`);
       }
     } catch (error: any) {
       console.error("쿠폰 검증 오류:", error);
@@ -8089,10 +8097,10 @@ const Map = () => {
                     </Typography>
                   </Box>
 
-                  {/* 쿠폰 입력 */}
+                  {/* 쿠폰 적용 */}
                   <Box sx={{ mb: 3 }}>
                     <Typography sx={{ fontWeight: 500, mb: 1.5, fontSize: "14px" }}>
-                      쿠폰 코드
+                      쿠폰
                     </Typography>
 
                     {appliedCoupon ? (
@@ -8127,45 +8135,28 @@ const Map = () => {
                         </Typography>
                       </Box>
                     ) : (
-                      // 쿠폰 입력
+                      // 쿠폰 선택 버튼
                       <>
-                        <Box sx={{ display: "flex", gap: 1 }}>
-                          <TextField
-                            placeholder="쿠폰 코드 입력"
-                            value={couponCode}
-                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter') {
-                                applyCoupon();
-                              }
-                            }}
-                            size="small"
-                            fullWidth
-                            disabled={isCouponApplying}
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                borderRadius: "8px",
-                              }
-                            }}
-                          />
-                          <Button
-                            variant="outlined"
-                            onClick={applyCoupon}
-                            disabled={isCouponApplying || !couponCode.trim()}
-                            sx={{
-                              minWidth: "70px",
-                              borderRadius: "8px",
-                              borderColor: "#1a73e8",
-                              color: "#1a73e8",
-                              "&:hover": {
-                                borderColor: "#1565c0",
-                                backgroundColor: "rgba(26, 115, 232, 0.04)"
-                              }
-                            }}
-                          >
-                            {isCouponApplying ? "확인중..." : "적용"}
-                          </Button>
-                        </Box>
+                        <Button
+                          variant="outlined"
+                          onClick={handleOpenCouponModal}
+                          fullWidth
+                          startIcon={<LocalOfferIcon />}
+                          sx={{
+                            py: 1.5,
+                            borderRadius: "8px",
+                            borderColor: "#1a73e8",
+                            color: "#1a73e8",
+                            fontSize: "14px",
+                            fontWeight: 500,
+                            "&:hover": {
+                              borderColor: "#1565c0",
+                              backgroundColor: "rgba(26, 115, 232, 0.04)"
+                            }
+                          }}
+                        >
+                          보유 쿠폰 선택하기
+                        </Button>
                         {couponError && (
                           <Typography sx={{ fontSize: "12px", color: "#d32f2f", mt: 1 }}>
                             {couponError}
@@ -9167,6 +9158,17 @@ const Map = () => {
           placeAddress={selectedReservationForReview.placeAddress}
           userId={user?.id}
           editingReview={editingReview}
+        />
+      )}
+
+      {/* 쿠폰 선택 모달 */}
+      {user && (
+        <CouponSelectModal
+          open={isCouponModalOpen}
+          onClose={() => setIsCouponModalOpen(false)}
+          onSelectCoupon={handleSelectCoupon}
+          userId={user.id}
+          purchaseAmount={totalPrice}
         />
       )}
     </>

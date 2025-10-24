@@ -5,6 +5,7 @@ import org.example.travellight.dto.CouponDto;
 import org.example.travellight.entity.Coupon;
 import org.example.travellight.exception.CustomException;
 import org.example.travellight.repository.CouponRepository;
+import org.example.travellight.repository.UserCouponRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 public class CouponService {
 
     private final CouponRepository couponRepository;
+    private final UserCouponRepository userCouponRepository;
 
     /**
      * 모든 쿠폰 조회
@@ -148,10 +150,11 @@ public class CouponService {
     public void deleteCoupon(Long id) {
         Coupon coupon = findCouponById(id);
 
-        // 이미 사용된 쿠폰이 있는 경우 삭제 불가
-        if (coupon.getUsedCount() > 0) {
+        // 사용자가 발급받은 쿠폰이 있는 경우 삭제 불가
+        Long issuedCount = userCouponRepository.countByCouponId(id);
+        if (issuedCount != null && issuedCount > 0) {
             throw new CustomException(
-                    "이미 사용된 쿠폰은 삭제할 수 없습니다. 비활성화를 사용하세요.",
+                    String.format("사용자가 이미 발급받은 쿠폰입니다. (%d명 발급) 삭제 대신 비활성화를 사용하세요.", issuedCount),
                     HttpStatus.BAD_REQUEST
             );
         }
