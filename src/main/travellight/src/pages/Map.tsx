@@ -4652,19 +4652,23 @@ const Map = () => {
 
           // 데스크톱
           "@media (min-width: 768px)": {
-            top: "16px",
-            left: "16px",
+            top: "calc(16px + var(--safe-area-inset-top))",
+            left: "calc(16px + var(--safe-area-inset-left))",
             width: "400px",
-            maxHeight: (selectedPlace || isReservationOpen) ? "calc(100vh - 32px)" : "calc(90vh - 16px)",
+            maxHeight: (selectedPlace || isReservationOpen)
+              ? "calc(100vh - 32px - var(--safe-area-inset-top) - var(--safe-area-inset-bottom))"
+              : "calc(90vh - 16px - var(--safe-area-inset-top))",
           },
 
           // 모바일
           "@media (max-width: 767px)": {
-            left: 0,
-            right: 0,
-            bottom: 0,
-            width: "100%",
-            maxHeight: (selectedPlace || isReservationOpen) ? "98vh" : "75vh",
+            left: "var(--safe-area-inset-left)",
+            right: "var(--safe-area-inset-right)",
+            bottom: "var(--safe-area-inset-bottom)",
+            width: "calc(100% - var(--safe-area-inset-left) - var(--safe-area-inset-right))",
+            maxHeight: (selectedPlace || isReservationOpen)
+              ? "calc(98vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom))"
+              : "calc(75vh - var(--safe-area-inset-bottom))",
             borderTopLeftRadius: "16px",
             borderTopRightRadius: "16px",
           },
