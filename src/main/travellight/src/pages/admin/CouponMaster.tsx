@@ -9,24 +9,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon
 } from '@mui/icons-material';
-
-// 쿠폰 타입 정의
-interface Coupon {
-  id: number;
-  code: string;
-  name: string;
-  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
-  discountValue: number;
-  minPurchaseAmount: number;
-  maxDiscountAmount?: number;
-  startDate: string;
-  endDate: string;
-  usageLimit: number;
-  usedCount: number;
-  isActive: boolean;
-  description?: string;
-  createdAt: string;
-}
+import CouponModal from '../../components/CouponModal';
+import { Coupon, getAllCoupons, deleteCoupon } from '../../services/couponService';
 
 // 날짜 포맷 함수
 const formatDate = (dateString: string) => {
@@ -50,11 +34,8 @@ const CouponMaster = () => {
   const loadCoupons = async () => {
     try {
       setLoading(true);
-      // TODO: API 호출로 대체
-      // const response = await couponService.getAllCoupons();
-      // setCoupons(response.data);
-
-      setCoupons([]);
+      const response = await getAllCoupons();
+      setCoupons(response);
     } catch (error) {
       console.error('쿠폰 목록 로드 중 오류:', error);
       setAlertMessage({type: 'error', message: '쿠폰 목록을 불러오는데 실패했습니다.'});
@@ -78,15 +59,21 @@ const CouponMaster = () => {
     if (!confirm('정말 이 쿠폰을 삭제하시겠습니까?')) return;
 
     try {
-      // TODO: API 호출
-      // await couponService.deleteCoupon(couponId);
+      await deleteCoupon(couponId);
       setAlertMessage({type: 'success', message: '쿠폰이 삭제되었습니다.'});
       loadCoupons();
-    } catch (error) {
+    } catch (error: any) {
       console.error('쿠폰 삭제 중 오류:', error);
-      setAlertMessage({type: 'error', message: '쿠폰 삭제에 실패했습니다.'});
+      setAlertMessage({type: 'error', message: error.message || '쿠폰 삭제에 실패했습니다.'});
     }
 
+    setTimeout(() => setAlertMessage(null), 3000);
+  };
+
+  // 쿠폰 생성/수정 성공 핸들러
+  const handleCouponSuccess = () => {
+    setAlertMessage({type: 'success', message: editingCoupon ? '쿠폰이 수정되었습니다.' : '쿠폰이 생성되었습니다.'});
+    loadCoupons();
     setTimeout(() => setAlertMessage(null), 3000);
   };
 
@@ -389,7 +376,16 @@ const CouponMaster = () => {
         )}
       </div>
 
-      {/* TODO: 쿠폰 추가/수정 모달 구현 */}
+      {/* 쿠폰 추가/수정 모달 */}
+      <CouponModal
+        open={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingCoupon(null);
+        }}
+        onSuccess={handleCouponSuccess}
+        editingCoupon={editingCoupon}
+      />
     </div>
   );
 };

@@ -153,6 +153,13 @@ const Map = () => {
   const [isPaymentComplete, setIsPaymentComplete] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
+  // 쿠폰 관련 상태
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [isCouponApplying, setIsCouponApplying] = useState(false);
+  const [couponError, setCouponError] = useState("");
+
   // 검색 결과 영역 표시 여부 결정
   const shouldShowResultArea = () => {
     return selectedPlace !== null || searchResults.length > 0 || isReservationOpen || isPaymentOpen || isPaymentComplete || showReservations || selectedReservation;
@@ -3733,6 +3740,63 @@ const Map = () => {
     return true;
   };
 
+  // 쿠폰 검증 함수 (적용 버튼 클릭 시)
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError("쿠폰 코드를 입력해주세요.");
+      return;
+    }
+
+    if (!user) {
+      setCouponError("로그인이 필요합니다.");
+      return;
+    }
+
+    setIsCouponApplying(true);
+    setCouponError("");
+
+    try {
+      // 쿠폰 검증 API 호출 (실제 사용하지 않음)
+      const response = await axios.post(
+        '/api/user-coupons/validate',
+        {
+          userId: user.id,
+          couponCode: couponCode.trim().toUpperCase(),
+          purchaseAmount: totalPrice
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+          }
+        }
+      );
+
+      if (response.data.success) {
+        const couponData = response.data.data;
+        setAppliedCoupon(couponData);
+        setCouponDiscount(couponData.discountAmount);
+        setCouponError("");
+        alert(`쿠폰이 확인되었습니다! ${couponData.discountAmount.toLocaleString()}원 할인`);
+      }
+    } catch (error: any) {
+      console.error("쿠폰 검증 오류:", error);
+      const errorMessage = error.response?.data?.message || "쿠폰 적용에 실패했습니다.";
+      setCouponError(errorMessage);
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
+    } finally {
+      setIsCouponApplying(false);
+    }
+  };
+
+  // 쿠폰 적용 취소 함수
+  const removeCoupon = () => {
+    setCouponCode("");
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    setCouponError("");
+  };
+
   // 예약 정보를 서버로 전송하는 함수
   const submitReservation = async (paymentId?: string) => {
     if (!isAuthenticated || !user) {
@@ -3793,6 +3857,9 @@ const Map = () => {
         return timeString;
       };
 
+      // 쿠폰 할인을 적용한 최종 결제 금액 계산
+      const finalPrice = totalPrice - couponDiscount;
+
       // 예약 데이터 구성
       const reservationData = {
         userId: typeof user.id === "string" ? parseInt(user.id, 10) : user.id,
@@ -3811,10 +3878,11 @@ const Map = () => {
         smallBags: bagSizes.small || 0,
         mediumBags: bagSizes.medium || 0,
         largeBags: bagSizes.large || 0,
-        totalPrice: totalPrice || 0,
+        totalPrice: finalPrice || 0,
         storageType: storageDuration || "daily",
         status: "RESERVED",
         paymentId: paymentId || portonePaymentId,
+        couponCode: appliedCoupon ? couponCode.trim().toUpperCase() : null,
       };
 
       // 데이터 검증 로그
@@ -4249,13 +4317,16 @@ const Map = () => {
       console.log("PayMethod Config:", payMethodConfig);
       console.log("================");
 
+      // 쿠폰 할인을 적용한 최종 결제 금액 계산
+      const finalPaymentAmount = totalPrice - couponDiscount;
+
       // 포트원 결제 요청
       const payment = await PortOne.requestPayment({
         storeId: "store-ef16a71d-87cc-4e73-a6b8-448a8b07840d", // 환경변수 또는 기본값
         channelKey,
         paymentId,
-        orderName: `${selectedPlace.place_name} 짐보관 서비스`,
-        totalAmount: paymentMethod === "paypal" ? Math.ceil(totalPrice / 1300) : totalPrice, // USD 환산 (대략 1300원 = 1달러)
+        orderName: `${selectedPlace.place_name} 짐보관 서비스${appliedCoupon ? ' (쿠폰 할인 적용)' : ''}`,
+        totalAmount: paymentMethod === "paypal" ? Math.ceil(finalPaymentAmount / 1300) : finalPaymentAmount, // USD 환산 (대략 1300원 = 1달러)
         currency: currency as any,
         payMethod: payMethodType as any,
         ...payMethodConfig,
@@ -4278,7 +4349,10 @@ const Map = () => {
             smallBags: bagSizes.small,
             mediumBags: bagSizes.medium,
             largeBags: bagSizes.large,
-            totalPrice: totalPrice,
+            totalPrice: finalPaymentAmount,
+            originalPrice: totalPrice,
+            couponCode: appliedCoupon ? couponCode.trim().toUpperCase() : null,
+            couponDiscount: couponDiscount,
             storageType: storageDuration,
           },
         } as any, // 타입 오류 임시 해결
@@ -4303,7 +4377,7 @@ const Map = () => {
               userId: user?.id,
               reason: payment.message || "사용자가 결제 창을 닫음",
               paymentMethod: paymentMethod === "paypal" ? "paypal" : "card",
-              amount: totalPrice.toString(),
+              amount: (totalPrice - couponDiscount).toString(),
             }),
           });
         } catch (error) {
@@ -4347,6 +4421,36 @@ const Map = () => {
           if (reservationData) {
             console.log("=== 예약 저장 성공, 결제 정보 업데이트 시작 ===");
 
+            // 쿠폰이 적용된 경우 실제로 사용 처리
+            if (appliedCoupon && couponCode) {
+              try {
+                console.log("=== 쿠폰 사용 처리 시작 ===");
+                const couponUseResponse = await axios.post(
+                  '/api/user-coupons/use',
+                  {
+                    userId: user.id,
+                    couponCode: couponCode.trim().toUpperCase(),
+                    purchaseAmount: totalPrice,
+                    orderId: reservationData.reservationNumber
+                  },
+                  {
+                    headers: {
+                      Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+                    }
+                  }
+                );
+
+                if (couponUseResponse.data.success) {
+                  console.log("쿠폰 사용 처리 완료:", couponUseResponse.data);
+                } else {
+                  console.error("쿠폰 사용 처리 실패:", couponUseResponse.data);
+                }
+              } catch (couponError) {
+                console.error("쿠폰 사용 처리 중 오류:", couponError);
+                // 쿠폰 사용 실패해도 결제는 이미 완료되었으므로 계속 진행
+              }
+            }
+
             // 예약 저장 성공 후 Payment 테이블에 저장
             if (reservationData.reservationNumber && payment.paymentId) {
               try {
@@ -4379,11 +4483,13 @@ const Map = () => {
 
               // Reservation 테이블에도 상세 결제 정보 업데이트 (기존 필드 유지하려면)
               try {
+                const finalPaymentAmount = totalPrice - couponDiscount;
+
                 console.log("Reservation 상세 결제 정보 업데이트 요청:", {
                   reservationNumber: reservationData.reservationNumber,
                   paymentId: payment.paymentId,
                   paymentMethod: paymentMethod === "paypal" ? "paypal" : "card",
-                  paymentAmount: totalPrice,
+                  paymentAmount: finalPaymentAmount,
                   paymentStatus: paymentComplete.paymentStatus || "PAID",
                   paymentProvider: paymentComplete.paymentProvider,
                   cardCompany: paymentComplete.cardCompany,
@@ -4398,7 +4504,7 @@ const Map = () => {
                   body: JSON.stringify({
                     paymentId: payment.paymentId,
                     paymentMethod: paymentMethod === "paypal" ? "paypal" : "card",
-                    paymentAmount: totalPrice,
+                    paymentAmount: finalPaymentAmount,
                     paymentStatus: paymentComplete.paymentStatus || "PAID",
                     paymentProvider: paymentComplete.paymentProvider,
                     cardCompany: paymentComplete.cardCompany,
@@ -6336,7 +6442,18 @@ const Map = () => {
                     sx={{ color: "text.secondary", mb: 3, fontSize: "14px" }}
                   >
                     {t("paymentAmount")}
-                    {totalPrice.toLocaleString()}
+                    {appliedCoupon ? (
+                      <>
+                        <span style={{ textDecoration: "line-through", marginRight: "8px", color: "#999" }}>
+                          {totalPrice.toLocaleString()}
+                        </span>
+                        <span style={{ fontWeight: 600, color: "#1a73e8" }}>
+                          {(totalPrice - couponDiscount).toLocaleString()}
+                        </span>
+                      </>
+                    ) : (
+                      totalPrice.toLocaleString()
+                    )}
                     {t("won")}
                   </Typography>
 
@@ -6537,7 +6654,7 @@ const Map = () => {
                           color: "#1a73e8",
                         }}
                       >
-                        {totalPrice.toLocaleString()}{t('won')}
+                        {appliedCoupon ? (totalPrice - couponDiscount).toLocaleString() : totalPrice.toLocaleString()}{t('won')}
                       </Typography>
                     </Box>
                   </Box>
@@ -6651,7 +6768,7 @@ const Map = () => {
                           <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
                         </svg>
                         <Typography sx={{ fontWeight: 500, fontSize: "16px" }}>
-                          {t('payWithAmount', { amount: `${totalPrice.toLocaleString()}${t('won')}` })}
+                          {t('payWithAmount', { amount: `${appliedCoupon ? (totalPrice - couponDiscount).toLocaleString() : totalPrice.toLocaleString()}${t('won')}` })}
                         </Typography>
                       </Box>
                     )}
@@ -7971,6 +8088,121 @@ const Map = () => {
                       {t("won")}
                     </Typography>
                   </Box>
+
+                  {/* 쿠폰 입력 */}
+                  <Box sx={{ mb: 3 }}>
+                    <Typography sx={{ fontWeight: 500, mb: 1.5, fontSize: "14px" }}>
+                      쿠폰 코드
+                    </Typography>
+
+                    {appliedCoupon ? (
+                      // 쿠폰 적용됨
+                      <Box
+                        sx={{
+                          p: 2,
+                          backgroundColor: "#e8f5e9",
+                          borderRadius: "12px",
+                          border: "1px solid #4caf50",
+                        }}
+                      >
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                          <Typography sx={{ fontWeight: 600, color: "#2e7d32", fontSize: "14px" }}>
+                            ✓ {appliedCoupon.couponName}
+                          </Typography>
+                          <Button
+                            size="small"
+                            onClick={removeCoupon}
+                            sx={{
+                              color: "#666",
+                              fontSize: "12px",
+                              textDecoration: "underline",
+                              "&:hover": { backgroundColor: "transparent" }
+                            }}
+                          >
+                            취소
+                          </Button>
+                        </Box>
+                        <Typography sx={{ fontSize: "13px", color: "#2e7d32" }}>
+                          - {couponDiscount.toLocaleString()}원 할인
+                        </Typography>
+                      </Box>
+                    ) : (
+                      // 쿠폰 입력
+                      <>
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          <TextField
+                            placeholder="쿠폰 코드 입력"
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                applyCoupon();
+                              }
+                            }}
+                            size="small"
+                            fullWidth
+                            disabled={isCouponApplying}
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "8px",
+                              }
+                            }}
+                          />
+                          <Button
+                            variant="outlined"
+                            onClick={applyCoupon}
+                            disabled={isCouponApplying || !couponCode.trim()}
+                            sx={{
+                              minWidth: "70px",
+                              borderRadius: "8px",
+                              borderColor: "#1a73e8",
+                              color: "#1a73e8",
+                              "&:hover": {
+                                borderColor: "#1565c0",
+                                backgroundColor: "rgba(26, 115, 232, 0.04)"
+                              }
+                            }}
+                          >
+                            {isCouponApplying ? "확인중..." : "적용"}
+                          </Button>
+                        </Box>
+                        {couponError && (
+                          <Typography sx={{ fontSize: "12px", color: "#d32f2f", mt: 1 }}>
+                            {couponError}
+                          </Typography>
+                        )}
+                      </>
+                    )}
+                  </Box>
+
+                  {/* 최종 결제 금액 (쿠폰 적용 시) */}
+                  {appliedCoupon && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 3,
+                        backgroundColor: "#1a73e8",
+                        p: 2,
+                        borderRadius: "12px",
+                      }}
+                    >
+                      <Typography sx={{ fontWeight: 600, color: "white" }}>
+                        최종 결제 금액
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontWeight: 700,
+                          color: "white",
+                          fontSize: "20px",
+                        }}
+                      >
+                        {(totalPrice - couponDiscount).toLocaleString()}
+                        {t("won")}
+                      </Typography>
+                    </Box>
+                  )}
                     </>
                   )}
                 </Box>
@@ -8221,7 +8453,7 @@ const Map = () => {
                 }
               }}
             >
-              {reservationStep === 'bag-selection' 
+              {reservationStep === 'bag-selection'
                 ? (bagSizes.small === 0 && bagSizes.medium === 0 && bagSizes.large === 0)
                   ? t('selectBagsPlease')
                   : t('nextStep')
@@ -8239,7 +8471,9 @@ const Map = () => {
                     !storageEndTime ||
                     (storageDuration === "period" && !storageEndDate)
                   ? t("selectAllDateAndTime")
-                  : t("pay")}
+                  : appliedCoupon
+                    ? `${(totalPrice - couponDiscount).toLocaleString()}${t("won")} ${t("pay")}`
+                    : `${totalPrice.toLocaleString()}${t("won")} ${t("pay")}`}
             </Button>
           </Box>
         )}
