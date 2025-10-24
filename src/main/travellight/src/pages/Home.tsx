@@ -185,23 +185,18 @@ const Home: React.FC = () => {
   // 로그인한 사용자에게 쿠폰 팝업 표시
   useEffect(() => {
     if (isAuthenticated && user?.id) {
-      // 로그인 후 3초 뒤에 쿠폰 팝업 표시
-      const timer = setTimeout(() => {
-        // "오늘 하루 보지 않기"를 체크했는지 확인
-        const today = new Date().toDateString();
-        const dontShowToday = localStorage.getItem('couponPopupDontShowToday');
-        const dontShowDate = localStorage.getItem('couponPopupDontShowDate');
+      // "오늘 하루 보지 않기"를 체크했는지 확인
+      const today = new Date().toDateString();
+      const dontShowToday = localStorage.getItem('couponPopupDontShowToday');
+      const dontShowDate = localStorage.getItem('couponPopupDontShowDate');
 
-        // 오늘 "보지 않기"를 체크했으면 팝업을 표시하지 않음
-        if (dontShowToday === 'true' && dontShowDate === today) {
-          return;
-        }
+      // 오늘 "보지 않기"를 체크했으면 팝업을 표시하지 않음
+      if (dontShowToday === 'true' && dontShowDate === today) {
+        return;
+      }
 
-        // 그 외의 경우 매번 팝업 표시
-        setShowCouponPopup(true);
-      }, 3000);
-
-      return () => clearTimeout(timer);
+      // 그 외의 경우 매번 팝업 표시
+      setShowCouponPopup(true);
     }
   }, [isAuthenticated, user]);
 

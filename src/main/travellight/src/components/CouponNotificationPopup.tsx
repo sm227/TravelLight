@@ -286,32 +286,7 @@ const CouponNotificationPopup: React.FC<CouponNotificationPopupProps> = ({ userI
                   {formatDate(coupon.endDate)}까지
                 </span>
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>남은 수량</span>
-                <span style={{
-                  color: getRemainingCount(coupon) < 10 ? '#ef4444' : '#10b981',
-                  fontWeight: 'bold'
-                }}>
-                  {getRemainingCount(coupon)}명
-                </span>
-              </Box>
             </Box>
-
-            {/* 선착순 경고 */}
-            {getRemainingCount(coupon) < 50 && (
-              <Box sx={{
-                mt: 1,
-                p: 0.5,
-                backgroundColor: '#fef3c7',
-                borderRadius: '4px',
-                textAlign: 'center',
-                fontSize: '10px',
-                color: '#92400e',
-                fontWeight: 500
-              }}>
-                ⚡ 선착순 마감 임박!
-              </Box>
-            )}
           </Box>
         ))}
       </DialogContent>
