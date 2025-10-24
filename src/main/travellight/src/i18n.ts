@@ -386,7 +386,11 @@ const resources = {
       startDescription: 'Create a partner account after approval to access the store management system and start the service.',
       joinNow: 'Join as a Partner Now',
       joinNowDescription: 'Contact us if you need more information. The TravelLight team will guide you in detail.',
-      applyNow: 'Apply Now'
+      applyNow: 'Apply Now',
+
+      customerTestimonials: 'Customer Reviews',
+      customerTestimonialsDescription: 'Real experiences from TravelLight users. See why travelers trust our luggage storage service.',
+      testimonialsFooter: 'All reviews are from verified users who have used our service.'
     }
   },
   ko: {
@@ -765,7 +769,11 @@ const resources = {
       startDescription: '승인 후 파트너 계정을 생성하여 매장 관리 시스템에 접속하고 서비스를 시작합니다.',
       joinNow: '지금 파트너 가입하기',
       joinNowDescription: '더 많은 정보가 필요하시면 문의하세요. 트래블라이트 팀이 상세히 안내해 드리겠습니다.',
-      applyNow: '지금 신청하기'
+      applyNow: '지금 신청하기',
+
+      customerTestimonials: '고객 후기',
+      customerTestimonialsDescription: 'TravelLight를 이용한 실제 고객들의 생생한 이용 후기를 확인해보세요. 여행자들이 신뢰하는 이유가 있습니다.',
+      testimonialsFooter: '모든 후기는 실제 서비스를 이용한 인증된 고객의 리뷰입니다.'
     }
   }
 };
