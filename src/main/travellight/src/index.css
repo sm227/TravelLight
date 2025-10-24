@@ -46,11 +46,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--background-dark);
   color: var(--text-primary);
-  /* iOS Safe Area 적용 - 상단과 하단에 패딩 추가 */
-  padding-top: var(--safe-area-inset-top);
-  padding-left: var(--safe-area-inset-left);
-  padding-right: var(--safe-area-inset-right);
-  padding-bottom: var(--safe-area-inset-bottom);
+  /* iOS Safe Area는 개별 컴포넌트에서 필요에 따라 적용 */
 }
 
 html, body, #root {
