@@ -35,4 +35,11 @@ public class NoOpEmailServiceImpl implements EmailService {
                 email, verificationCode);
         return true;
     }
+
+    @Override
+    public boolean sendPartnershipRejectionEmail(String email, String businessName, String rejectionReason) {
+        logger.info("이메일 전송이 비활성화되어 있습니다. 파트너십 거부 이메일을 전송하지 않습니다. (사용자: {}, 사업체: {}, 사유: {})",
+                email, businessName, rejectionReason);
+        return true;
+    }
 } 

@@ -54,7 +54,7 @@ declare global {
   }
 }
 
-const steps = ['기본 정보', '매장 정보', '운영 정보'];
+const steps = ['기본 정보', '매장 정보', '추가 정보', '운영 정보'];
 
 interface BusinessHourDto {
   enabled: boolean;
@@ -83,6 +83,15 @@ interface PartnerSignupData {
   agreeTerms: boolean;
   latitude: number;
   longitude: number;
+  // 새로운 필드들
+  storePictures: string[];
+  amenities: string[];
+  insuranceAvailable: boolean;
+  businessRegistrationUrl: string;
+  bankBookUrl: string;
+  accountNumber: string;
+  bankName: string;
+  accountHolder: string;
 }
 
 const defaultBusinessHours: Record<string, BusinessHourDto> = {
@@ -103,6 +112,18 @@ const businessTypes = [
   '가게/상점',
   '식당',
   '기타'
+];
+
+const availableAmenities = [
+  'WiFi',
+  'CCTV',
+  '에어컨',
+  '화장실',
+  '주차장',
+  '휠체어 접근',
+  '24시간 출입',
+  '냉장보관',
+  '충전기'
 ];
 
 const PartnerSignup: React.FC = () => {
@@ -129,11 +150,21 @@ const PartnerSignup: React.FC = () => {
     businessHours: defaultBusinessHours,
     agreeTerms: false,
     latitude: 0,
-    longitude: 0
+    longitude: 0,
+    // 새로운 필드 초기값
+    storePictures: [],
+    amenities: [],
+    insuranceAvailable: false,
+    businessRegistrationUrl: '',
+    bankBookUrl: '',
+    accountNumber: '',
+    bankName: '',
+    accountHolder: user?.name || ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   
 
@@ -395,6 +426,14 @@ const PartnerSignup: React.FC = () => {
     }
 
     if (activeStep === 2) {
+      if (!formData.accountNumber.trim() || !formData.bankName.trim() || !formData.accountHolder.trim()) {
+        setError('계좌 정보를 모두 입력해주세요.');
+        return false;
+      }
+      return true;
+    }
+
+    if (activeStep === 3) {
       if (!formData.agreeTerms) {
         setError('이용약관에 동의해주세요.');
         return false;
@@ -467,7 +506,16 @@ const PartnerSignup: React.FC = () => {
         businessHours: formatBusinessHours(),
         smallBagsAvailable: formData.storageCapacity.small,
         mediumBagsAvailable: formData.storageCapacity.medium,
-        largeBagsAvailable: formData.storageCapacity.large
+        largeBagsAvailable: formData.storageCapacity.large,
+        // 새로운 필드들 추가
+        storePictures: formData.storePictures,
+        amenities: formData.amenities,
+        insuranceAvailable: formData.insuranceAvailable,
+        businessRegistrationUrl: formData.businessRegistrationUrl,
+        bankBookUrl: formData.bankBookUrl,
+        accountNumber: formData.accountNumber,
+        bankName: formData.bankName,
+        accountHolder: formData.accountHolder
       };
 
       console.log('서버로 전송할 데이터:', requestData);
@@ -501,7 +549,26 @@ const PartnerSignup: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    
+    // 전화번호 자동 포맷팅
+    if (name === 'phone') {
+      const phoneNumber = value.replace(/[^0-9]/g, '');
+      let formattedPhone = phoneNumber;
+      
+      if (phoneNumber.length <= 3) {
+        formattedPhone = phoneNumber;
+      } else if (phoneNumber.length <= 7) {
+        formattedPhone = phoneNumber.slice(0, 3) + '-' + phoneNumber.slice(3);
+      } else if (phoneNumber.length <= 11) {
+        formattedPhone = phoneNumber.slice(0, 3) + '-' + phoneNumber.slice(3, 7) + '-' + phoneNumber.slice(7);
+      } else {
+        formattedPhone = phoneNumber.slice(0, 3) + '-' + phoneNumber.slice(3, 7) + '-' + phoneNumber.slice(7, 11);
+      }
+      
+      setFormData({ ...formData, [name]: formattedPhone });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleStorageCapacityChange = (type: 'small' | 'medium' | 'large', value: string) => {
@@ -575,13 +642,77 @@ const PartnerSignup: React.FC = () => {
     return dayNames[day] || day;
   };
 
+  // 이미지 파일 업로드 핸들러 (Base64로 변환)
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 파일 크기 체크 (5MB 제한)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('이미지 파일은 5MB 이하로 업로드해주세요.');
+      return;
+    }
+
+    // 이미지 파일 타입 체크
+    if (!file.type.startsWith('image/')) {
+      setError('이미지 파일만 업로드 가능합니다.');
+      return;
+    }
+
+    setUploadingImage(true);
+    const reader = new FileReader();
+    
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      
+      if (fieldName === 'storePictures') {
+        setFormData(prev => ({
+          ...prev,
+          storePictures: [...prev.storePictures, base64String]
+        }));
+      } else if (fieldName === 'businessRegistrationUrl') {
+        setFormData(prev => ({ ...prev, businessRegistrationUrl: base64String }));
+      } else if (fieldName === 'bankBookUrl') {
+        setFormData(prev => ({ ...prev, bankBookUrl: base64String }));
+      }
+      
+      setUploadingImage(false);
+      setError('');
+    };
+    
+    reader.onerror = () => {
+      setError('이미지 업로드 중 오류가 발생했습니다.');
+      setUploadingImage(false);
+    };
+    
+    reader.readAsDataURL(file);
+  };
+
   const renderStepContent = (step: number) => {
     switch (step) {
       case 0:
         return (
-          <Box sx={{ mt: 4 }}>
-            <Typography variant="h6" gutterBottom>
+          <Box>
+            <Typography 
+              variant="h6" 
+              gutterBottom 
+              sx={{ 
+                mb: 1, 
+                fontWeight: 600, 
+                color: '#1a1a1a',
+                fontSize: '1.25rem'
+              }}
+            >
               기본 정보를 입력해주세요
+            </Typography>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                mb: 4, 
+                color: '#718096'
+              }}
+            >
+              사업자 및 담당자 정보를 정확하게 입력해주세요
             </Typography>
             <Grid container spacing={3}>
               <Grid item xs={12}>
@@ -593,6 +724,18 @@ const PartnerSignup: React.FC = () => {
                   value={formData.businessName}
                   onChange={handleInputChange}
                   variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      '&:hover fieldset': {
+                        borderColor: '#cbd5e0'
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#4a5568',
+                        borderWidth: 2
+                      }
+                    }
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -604,6 +747,18 @@ const PartnerSignup: React.FC = () => {
                   value={formData.ownerName}
                   onChange={handleInputChange}
                   variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      '&:hover fieldset': {
+                        borderColor: '#cbd5e0'
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#4a5568',
+                        borderWidth: 2
+                      }
+                    }
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -615,7 +770,21 @@ const PartnerSignup: React.FC = () => {
                   value={formData.phone}
                   onChange={handleInputChange}
                   variant="outlined"
-                  placeholder="01012345678"
+                  placeholder="010-0000-0000"
+                  helperText="숫자만 입력하시면 자동으로 형식이 적용됩니다"
+                  inputProps={{ maxLength: 13 }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      '&:hover fieldset': {
+                        borderColor: '#cbd5e0'
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#4a5568',
+                        borderWidth: 2
+                      }
+                    }
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -628,6 +797,18 @@ const PartnerSignup: React.FC = () => {
                   value={formData.email}
                   onChange={handleInputChange}
                   variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      '&:hover fieldset': {
+                        borderColor: '#cbd5e0'
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#4a5568',
+                        borderWidth: 2
+                      }
+                    }
+                  }}
                 />
               </Grid>
             </Grid>
@@ -636,9 +817,27 @@ const PartnerSignup: React.FC = () => {
 
       case 1:
         return (
-          <Box sx={{ mt: 4 }}>
-            <Typography variant="h6" gutterBottom>
+          <Box>
+            <Typography 
+              variant="h6" 
+              gutterBottom 
+              sx={{ 
+                mb: 1, 
+                fontWeight: 600, 
+                color: '#1a1a1a',
+                fontSize: '1.25rem'
+              }}
+            >
               매장 정보를 입력해주세요
+            </Typography>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                mb: 4, 
+                color: '#718096'
+              }}
+            >
+              고객이 찾아올 매장의 위치와 업종을 알려주세요
             </Typography>
             <Grid container spacing={3}>
               <Grid item xs={12} sm={4}>
@@ -651,6 +850,12 @@ const PartnerSignup: React.FC = () => {
                     readOnly: true,
                   }}
                   variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      bgcolor: '#f7fafc'
+                    }
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={8}>
@@ -658,8 +863,22 @@ const PartnerSignup: React.FC = () => {
                   variant="outlined"
                   startIcon={<SearchIcon />}
                   onClick={openPostcodeSearch}
-                  sx={{ height: '56px' }}
                   fullWidth
+                  sx={{ 
+                    height: '56px',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    borderColor: '#cbd5e0',
+                    color: '#4a5568',
+                    borderWidth: 2,
+                    '&:hover': {
+                      borderColor: '#a0aec0',
+                      bgcolor: '#f7fafc',
+                      borderWidth: 2
+                    }
+                  }}
                 >
                   주소 검색
                 </Button>
@@ -676,6 +895,12 @@ const PartnerSignup: React.FC = () => {
                     readOnly: true,
                   }}
                   variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      bgcolor: '#f7fafc'
+                    }
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -687,6 +912,18 @@ const PartnerSignup: React.FC = () => {
                   onChange={handleInputChange}
                   variant="outlined"
                   placeholder="상세주소를 입력해주세요"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      '&:hover fieldset': {
+                        borderColor: '#cbd5e0'
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#4a5568',
+                        borderWidth: 2
+                      }
+                    }
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -698,6 +935,16 @@ const PartnerSignup: React.FC = () => {
                     value={formData.businessType}
                     onChange={handleSelectChange}
                     label="업종"
+                    sx={{
+                      borderRadius: 2,
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#cbd5e0'
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4a5568',
+                        borderWidth: 2
+                      }
+                    }}
                   >
                     {businessTypes.map((type) => (
                       <MenuItem key={type} value={type}>{type}</MenuItem>
@@ -707,45 +954,656 @@ const PartnerSignup: React.FC = () => {
               </Grid>
 
               <Grid item xs={12}>
-                <Typography variant="subtitle1" gutterBottom>
-                  짐 보관 가능 개수 설정
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom fontWeight="600" sx={{ mb: 0.5, color: '#1a1a1a' }}>
+                    짐 보관 가능 개수 설정 <Typography component="span" sx={{ color: '#e53e3e' }}>*</Typography>
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 3, color: '#718096' }}>
+                    각 크기별로 보관 가능한 최대 개수를 입력해주세요
+                  </Typography>
+                  <Box sx={{ 
+                    border: '1px solid #e2e8f0', 
+                    borderRadius: 3, 
+                    p: 3, 
+                    bgcolor: '#f7fafc' 
+                  }}>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} sm={4}>
+                        <TextField
+                          fullWidth
+                          label="소형 (가방/백팩)"
+                          type="number"
+                          value={formData.storageCapacity.small}
+                          onChange={(e) => handleStorageCapacityChange('small', e.target.value)}
+                          variant="outlined"
+                          inputProps={{ min: 0 }}
+                          helperText="20L 이하"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                              bgcolor: '#ffffff',
+                              '&:hover fieldset': {
+                                borderColor: '#cbd5e0'
+                              },
+                              '&.Mui-focused fieldset': {
+                                borderColor: '#4a5568',
+                                borderWidth: 2
+                              }
+                            }
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <TextField
+                          fullWidth
+                          label="중형 (캐리어)"
+                          type="number"
+                          value={formData.storageCapacity.medium}
+                          onChange={(e) => handleStorageCapacityChange('medium', e.target.value)}
+                          variant="outlined"
+                          inputProps={{ min: 0 }}
+                          helperText="20-60L"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                              bgcolor: '#ffffff',
+                              '&:hover fieldset': {
+                                borderColor: '#cbd5e0'
+                              },
+                              '&.Mui-focused fieldset': {
+                                borderColor: '#4a5568',
+                                borderWidth: 2
+                              }
+                            }
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <TextField
+                          fullWidth
+                          label="대형 (대형 캐리어)"
+                          type="number"
+                          value={formData.storageCapacity.large}
+                          onChange={(e) => handleStorageCapacityChange('large', e.target.value)}
+                          variant="outlined"
+                          inputProps={{ min: 0 }}
+                          helperText="60L 이상"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                              bgcolor: '#ffffff',
+                              '&:hover fieldset': {
+                                borderColor: '#cbd5e0'
+                              },
+                              '&.Mui-focused fieldset': {
+                                borderColor: '#4a5568',
+                                borderWidth: 2
+                              }
+                            }
+                          }}
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
+          </Box>
+        );
+
+      case 2:
+        return (
+          <Box>
+            <Typography 
+              variant="h6" 
+              gutterBottom 
+              sx={{ 
+                mb: 1, 
+                fontWeight: 600, 
+                color: '#1a1a1a',
+                fontSize: '1.25rem'
+              }}
+            >
+              추가 정보를 입력해주세요
+            </Typography>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                mb: 4, 
+                color: '#718096'
+              }}
+            >
+              매장 사진, 편의시설, 필수 서류 및 정산 계좌를 등록해주세요
+            </Typography>
+            <Grid container spacing={4}>
+              <Grid item xs={12}>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" gutterBottom fontWeight="600" sx={{ mb: 0.5, color: '#1a1a1a' }}>
+                    매장 사진 <Typography component="span" variant="caption" sx={{ color: '#718096', fontWeight: 400 }}>(선택사항)</Typography>
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 3, color: '#718096' }}>
+                    고객에게 매장을 소개할 사진을 업로드하거나 URL을 입력하세요
+                  </Typography>
+                  
+                  <Box sx={{ 
+                    display: 'flex', 
+                    gap: 2, 
+                    mb: 3, 
+                    flexWrap: 'wrap',
+                    p: 3,
+                    border: '2px dashed #cbd5e0',
+                    borderRadius: 3,
+                    bgcolor: '#f7fafc',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      borderColor: '#a0aec0',
+                      bgcolor: '#edf2f7'
+                    }
+                  }}>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      disabled={uploadingImage}
+                      sx={{ 
+                        minWidth: 150,
+                        borderRadius: 2,
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        borderColor: '#cbd5e0',
+                        color: '#4a5568',
+                        borderWidth: 2,
+                        '&:hover': {
+                          borderColor: '#a0aec0',
+                          bgcolor: 'transparent',
+                          borderWidth: 2
+                        }
+                      }}
+                    >
+                      {uploadingImage ? '업로드 중...' : '파일 선택'}
+                      <input
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload(e, 'storePictures')}
+                      />
+                    </Button>
+                    
+                    <TextField
+                      sx={{ 
+                        flex: 1, 
+                        minWidth: 300,
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          bgcolor: '#ffffff',
+                          '&:hover fieldset': {
+                            borderColor: '#cbd5e0'
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: '#4a5568',
+                            borderWidth: 2
+                          }
+                        }
+                      }}
+                      label="또는 URL 입력 후 엔터"
+                      variant="outlined"
+                      size="small"
+                      placeholder="https://example.com/image.jpg"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          const input = e.target as HTMLInputElement;
+                          if (input.value.trim()) {
+                            setFormData(prev => ({
+                              ...prev,
+                              storePictures: [...prev.storePictures, input.value.trim()]
+                            }));
+                            input.value = '';
+                          }
+                          e.preventDefault();
+                        }
+                      }}
+                    />
+                  </Box>
+                  
+                  {formData.storePictures.length > 0 && (
+                    <Box>
+                      <Typography variant="body2" fontWeight="600" sx={{ mb: 2, color: '#4a5568' }}>
+                        업로드된 사진 ({formData.storePictures.length}장)
+                      </Typography>
+                      <Grid container spacing={2}>
+                        {formData.storePictures.map((url, index) => (
+                          <Grid item xs={12} sm={6} md={4} key={index}>
+                            <Box sx={{ 
+                              position: 'relative', 
+                              border: '1px solid #e2e8f0',
+                              borderRadius: 3,
+                              overflow: 'hidden',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                transform: 'translateY(-2px)'
+                              }
+                            }}>
+                              {url.startsWith('data:image') ? (
+                                <Box sx={{ 
+                                  width: '100%', 
+                                  height: 180, 
+                                  backgroundImage: `url(${url})`,
+                                  backgroundSize: 'cover',
+                                  backgroundPosition: 'center'
+                                }} />
+                              ) : (
+                                <Box sx={{ 
+                                  p: 2, 
+                                  height: 180, 
+                                  display: 'flex', 
+                                  alignItems: 'center',
+                                  bgcolor: '#f7fafc'
+                                }}>
+                                  <Typography variant="body2" sx={{ 
+                                    wordBreak: 'break-all',
+                                    fontSize: '0.75rem',
+                                    color: '#718096'
+                                  }}>
+                                    {url.substring(0, 60)}...
+                                  </Typography>
+                                </Box>
+                              )}
+                              <Box sx={{ 
+                                p: 1.5, 
+                                bgcolor: '#ffffff', 
+                                borderTop: '1px solid #e2e8f0' 
+                              }}>
+                                <Button 
+                                  fullWidth
+                                  size="small"
+                                  onClick={() => {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      storePictures: prev.storePictures.filter((_, i) => i !== index)
+                                    }));
+                                  }}
+                                  sx={{
+                                    color: '#e53e3e',
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    '&:hover': {
+                                      bgcolor: '#fff5f5'
+                                    }
+                                  }}
+                                >
+                                  삭제
+                                </Button>
+                              </Box>
+                            </Box>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Box>
+                  )}
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" gutterBottom fontWeight="600" sx={{ mb: 0.5, color: '#1a1a1a' }}>
+                    매장 편의시설
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 3, color: '#718096' }}>
+                    매장에서 제공하는 편의시설을 모두 선택해주세요
+                  </Typography>
+                  <Box sx={{ 
+                    p: 3,
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 3,
+                    bgcolor: '#f7fafc'
+                  }}>
+                    <FormGroup row>
+                      {availableAmenities.map((amenity) => (
+                        <FormControlLabel
+                          key={amenity}
+                          sx={{ 
+                            minWidth: '140px', 
+                            mb: 1,
+                            '& .MuiCheckbox-root': {
+                              color: '#cbd5e0',
+                              '&.Mui-checked': {
+                                color: '#4a5568'
+                              }
+                            },
+                            '& .MuiTypography-root': {
+                              color: '#2d3748',
+                              fontWeight: 500
+                            }
+                          }}
+                          control={
+                            <Checkbox
+                              checked={formData.amenities.includes(amenity)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    amenities: [...prev.amenities, amenity]
+                                  }));
+                                } else {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    amenities: prev.amenities.filter(a => a !== amenity)
+                                  }));
+                                }
+                              }}
+                            />
+                          }
+                          label={amenity}
+                        />
+                      ))}
+                    </FormGroup>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ 
+                  p: 3,
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 3,
+                  bgcolor: '#f7fafc'
+                }}>
+                  <FormControlLabel
+                    sx={{
+                      alignItems: 'flex-start',
+                      '& .MuiCheckbox-root': {
+                        color: '#cbd5e0',
+                        '&.Mui-checked': {
+                          color: '#4a5568'
+                        }
+                      }
+                    }}
+                    control={
+                      <Checkbox
+                        checked={formData.insuranceAvailable}
+                        onChange={(e) => setFormData({...formData, insuranceAvailable: e.target.checked})}
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography fontWeight="600" sx={{ color: '#1a1a1a' }}>
+                          보험 가입 여부
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#718096', mt: 0.5 }}>
+                          고객 소지품에 대한 보험 가입 시 신뢰도가 높아집니다
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2, borderColor: '#e2e8f0' }} />
+                <Typography variant="h6" gutterBottom fontWeight="600" sx={{ mb: 1, mt: 3, color: '#1a1a1a', fontSize: '1.15rem' }}>
+                  필수 서류
                 </Typography>
-                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 2 }}>
-                  <Grid container spacing={3}>
+                <Typography variant="body2" sx={{ mb: 3, color: '#718096' }}>
+                  사업자등록증 또는 신분증, 통장 사본을 업로드해주세요
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" gutterBottom fontWeight="600" sx={{ color: '#1a1a1a' }}>
+                    사업자등록증 또는 신분증 <Typography component="span" sx={{ color: '#e53e3e' }}>*</Typography>
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 2, color: '#718096' }}>
+                    개인 사업자는 사업자등록증, 개인은 신분증 사진을 업로드해주세요
+                  </Typography>
+                  
+                  <Box sx={{ 
+                    display: 'flex', 
+                    gap: 2, 
+                    alignItems: 'center', 
+                    flexWrap: 'wrap',
+                    p: 3,
+                    border: '2px solid',
+                    borderColor: formData.businessRegistrationUrl ? '#48bb78' : '#e2e8f0',
+                    borderRadius: 3,
+                    bgcolor: formData.businessRegistrationUrl ? '#f0fff4' : '#f7fafc',
+                    transition: 'all 0.2s'
+                  }}>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      disabled={uploadingImage}
+                      sx={{
+                        borderRadius: 2,
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        borderColor: '#cbd5e0',
+                        color: '#4a5568',
+                        borderWidth: 2,
+                        '&:hover': {
+                          borderColor: '#a0aec0',
+                          bgcolor: 'transparent',
+                          borderWidth: 2
+                        }
+                      }}
+                    >
+                      {uploadingImage ? '업로드 중...' : '파일 선택'}
+                      <input
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload(e, 'businessRegistrationUrl')}
+                      />
+                    </Button>
+                    
+                    <TextField
+                      sx={{ 
+                        flex: 1, 
+                        minWidth: 300,
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          bgcolor: '#ffffff',
+                          '&:hover fieldset': {
+                            borderColor: '#cbd5e0'
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: '#4a5568',
+                            borderWidth: 2
+                          }
+                        }
+                      }}
+                      label="또는 URL 입력"
+                      name="businessRegistrationUrl"
+                      value={formData.businessRegistrationUrl && !formData.businessRegistrationUrl.startsWith('data:image') ? formData.businessRegistrationUrl : ''}
+                      onChange={handleInputChange}
+                      variant="outlined"
+                      size="small"
+                      placeholder="https://example.com/business-registration.jpg"
+                    />
+                    
+                    {formData.businessRegistrationUrl && (
+                      <Typography variant="body2" sx={{ color: '#48bb78', fontWeight: 600 }}>
+                        ✓ 업로드 완료
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" gutterBottom fontWeight="600" sx={{ color: '#1a1a1a' }}>
+                    통장 사본 <Typography component="span" sx={{ color: '#e53e3e' }}>*</Typography>
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 2, color: '#718096' }}>
+                    정산 계좌 확인을 위한 통장 사본을 업로드해주세요
+                  </Typography>
+                  
+                  <Box sx={{ 
+                    display: 'flex', 
+                    gap: 2, 
+                    alignItems: 'center', 
+                    flexWrap: 'wrap',
+                    p: 3,
+                    border: '2px solid',
+                    borderColor: formData.bankBookUrl ? '#48bb78' : '#e2e8f0',
+                    borderRadius: 3,
+                    bgcolor: formData.bankBookUrl ? '#f0fff4' : '#f7fafc',
+                    transition: 'all 0.2s'
+                  }}>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      disabled={uploadingImage}
+                      sx={{
+                        borderRadius: 2,
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        borderColor: '#cbd5e0',
+                        color: '#4a5568',
+                        borderWidth: 2,
+                        '&:hover': {
+                          borderColor: '#a0aec0',
+                          bgcolor: 'transparent',
+                          borderWidth: 2
+                        }
+                      }}
+                    >
+                      {uploadingImage ? '업로드 중...' : '파일 선택'}
+                      <input
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload(e, 'bankBookUrl')}
+                      />
+                    </Button>
+                    
+                    <TextField
+                      sx={{ 
+                        flex: 1, 
+                        minWidth: 300,
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          bgcolor: '#ffffff',
+                          '&:hover fieldset': {
+                            borderColor: '#cbd5e0'
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: '#4a5568',
+                            borderWidth: 2
+                          }
+                        }
+                      }}
+                      label="또는 URL 입력"
+                      name="bankBookUrl"
+                      value={formData.bankBookUrl && !formData.bankBookUrl.startsWith('data:image') ? formData.bankBookUrl : ''}
+                      onChange={handleInputChange}
+                      variant="outlined"
+                      size="small"
+                      placeholder="https://example.com/bankbook.jpg"
+                    />
+                    
+                    {formData.bankBookUrl && (
+                      <Typography variant="body2" sx={{ color: '#48bb78', fontWeight: 600 }}>
+                        ✓ 업로드 완료
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2, borderColor: '#e2e8f0' }} />
+                <Typography variant="h6" gutterBottom fontWeight="600" sx={{ mb: 1, mt: 3, color: '#1a1a1a', fontSize: '1.15rem' }}>
+                  정산 계좌 정보 <Typography component="span" sx={{ color: '#e53e3e' }}>*</Typography>
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 3, color: '#718096' }}>
+                  매월 말 수익이 입금될 계좌 정보를 입력해주세요
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ 
+                  p: 3,
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 3,
+                  bgcolor: '#f7fafc'
+                }}>
+                  <Grid container spacing={2}>
                     <Grid item xs={12} sm={4}>
                       <TextField
+                        required
                         fullWidth
-                        label="소형 (가방/백팩)"
-                        type="number"
-                        value={formData.storageCapacity.small}
-                        onChange={(e) => handleStorageCapacityChange('small', e.target.value)}
+                        label="은행명"
+                        name="bankName"
+                        value={formData.bankName}
+                        onChange={handleInputChange}
                         variant="outlined"
-                        inputProps={{ min: 0 }}
-                        helperText="20L 이하"
+                        placeholder="예: 국민은행"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            bgcolor: '#ffffff',
+                            '&:hover fieldset': {
+                              borderColor: '#cbd5e0'
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#4a5568',
+                              borderWidth: 2
+                            }
+                          }
+                        }}
                       />
                     </Grid>
+
                     <Grid item xs={12} sm={4}>
                       <TextField
+                        required
                         fullWidth
-                        label="중형 (캐리어)"
-                        type="number"
-                        value={formData.storageCapacity.medium}
-                        onChange={(e) => handleStorageCapacityChange('medium', e.target.value)}
+                        label="계좌번호"
+                        name="accountNumber"
+                        value={formData.accountNumber}
+                        onChange={handleInputChange}
                         variant="outlined"
-                        inputProps={{ min: 0 }}
-                        helperText="20-60L"
+                        placeholder="000000-00-000000"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            bgcolor: '#ffffff',
+                            '&:hover fieldset': {
+                              borderColor: '#cbd5e0'
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#4a5568',
+                              borderWidth: 2
+                            }
+                          }
+                        }}
                       />
                     </Grid>
+
                     <Grid item xs={12} sm={4}>
                       <TextField
+                        required
                         fullWidth
-                        label="대형 (대형 캐리어)"
-                        type="number"
-                        value={formData.storageCapacity.large}
-                        onChange={(e) => handleStorageCapacityChange('large', e.target.value)}
+                        label="예금주"
+                        name="accountHolder"
+                        value={formData.accountHolder}
+                        onChange={handleInputChange}
                         variant="outlined"
-                        inputProps={{ min: 0 }}
-                        helperText="60L 이상"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            bgcolor: '#ffffff',
+                            '&:hover fieldset': {
+                              borderColor: '#cbd5e0'
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#4a5568',
+                              borderWidth: 2
+                            }
+                          }
+                        }}
                       />
                     </Grid>
                   </Grid>
@@ -755,15 +1613,52 @@ const PartnerSignup: React.FC = () => {
           </Box>
         );
 
-      case 2:
+      case 3:
         return (
-          <Box sx={{ mt: 4 }}>
-            <Typography variant="h6" gutterBottom>
+          <Box>
+            <Typography 
+              variant="h6" 
+              gutterBottom 
+              sx={{ 
+                mb: 1, 
+                fontWeight: 600, 
+                color: '#1a1a1a',
+                fontSize: '1.25rem'
+              }}
+            >
               운영 정보를 입력해주세요
             </Typography>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                mb: 4, 
+                color: '#718096'
+              }}
+            >
+              매장 운영 시간과 이용약관을 확인해주세요
+            </Typography>
 
-            <FormGroup sx={{ mb: 3 }}>
+            <Box sx={{ 
+              p: 3,
+              mb: 3,
+              border: '1px solid #e2e8f0',
+              borderRadius: 3,
+              bgcolor: '#f7fafc'
+            }}>
               <FormControlLabel
+                sx={{
+                  '& .MuiCheckbox-root': {
+                    color: '#cbd5e0',
+                    '&.Mui-checked': {
+                      color: '#4a5568'
+                    }
+                  },
+                  '& .MuiTypography-root': {
+                    color: '#2d3748',
+                    fontWeight: 600,
+                    fontSize: '1rem'
+                  }
+                }}
                 control={
                   <Checkbox
                     checked={formData.is24Hours}
@@ -773,12 +1668,18 @@ const PartnerSignup: React.FC = () => {
                 }
                 label="24시간 영업"
               />
-            </FormGroup>
+            </Box>
 
             {!formData.is24Hours && (
               <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ko}>
-                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 2, mb: 3 }}>
-                  <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                <Box sx={{ 
+                  border: '1px solid #e2e8f0', 
+                  borderRadius: 3, 
+                  p: 3, 
+                  mb: 3, 
+                  bgcolor: '#f7fafc' 
+                }}>
+                  <Typography variant="subtitle1" gutterBottom fontWeight="600" sx={{ mb: 3, color: '#1a1a1a' }}>
                     영업시간 설정
                   </Typography>
 
@@ -787,6 +1688,18 @@ const PartnerSignup: React.FC = () => {
                       <Grid container spacing={2} alignItems="center">
                         <Grid item xs={12} sm={3}>
                           <FormControlLabel
+                            sx={{
+                              '& .MuiCheckbox-root': {
+                                color: '#cbd5e0',
+                                '&.Mui-checked': {
+                                  color: '#4a5568'
+                                }
+                              },
+                              '& .MuiTypography-root': {
+                                color: '#2d3748',
+                                fontWeight: 500
+                              }
+                            }}
                             control={
                               <Checkbox
                                 checked={formData.businessHours[day].enabled}
@@ -810,7 +1723,20 @@ const PartnerSignup: React.FC = () => {
                                     handleBusinessHourChange(day, 'open', `${hours}:${minutes}`);
                                   }
                                 }}
-                                sx={{ width: '100%' }}
+                                sx={{ 
+                                  width: '100%',
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: 2,
+                                    bgcolor: '#ffffff',
+                                    '&:hover fieldset': {
+                                      borderColor: '#cbd5e0'
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                      borderColor: '#4a5568',
+                                      borderWidth: 2
+                                    }
+                                  }
+                                }}
                               />
                             </Grid>
                             <Grid item xs={6} sm={4.5}>
@@ -824,33 +1750,54 @@ const PartnerSignup: React.FC = () => {
                                     handleBusinessHourChange(day, 'close', `${hours}:${minutes}`);
                                   }
                                 }}
-                                sx={{ width: '100%' }}
+                                sx={{ 
+                                  width: '100%',
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: 2,
+                                    bgcolor: '#ffffff',
+                                    '&:hover fieldset': {
+                                      borderColor: '#cbd5e0'
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                      borderColor: '#4a5568',
+                                      borderWidth: 2
+                                    }
+                                  }
+                                }}
                               />
                             </Grid>
                           </>
                         )}
                       </Grid>
 
-                      {day !== 'SUNDAY' && <Divider sx={{ mt: 2 }} />}
+                      {day !== 'SUNDAY' && <Divider sx={{ mt: 2, borderColor: '#e2e8f0' }} />}
                     </Box>
                   ))}
                 </Box>
               </LocalizationProvider>
             )}
 
-            <Box sx={{ mt: 4, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-              <Typography variant="body2" gutterBottom>
-                파트너 이용약관
+            <Box sx={{ 
+              mt: 4, 
+              p: 3, 
+              border: '1px solid #e2e8f0', 
+              borderRadius: 3, 
+              bgcolor: '#f7fafc' 
+            }}>
+              <Typography variant="subtitle1" gutterBottom fontWeight="600" sx={{ mb: 2, color: '#1a1a1a' }}>
+                파트너 이용약관 <Typography component="span" sx={{ color: '#e53e3e' }}>*</Typography>
               </Typography>
               <Box sx={{
-                height: 150,
+                height: 200,
                 overflowY: 'auto',
-                border: '1px solid #ddd',
-                p: 2,
-                borderRadius: 1,
-                bgcolor: '#f9f9f9',
+                border: '1px solid #e2e8f0',
+                p: 3,
+                borderRadius: 2,
+                bgcolor: '#ffffff',
                 fontSize: '0.875rem',
-                mb: 2
+                mb: 3,
+                lineHeight: 1.8,
+                color: '#4a5568'
               }}>
                 트래블라이트 파트너 서비스 이용약관입니다. 본 약관은 트래블라이트와 파트너 사이의 권리와 의무를 규정합니다.
                 <br /><br />
@@ -865,6 +1812,18 @@ const PartnerSignup: React.FC = () => {
                 본 약관에 동의함으로써 파트너는 위 사항을 준수할 것을 약속합니다.
               </Box>
               <FormControlLabel
+                sx={{
+                  '& .MuiCheckbox-root': {
+                    color: '#cbd5e0',
+                    '&.Mui-checked': {
+                      color: '#4a5568'
+                    }
+                  },
+                  '& .MuiTypography-root': {
+                    color: '#2d3748',
+                    fontWeight: 600
+                  }
+                }}
                 control={
                   <Checkbox
                     checked={formData.agreeTerms}
@@ -886,31 +1845,113 @@ const PartnerSignup: React.FC = () => {
 
   if (success) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        minHeight: '100vh',
+        bgcolor: '#fafafa'
+      }}>
         <Navbar />
-        <Container component="main" maxWidth="sm" sx={{ mb: 4, mt: 8, flexGrow: 1 }}>
-          <Paper sx={{ p: { xs: 2, md: 4 }, borderRadius: 2, boxShadow: 3 }}>
+        <Container component="main" maxWidth="sm" sx={{ mb: 6, mt: { xs: 6, md: 10 }, flexGrow: 1 }}>
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: { xs: 4, md: 6 }, 
+              borderRadius: 3,
+              border: '1px solid #e2e8f0',
+              bgcolor: '#ffffff',
+              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+            }}
+          >
             <Box sx={{ 
               display: 'flex', 
               flexDirection: 'column', 
               alignItems: 'center',
-              py: 4
+              textAlign: 'center',
+              py: 2
             }}>
-              <Typography variant="h4" color="primary" gutterBottom>
+              {/* 성공 아이콘 */}
+              <Box sx={{
+                width: 80,
+                height: 80,
+                borderRadius: '50%',
+                bgcolor: '#f0fff4',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mb: 3
+              }}>
+                <Typography sx={{ fontSize: '3rem' }}>✓</Typography>
+              </Box>
+
+              <Typography 
+                variant="h4" 
+                gutterBottom
+                sx={{
+                  fontWeight: 700,
+                  color: '#1a1a1a',
+                  mb: 2,
+                  fontSize: { xs: '1.75rem', md: '2rem' }
+                }}
+              >
                 신청이 완료되었습니다
               </Typography>
-              <Typography variant="body1" align="center" sx={{ mt: 2, mb: 4 }}>
-                파트너 가입 신청이 접수되었습니다. 관리자 검토 후 승인이 완료되면 이메일로 알려드리겠습니다. 
-                <Box component="span" fontWeight="bold" sx={{ display: 'block', mt: 2 }}>
-                  승인이 완료될 때까지 파트너 매장 관리자 페이지에서 승인 대기 상태를 확인하실 수 있습니다.
-                </Box>
+              
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  mt: 1, 
+                  mb: 2,
+                  color: '#4a5568',
+                  lineHeight: 1.8,
+                  fontSize: '1rem'
+                }}
+              >
+                파트너 가입 신청이 접수되었습니다.<br />
+                관리자 검토 후 승인이 완료되면 이메일로 알려드리겠습니다.
               </Typography>
+              
+              <Box sx={{ 
+                mt: 3, 
+                p: 3,
+                width: '100%',
+                bgcolor: '#f7fafc',
+                borderRadius: 2,
+                border: '1px solid #e2e8f0'
+              }}>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: '#2d3748',
+                    fontWeight: 600,
+                    lineHeight: 1.6
+                  }}
+                >
+                  💡 승인이 완료될 때까지<br />
+                  파트너 매장 관리자 페이지에서<br />
+                  승인 대기 상태를 확인하실 수 있습니다.
+                </Typography>
+              </Box>
+
               <Button
-                variant="contained"
-                color="primary"
                 onClick={() => navigate('/partner-dashboard')}
                 size="large"
-                sx={{ mt: 2 }}
+                sx={{
+                  mt: 4,
+                  px: 5,
+                  py: 1.5,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  bgcolor: '#2d3748',
+                  color: '#ffffff',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    bgcolor: '#1a202c',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }
+                }}
               >
                 매장 관리자 페이지로 이동
               </Button>
@@ -923,48 +1964,163 @@ const PartnerSignup: React.FC = () => {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      minHeight: '100vh',
+      bgcolor: '#fafafa'
+    }}>
       <Navbar />
-      <Container component="main" maxWidth="md" sx={{ mb: 4, mt: { xs: 4, md: 8 }, flexGrow: 1 }}>
-        <Paper sx={{ p: { xs: 2, md: 4 }, borderRadius: 2, boxShadow: 3 }}>
-          <Typography component="h1" variant="h4" align="center" sx={{ mb: 4 }}>
+      <Container component="main" maxWidth="md" sx={{ mb: 6, mt: { xs: 4, md: 6 }, flexGrow: 1 }}>
+        {/* 헤더 섹션 */}
+        <Box sx={{ textAlign: 'center', mb: 5 }}>
+          <Typography 
+            component="h1" 
+            variant="h3" 
+            sx={{ 
+              mb: 1.5,
+              fontWeight: 700,
+              color: '#1a1a1a',
+              fontSize: { xs: '1.75rem', md: '2.5rem' }
+            }}
+          >
             파트너 가입 신청
           </Typography>
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              color: '#666',
+              fontSize: '1rem',
+              maxWidth: 500,
+              mx: 'auto'
+            }}
+          >
+            간단한 정보 입력으로 트래블라이트 파트너로 시작하세요
+          </Typography>
+        </Box>
 
-          <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+        {/* 스테퍼 */}
+        <Box sx={{ mb: 5 }}>
+          <Stepper 
+            activeStep={activeStep} 
+            sx={{ 
+              '& .MuiStepLabel-root .Mui-completed': {
+                color: '#4a5568',
+              },
+              '& .MuiStepLabel-root .Mui-active': {
+                color: '#2d3748',
+              },
+              '& .MuiStepLabel-label': {
+                fontSize: '0.875rem',
+                fontWeight: 500
+              }
+            }}
+          >
             {steps.map((label) => (
               <Step key={label}>
                 <StepLabel>{label}</StepLabel>
               </Step>
             ))}
           </Stepper>
+        </Box>
 
+        {/* 콘텐츠 카드 */}
+        <Paper 
+          elevation={0}
+          sx={{ 
+            p: { xs: 3, md: 5 },
+            borderRadius: 3,
+            border: '1px solid #e2e8f0',
+            bgcolor: '#ffffff',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+          }}
+        >
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 3,
+                borderRadius: 2,
+                '& .MuiAlert-icon': {
+                  alignItems: 'center'
+                }
+              }}
+            >
               {error}
             </Alert>
           )}
 
           {renderStepContent(activeStep)}
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+          {/* 네비게이션 버튼 */}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mt: 5,
+            pt: 4,
+            borderTop: '1px solid #e2e8f0'
+          }}>
             <Button
               disabled={activeStep === 0}
               onClick={handleBack}
-              variant="outlined"
+              sx={{
+                px: 4,
+                py: 1.5,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '1rem',
+                fontWeight: 600,
+                color: activeStep === 0 ? '#cbd5e0' : '#4a5568',
+                border: '2px solid',
+                borderColor: activeStep === 0 ? '#e2e8f0' : '#cbd5e0',
+                bgcolor: 'transparent',
+                '&:hover': {
+                  bgcolor: activeStep === 0 ? 'transparent' : '#f7fafc',
+                  borderColor: activeStep === 0 ? '#e2e8f0' : '#a0aec0'
+                }
+              }}
             >
               이전
             </Button>
             <Button
-              variant="contained"
               onClick={handleNext}
               disabled={loading}
               startIcon={loading && <CircularProgress size={20} color="inherit" />}
+              sx={{
+                px: 4,
+                py: 1.5,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '1rem',
+                fontWeight: 600,
+                bgcolor: '#2d3748',
+                color: '#ffffff',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                '&:hover': {
+                  bgcolor: '#1a202c',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                },
+                '&:disabled': {
+                  bgcolor: '#cbd5e0',
+                  color: '#fff'
+                }
+              }}
             >
               {activeStep === steps.length - 1 ? '제출하기' : '다음'}
             </Button>
           </Box>
         </Paper>
+
+        {/* 진행 상태 표시 */}
+        <Box sx={{ 
+          mt: 3, 
+          textAlign: 'center',
+          color: '#718096',
+          fontSize: '0.875rem'
+        }}>
+          {activeStep + 1} / {steps.length} 단계
+        </Box>
       </Container>
       <Footer />
     </Box>

@@ -173,6 +173,15 @@ export interface Partnership {
   smallBagsAvailable?: number;
   mediumBagsAvailable?: number;
   largeBagsAvailable?: number;
+  storePictures?: string[];
+  amenities?: string[];
+  insuranceAvailable?: boolean;
+  businessRegistrationUrl?: string;
+  bankBookUrl?: string;
+  accountNumber?: string;
+  bankName?: string;
+  accountHolder?: string;
+  rejectionReason?: string;
 }
 
 export interface BusinessHourDto {

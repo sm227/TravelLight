@@ -33,6 +33,7 @@ import AdminReviews from './pages/admin/AdminReviews';
 import AdminFAQs from './pages/admin/AdminFAQs';
 import AdminInquiries from './pages/admin/AdminInquiries';
 import AdminStores from './pages/admin/AdminStores';
+import CouponMaster from './pages/admin/CouponMaster';
 import { useTranslation } from 'react-i18next';
 import Partner from './pages/Partner';
 import PartnerSignup from './pages/PartnerSignup';
@@ -340,6 +341,7 @@ function App() {
               <Route path="faqs" element={<AdminFAQs />} />
               <Route path="inquiries" element={<AdminInquiries />} />
               <Route path="stores" element={<AdminStores />} />
+              <Route path="coupons" element={<CouponMaster />} />
             </Route>
 
             {/* Catch-all route for 404 Not Found */}

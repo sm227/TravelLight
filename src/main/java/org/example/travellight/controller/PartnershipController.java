@@ -133,11 +133,12 @@ public class PartnershipController {
                         .body(CommonApiResponse.error("유효하지 않은 상태입니다. APPROVED 또는 REJECTED만 가능합니다."));
             }
 
-            Partnership updatedPartnership = partnershipService.updatePartnershipStatus(id, newStatus);
+            String rejectionReason = statusUpdate.get("rejectionReason");
+            Partnership updatedPartnership = partnershipService.updatePartnershipStatus(id, newStatus, rejectionReason);
             
             String successMessage = "APPROVED".equals(newStatus) 
                 ? "제휴점이 승인되었습니다. 해당 사용자의 권한이 파트너로 업데이트되었습니다." 
-                : "제휴 신청이 거절되었습니다.";
+                : "제휴 신청이 거절되었습니다. 거부 사유가 이메일로 전송되었습니다.";
                 
             return ResponseEntity.ok(CommonApiResponse.success(successMessage, updatedPartnership));
         } catch (Exception e) {
@@ -364,6 +365,33 @@ public class PartnershipController {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonApiResponse.error("제휴점 정보 수정 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "제휴점 해제", description = "제휴점을 해제합니다. 상태가 TERMINATED로 변경되고 사용자 권한이 USER로 변경됩니다. (어드민 전용)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "해제 성공", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "404", description = "제휴점을 찾을 수 없음", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "500", description = "서버 오류", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
+    })
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> terminatePartnership(
+            @Parameter(description = "제휴점 ID", required = true)
+            @PathVariable Long id) {
+        try {
+            Partnership terminatedPartnership = partnershipService.terminatePartnership(id);
+            return ResponseEntity.ok(CommonApiResponse.success("제휴점이 성공적으로 해제되었습니다. 사용자 권한이 USER로 변경되었습니다.", terminatedPartnership));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(CommonApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("제휴점 해제 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonApiResponse.error("제휴점 해제 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 }
