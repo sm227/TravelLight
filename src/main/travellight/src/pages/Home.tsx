@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Box, Container } from "@mui/material";
 import { useTranslation } from 'react-i18next';
 import Navbar from "../components/Navbar";
@@ -6,9 +6,13 @@ import Hero from "../components/Hero";
 import Services from "../components/Services";
 import Footer from "../components/Footer";
 import TopRatedPlaces from "../components/reviews/TopRatedPlaces";
+import CouponNotificationPopup from "../components/CouponNotificationPopup";
+import { useAuth } from "../services/AuthContext";
 
 const Home: React.FC = () => {
   const { t } = useTranslation();
+  const { user, isAuthenticated } = useAuth();
+  const [showCouponPopup, setShowCouponPopup] = useState(false);
   
   useEffect(() => {
     // SEO 메타 태그 설정
@@ -178,6 +182,33 @@ const Home: React.FC = () => {
     };
   }, []);
 
+  // 로그인한 사용자에게 쿠폰 팝업 표시
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      // 로그인 후 3초 뒤에 쿠폰 팝업 표시
+      const timer = setTimeout(() => {
+        // "오늘 하루 보지 않기"를 체크했는지 확인
+        const today = new Date().toDateString();
+        const dontShowToday = localStorage.getItem('couponPopupDontShowToday');
+        const dontShowDate = localStorage.getItem('couponPopupDontShowDate');
+
+        // 오늘 "보지 않기"를 체크했으면 팝업을 표시하지 않음
+        if (dontShowToday === 'true' && dontShowDate === today) {
+          return;
+        }
+
+        // 그 외의 경우 매번 팝업 표시
+        setShowCouponPopup(true);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, user]);
+
+  const handleCloseCouponPopup = () => {
+    setShowCouponPopup(false);
+  };
+
   return (
     <Box
       component="div"
@@ -231,6 +262,13 @@ const Home: React.FC = () => {
       <Box component="footer" role="contentinfo">
         <Footer />
       </Box>
+
+      {/* 쿠폰 알림 팝업 */}
+      <CouponNotificationPopup
+        userId={user?.id || null}
+        open={showCouponPopup}
+        onClose={handleCloseCouponPopup}
+      />
     </Box>
   );
 };

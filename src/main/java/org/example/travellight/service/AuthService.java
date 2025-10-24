@@ -1,6 +1,7 @@
 package org.example.travellight.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.travellight.dto.CustomUserDetails;
 import org.example.travellight.dto.TokenResponse;
 import org.example.travellight.dto.UserDto;
@@ -14,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -21,6 +23,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserJwtService userJwtService;
     private final PasswordEncoder passwordEncoder;
+    private final UserCouponService userCouponService;
 
     /**
      * 현재 인증된 사용자 정보 조회
@@ -69,6 +72,17 @@ public class AuthService {
 
         // 저장
         user = userRepository.save(user);
+
+        // 웰컴 쿠폰 발급 (일반 사용자인 경우)
+        if (user.getRole() == Role.USER) {
+            try {
+                userCouponService.issueWelcomeCoupon(user.getId());
+                log.info("회원가입한 사용자 {}에게 웰컴 쿠폰 발급 완료", user.getId());
+            } catch (Exception e) {
+                // 웰컴 쿠폰 발급 실패 시 로그만 남기고 회원가입은 정상 진행
+                log.error("웰컴 쿠폰 발급 실패: userId={}", user.getId(), e);
+            }
+        }
 
         // JWT 토큰 생성
         TokenResponse tokens = userJwtService.generateTokens(user.getId());
