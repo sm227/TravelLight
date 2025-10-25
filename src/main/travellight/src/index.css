@@ -86,8 +86,6 @@ body {
   min-height: 100dvh; /* iOS Safari 동적 viewport 대응 */
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
 }
 
 /* AdminLayout 관련 스타일 */
