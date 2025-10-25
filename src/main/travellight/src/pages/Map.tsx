@@ -4656,23 +4656,24 @@ const Map = () => {
             left: "calc(16px + var(--safe-area-inset-left))",
             width: "400px",
             maxHeight: (selectedPlace || isReservationOpen)
-              ? "calc(100vh - 32px - var(--safe-area-inset-top) - var(--safe-area-inset-bottom))"
-              : "calc(90vh - 16px - var(--safe-area-inset-top))",
+              ? ["calc(100vh - 32px - var(--safe-area-inset-top) - var(--safe-area-inset-bottom))", "calc(100dvh - 32px - var(--safe-area-inset-top) - var(--safe-area-inset-bottom))"]
+              : ["calc(90vh - 16px - var(--safe-area-inset-top))", "calc(90dvh - 16px - var(--safe-area-inset-top))"],
           },
 
           // 모바일
           "@media (max-width: 767px)": {
             left: "var(--safe-area-inset-left)",
             right: "var(--safe-area-inset-right)",
-            bottom: "var(--safe-area-inset-bottom)",
             width: "calc(100% - var(--safe-area-inset-left) - var(--safe-area-inset-right))",
             ...(selectedPlace || isReservationOpen ? {
-              // 매장 정보/예약 열렸을 때: 상단 safe area 아래에서 시작
+              // 매장 정보/예약 열렸을 때: 상단 safe area 아래에서 시작하고 하단까지
               top: "var(--safe-area-inset-top)",
-              height: "calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom))",
+              bottom: 0,
+              height: "auto",
               maxHeight: "none",
             } : {
               // 검색창만 표시: 하단에서 올라옴
+              bottom: "var(--safe-area-inset-bottom)",
               maxHeight: "calc(75vh - var(--safe-area-inset-bottom))",
             }),
             borderTopLeftRadius: "16px",
@@ -5050,13 +5051,17 @@ const Map = () => {
               // 명시적인 최대 높이 설정
               "@media (min-width: 768px)": {
                 maxHeight: (selectedPlace || isReservationOpen)
-                  ? "calc(100vh - 200px)" // 하단 버튼 공간 확보
-                  : "calc(90vh - 200px)", // 검색 영역을 고려한 높이 조정
+                  ? ["calc(100vh - 200px)", "calc(100dvh - 200px)"] // 하단 버튼 공간 확보
+                  : ["calc(90vh - 200px)", "calc(90dvh - 200px)"], // 검색 영역을 고려한 높이 조정
               },
               "@media (max-width: 767px)": {
                 maxHeight: (selectedPlace || isReservationOpen)
-                  ? "calc(98vh - 120px)" // 하단 버튼 공간 확보
-                  : "calc(75vh - 150px)", // 검색 영역을 고려한 높이 조정
+                  ? ["calc(98vh - 120px)", "calc(98dvh - 120px)"] // 하단 버튼 공간 확보
+                  : ["calc(75vh - 150px)", "calc(75dvh - 150px)"], // 검색 영역을 고려한 높이 조정
+                // 하단 safe area를 위한 패딩 추가 (iOS 홈 인디케이터 영역)
+                pb: (selectedPlace || isReservationOpen)
+                  ? "calc(24px + var(--safe-area-inset-bottom))"
+                  : 3,
               },
             }}
           >
