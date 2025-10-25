@@ -106,7 +106,7 @@ const Footer: React.FC = () => {
                 <LuggageIcon sx={{ fontSize: { xs: 28, md: 32 }, color: theme.palette.primary.main }} />
               </Box>
               <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', fontSize: { xs: '1.5rem', md: '2.125rem' }, backgroundImage: 'linear-gradient(90deg, #FFFFFF 0%, #5D9FFF 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                TravelLight
+                Travelight
               </Typography>
             </Box>
             <Typography variant="body1" sx={{ mb: { xs: 2, md: 3 }, fontSize: { xs: '0.875rem', md: '1rem' }, color: alpha('#fff', 0.8), lineHeight: 1.7 }}>
