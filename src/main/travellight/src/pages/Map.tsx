@@ -4666,9 +4666,15 @@ const Map = () => {
             right: "var(--safe-area-inset-right)",
             bottom: "var(--safe-area-inset-bottom)",
             width: "calc(100% - var(--safe-area-inset-left) - var(--safe-area-inset-right))",
-            maxHeight: (selectedPlace || isReservationOpen)
-              ? "calc(98vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom))"
-              : "calc(75vh - var(--safe-area-inset-bottom))",
+            ...(selectedPlace || isReservationOpen ? {
+              // 매장 정보/예약 열렸을 때: 상단 safe area 아래에서 시작
+              top: "var(--safe-area-inset-top)",
+              height: "calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom))",
+              maxHeight: "none",
+            } : {
+              // 검색창만 표시: 하단에서 올라옴
+              maxHeight: "calc(75vh - var(--safe-area-inset-bottom))",
+            }),
             borderTopLeftRadius: "16px",
             borderTopRightRadius: "16px",
           },
@@ -4685,7 +4691,7 @@ const Map = () => {
             alignItems: "center",
             justifyContent: "space-between",
             background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-            boxShadow: "0 2px 8px rgba(25, 118, 210, 0.15)"
+            boxShadow: "0 2px 8px rgba(25, 118, 210, 0.15)",
           }}
         >
           {/* 로고 및 브랜드 */}
