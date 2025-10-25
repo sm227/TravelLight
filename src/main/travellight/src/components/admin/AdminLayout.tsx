@@ -13,17 +13,12 @@ import {
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
-  Assessment as AssessmentIcon,
-  Inventory as InventoryIcon,
   MonitorHeart as MonitorHeartIcon,
-  CloudQueue as CloudQueueIcon,
   Event as EventIcon,
   Handshake as HandshakeIcon,
   Store as StoreIcon,
-  Analytics as AnalyticsIcon,
   People as PeopleIcon,
   Work as WorkIcon,
-  Settings as SettingsIcon,
   ChevronLeft as ChevronLeftIcon,
   Menu as MenuIcon,
   Notifications as NotificationsIcon,
@@ -73,16 +68,13 @@ const AdminLayout = () => {
       title: '대시보드',
       items: [
         { text: '서비스 현황', icon: <DashboardIcon />, path: '/admin' },
-        { text: '실시간 분석', icon: <AssessmentIcon />, path: '/admin/analytics' },
       ]
     },
     {
       title: '운영 관리',
       items: [
-        { text: '보관함 모니터링', icon: <InventoryIcon />, path: '/admin/lockers' },
         { text: '시스템 상태', icon: <MonitorHeartIcon />, path: '/admin/services' },
         { text: '이벤트 짐보관', icon: <EventIcon />, path: '/admin/event-storage' },
-        { text: '클라우드 현황', icon: <CloudQueueIcon />, path: '/admin/cloud-status' },
       ]
     },
     {
@@ -106,8 +98,6 @@ const AdminLayout = () => {
       items: [
         { text: '사용자 관리', icon: <PeopleIcon />, path: '/admin/users' },
         { text: 'HR 관리', icon: <WorkIcon />, path: '/admin/hr' },
-        { text: '로그 분석', icon: <AnalyticsIcon />, path: '/admin/logs' },
-        { text: '시스템 설정', icon: <SettingsIcon />, path: '/admin/settings' },
       ]
     }
   ];
