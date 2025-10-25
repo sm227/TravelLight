@@ -16,7 +16,7 @@ const Home: React.FC = () => {
   
   useEffect(() => {
     // SEO 메타 태그 설정
-    document.title = "TravelLight - 여행짐 보관 및 배송 서비스";
+    document.title = "Travelight - 여행짐 보관 및 배송 서비스";
 
     // 기존 메타 태그 제거 및 새로운 메타 태그 추가
     const updateMetaTag = (
@@ -48,17 +48,17 @@ const Home: React.FC = () => {
     );
     updateMetaTag(
       "keywords",
-      "여행짐보관, 짐보관서비스, 여행가방보관, 캐리어보관, 짐배송, TravelLight, 여행편의, 트래블라이트"
+      "여행짐보관, 짐보관서비스, 여행가방보관, 캐리어보관, 짐배송, TravelLight, Travelight, 여행편의, 트래블라이트"
     );
     updateMetaTag("author", "TravelLight");
     updateMetaTag("robots", "index, follow");
     updateMetaTag("viewport", "width=device-width, initial-scale=1.0");
 
     // Open Graph 메타 태그들
-    updateMetaTag("og:title", "TravelLight - 여행짐 보관 및 배송 서비스", true);
+    updateMetaTag("og:title", "Travelight - 여행짐 보관 및 배송 서비스", true);
     updateMetaTag(
       "og:description",
-      "여행 중 무거운 짐은 TravelLight에 맡기세요. 안전한 보관소에서 짐을 보관하고 원하는 장소로 배송받을 수 있습니다.",
+      "여행 중 무거운 짐은 Travelight에 맡기세요. 안전한 보관소에서 짐을 보관하고 원하는 장소로 배송받을 수 있습니다.",
       true
     );
     updateMetaTag("og:type", "website", true);
@@ -68,17 +68,17 @@ const Home: React.FC = () => {
 
     // Twitter 카드 메타 태그들
     updateMetaTag("twitter:card", "summary_large_image");
-    updateMetaTag("twitter:title", "TravelLight - 여행짐 보관 및 배송 서비스");
+    updateMetaTag("twitter:title", "Travelight - 여행짐 보관 및 배송 서비스");
     updateMetaTag(
       "twitter:description",
-      "여행 중 무거운 짐은 TravelLight에 맡기세요. 안전한 보관소에서 짐을 보관하고 원하는 장소로 배송받을 수 있습니다."
+      "여행 중 무거운 짐은 Travelight에 맡기세요. 안전한 보관소에서 짐을 보관하고 원하는 장소로 배송받을 수 있습니다."
     );
 
     // JSON-LD 구조화 데이터 추가
     const jsonLd = {
       "@context": "https://schema.org",
       "@type": "LocalBusiness",
-      name: "TravelLight",
+      name: "Travelight",
       description: "여행짐 보관 및 배송 서비스",
       url: window.location.origin,
       telephone: "+82-1234-5678",
