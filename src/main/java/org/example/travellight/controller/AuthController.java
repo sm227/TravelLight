@@ -306,7 +306,7 @@ public class AuthController {
         cookie.setSecure(jwtConfig.isSecure()); // 설정값에 따라 결정 (로컬에선 HTTP로 테스트하기 때문)
         cookie.setPath("/");
         cookie.setMaxAge((int) jwtConfig.getRefreshTokenExpiration());
-        cookie.setAttribute("SameSite", "Strict");
+        cookie.setAttribute("SameSite", "Lax");
 
         response.addCookie(cookie);
     }
