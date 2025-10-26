@@ -17,6 +17,9 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Autocomplete,
+  TextField,
+  CircularProgress,
 } from '@mui/material';
 import {
   LuggageOutlined,
@@ -30,26 +33,28 @@ import {
   CheckCircle,
   AccessTime,
   EventNote,
-  Chat as ChatIcon
+  Chat as ChatIcon,
+  Search as SearchIcon
 } from '@mui/icons-material';
-import { 
-  AreaChart, 
-  Area, 
-  BarChart, 
-  Bar, 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
   Cell
 } from 'recharts';
 import { getRecentReservations } from '../../services/reservationService';
 import { ReservationDto } from '../../types/reservation';
 import { partnershipService } from '../../services/api';
 import { AdminChatInterface } from '../../components/admin/AdminChatInterface';
+import { useNavigate } from 'react-router-dom';
 
 // 전문적이고 세련된 ERP 색상 정의
 const COLORS = {
@@ -70,6 +75,27 @@ const COLORS = {
   info: '#06b6d4',
   backgroundHover: 'rgba(255, 255, 255, 0.05)',
 };
+
+// 검색 타입 설정 (enabled를 false로 변경하면 해당 타입 제외)
+const SEARCH_TYPES = {
+  RESERVATION: { enabled: true, label: '예약', color: '#3b82f6' },
+  USER: { enabled: true, label: '사용자', color: '#10b981' },
+  PARTNERSHIP: { enabled: true, label: '제휴점', color: '#6366f1' },
+  EVENT: { enabled: false, label: '이벤트', color: '#f59e0b' },
+  INQUIRY: { enabled: false, label: '문의', color: '#06b6d4' },
+  REVIEW: { enabled: false, label: '리뷰', color: '#eab308' },
+  FAQ: { enabled: false, label: 'FAQ', color: '#71717a' }
+};
+
+interface SearchResult {
+  type: string;
+  id: number;
+  title: string;
+  subtitle: string;
+  status: string;
+  meta: string;
+  detailUrl: string;
+}
 
 interface PartnershipData {
   id: number;
@@ -114,6 +140,7 @@ interface StorageUsageData {
 
 const AdminDashboard = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState('오늘');
   const [recentReservations, setRecentReservations] = useState<ReservationDto[]>([]);
   const [partnerships, setPartnerships] = useState<PartnershipData[]>([]);
@@ -124,6 +151,12 @@ const AdminDashboard = () => {
   const [isHovering, setIsHovering] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  // 통합 검색 상태
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // 실제 예약 데이터 로드
   useEffect(() => {
@@ -218,6 +251,62 @@ const AdminDashboard = () => {
   }, [partnerships]);
 
 
+  // 통합 검색 디바운스
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.trim().length > 0) {
+        handleSearch(searchQuery);
+      } else {
+        setSearchResults([]);
+        setSearchOpen(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // 통합 검색 API 호출
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      // 활성화된 타입만 필터링
+      const enabledTypes = Object.entries(SEARCH_TYPES)
+        .filter(([_, config]) => config.enabled)
+        .map(([type, _]) => type);
+
+      // URLSearchParams로 배열 파라미터 생성
+      const params = new URLSearchParams();
+      params.append('query', query);
+      enabledTypes.forEach(type => params.append('types', type));
+
+      const response = await fetch(`/api/admin/search?${params}`);
+      const data = await response.json();
+
+      if (data.success && data.data.results) {
+        setSearchResults(data.data.results);
+        setSearchOpen(true);
+      }
+    } catch (error) {
+      console.error('검색 중 오류 발생:', error);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // 검색 결과 선택 핸들러
+  const handleSearchResultSelect = (result: SearchResult | null) => {
+    if (result) {
+      navigate(result.detailUrl);
+      setSearchQuery('');
+      setSearchOpen(false);
+    }
+  };
+
   // 자동 스크롤 기능
   useEffect(() => {
     if (!isHovering && storageUsages.length > 3) {
@@ -227,15 +316,15 @@ const AdminDashboard = () => {
           const itemHeight = 100; // 각 매장 항목의 대략적인 높이
           const maxScroll = container.scrollHeight - container.clientHeight;
           const currentScroll = container.scrollTop;
-          
+
           if (currentScroll >= maxScroll - 10) {
             // 맨 아래에 도달하면 맨 위로 부드럽게 이동
             container.scrollTo({ top: 0, behavior: 'smooth' });
           } else {
             // 다음 항목으로 부드럽게 스크롤
-            container.scrollTo({ 
-              top: currentScroll + itemHeight, 
-              behavior: 'smooth' 
+            container.scrollTo({
+              top: currentScroll + itemHeight,
+              behavior: 'smooth'
             });
           }
         }
@@ -398,6 +487,140 @@ const AdminDashboard = () => {
         </Box>
         
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          {/* 통합 검색 */}
+          <Autocomplete
+            freeSolo
+            open={searchOpen && searchResults.length > 0}
+            onOpen={() => setSearchOpen(true)}
+            onClose={() => setSearchOpen(false)}
+            options={searchResults}
+            inputValue={searchQuery}
+            onInputChange={(_, newValue) => setSearchQuery(newValue)}
+            onChange={(_, newValue) => handleSearchResultSelect(newValue as SearchResult)}
+            getOptionLabel={(option) => typeof option === 'string' ? option : option.title}
+            groupBy={(option) => typeof option === 'string' ? '' : SEARCH_TYPES[option.type as keyof typeof SEARCH_TYPES]?.label || option.type}
+            loading={searchLoading}
+            sx={{ width: 350, mr: 2 }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="통합 검색..."
+                size="small"
+                InputProps={{
+                  ...params.InputProps,
+                  startAdornment: (
+                    <SearchIcon sx={{ color: COLORS.textMuted, fontSize: '1.125rem', mr: 0.5 }} />
+                  ),
+                  endAdornment: (
+                    <>
+                      {searchLoading ? <CircularProgress size={16} sx={{ color: COLORS.accentPrimary }} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                  sx: {
+                    fontSize: '0.8125rem',
+                    bgcolor: COLORS.backgroundCard,
+                    border: `1px solid ${COLORS.borderPrimary}`,
+                    borderRadius: 1,
+                    '&:hover': {
+                      bgcolor: COLORS.backgroundSurface,
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      border: 'none',
+                    },
+                    '& input': {
+                      color: COLORS.textPrimary,
+                      '&::placeholder': {
+                        color: COLORS.textMuted,
+                        opacity: 1,
+                      },
+                    },
+                  },
+                }}
+              />
+            )}
+            renderOption={(props, option) => {
+              if (typeof option === 'string') return null;
+              const typeConfig = SEARCH_TYPES[option.type as keyof typeof SEARCH_TYPES];
+              return (
+                <Box component="li" {...props} sx={{
+                  bgcolor: COLORS.backgroundCard,
+                  '&:hover': { bgcolor: COLORS.backgroundSurface },
+                  borderBottom: `1px solid ${COLORS.borderPrimary}`,
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', py: 0.5 }}>
+                    {/* 타입 배지 */}
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        bgcolor: typeConfig?.color || COLORS.textMuted,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography
+                        sx={{
+                          color: COLORS.textPrimary,
+                          fontSize: '0.8125rem',
+                          fontWeight: 500,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {option.title}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: COLORS.textSecondary,
+                          fontSize: '0.6875rem',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {option.subtitle}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={option.status}
+                      size="small"
+                      sx={{
+                        height: 18,
+                        fontSize: '0.625rem',
+                        bgcolor: alpha(typeConfig?.color || COLORS.textMuted, 0.15),
+                        color: typeConfig?.color || COLORS.textMuted,
+                        fontWeight: 500,
+                      }}
+                    />
+                  </Box>
+                </Box>
+              );
+            }}
+            ListboxProps={{
+              sx: {
+                bgcolor: COLORS.backgroundCard,
+                border: `1px solid ${COLORS.borderPrimary}`,
+                borderRadius: 1,
+                maxHeight: 400,
+                padding: 0,
+                '& .MuiAutocomplete-groupLabel': {
+                  bgcolor: COLORS.backgroundLight,
+                  color: COLORS.textPrimary,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  py: 0.625,
+                  px: 1.5,
+                  lineHeight: 1.4,
+                  position: 'sticky',
+                  top: -8,
+                },
+              },
+            }}
+          />
+
           <Button
             variant="outlined"
             size="small"

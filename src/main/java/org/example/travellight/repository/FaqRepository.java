@@ -59,6 +59,12 @@ public interface FaqRepository extends JpaRepository<Faq, Long> {
     // 조회수가 높은 FAQ 조회
     @Query("SELECT f FROM Faq f WHERE f.isActive = true ORDER BY f.viewCount DESC")
     List<Faq> findTopByViewCount(Pageable pageable);
+
+    // 통합 검색 - 질문, 답변으로 검색 (관리자용, 비활성화 포함)
+    @Query("SELECT f FROM Faq f " +
+           "WHERE LOWER(f.question) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(f.answer) LIKE LOWER(CONCAT('%', :query, '%'))")
+    List<Faq> searchFaqs(@Param("query") String query, Pageable pageable);
 }
 
 
