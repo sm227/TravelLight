@@ -68,7 +68,7 @@ const ApprovedRidersTab: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ONLINE' | 'OFFLINE' | 'BUSY' | 'BREAK'>('ALL');
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ACTIVE');
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [selectedRider, setSelectedRider] = useState<RiderResponse | null>(null);
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
   const [openDeactivateDialog, setOpenDeactivateDialog] = useState(false);

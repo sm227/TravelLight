@@ -412,12 +412,11 @@ const AdminLayout = () => {
 
             {/* 관리자 정보 및 로그아웃 */}
             {user && (
-              <Box sx={{ 
-                display: 'flex', 
+              <Box sx={{
+                display: 'flex',
                 flexDirection: 'column',
                 gap: 1
               }}>
-
                 <ListItemButton
                   onClick={handleLogout}
                   sx={{
@@ -425,7 +424,7 @@ const AdminLayout = () => {
                     px: 1.5,
                     py: 0.75,
                     borderRadius: 1,
-                    justifyContent: 'flex-start',
+                    justifyContent: 'space-between',
                     color: '#ef4444',
                     backgroundColor: 'transparent',
                     border: `1px solid #ef4444`,
@@ -436,26 +435,39 @@ const AdminLayout = () => {
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <ListItemIcon 
-                    sx={{ 
-                      minWidth: 'unset',
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <ListItemIcon
+                      sx={{
+                        minWidth: 'unset',
+                        color: 'inherit',
+                        mr: 1.5,
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1rem'
+                        }
+                      }}
+                    >
+                      <LogoutIcon />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="로그아웃"
+                      primaryTypographyProps={{
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        color: 'inherit'
+                      }}
+                    />
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
                       color: 'inherit',
-                      mr: 1.5,
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1rem'
-                      }
+                      ml: 1
                     }}
                   >
-                    <LogoutIcon />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="로그아웃" 
-                    primaryTypographyProps={{
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      color: 'inherit'
-                    }}
-                  />
+                    {user.name}
+                  </Typography>
                 </ListItemButton>
               </Box>
             )}

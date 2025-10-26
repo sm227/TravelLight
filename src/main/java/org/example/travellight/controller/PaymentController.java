@@ -26,6 +26,28 @@ public class PaymentController {
     @Autowired
     private org.example.travellight.service.PaymentService paymentService;
 
+    @GetMapping("/portone/info/{paymentId}")
+    public ResponseEntity<?> getPortonePaymentInfo(@PathVariable String paymentId) {
+        try {
+            log.info("결제 정보 조회 요청: paymentId = {}", paymentId);
+
+            // 포트원 API를 통한 결제 정보 조회
+            Map<String, Object> paymentInfo = portOnePaymentService.verifyPayment(paymentId);
+
+            if (paymentInfo == null) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "결제 정보를 찾을 수 없습니다."));
+            }
+
+            return ResponseEntity.ok(paymentInfo);
+
+        } catch (Exception e) {
+            log.error("결제 정보 조회 중 오류: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                .body(Map.of("error", "결제 정보 조회 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+
     @PostMapping("/portone/complete")
     public ResponseEntity<?> completePortonePayment(@RequestBody Map<String, String> request) {
         String paymentId = request.get("paymentId");
