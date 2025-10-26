@@ -12,10 +12,7 @@ import {
 } from '@mui/material';
 import {
   DirectionsCar,
-  Assignment,
-  CheckCircle,
-  Work,
-  AccessTime
+  Assignment
 } from '@mui/icons-material';
 import RiderApplicationsTab from '../../components/admin/RiderApplicationsTab';
 import ApprovedRidersTab from '../../components/admin/ApprovedRidersTab';
@@ -145,57 +142,99 @@ const AdminRiders = () => {
         </Alert>
       )}
 
-      {/* 라이더 통계 카드 */}
+      {/* 라이더 통계 */}
       {tabValue === 1 && (
-        <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ bgcolor: COLORS.backgroundCard, border: `1px solid ${COLORS.borderPrimary}` }}>
-              <CardContent sx={{ textAlign: 'center' }}>
-                <DirectionsCar sx={{ fontSize: 40, color: COLORS.accentPrimary, mb: 1 }} />
-                <Typography variant="h6" fontWeight="bold" sx={{ color: COLORS.textPrimary }}>
+            <Card sx={{
+              bgcolor: COLORS.backgroundCard,
+              border: `1px solid ${COLORS.borderPrimary}`,
+              borderRadius: 1
+            }} elevation={0}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                  <DirectionsCar sx={{ fontSize: 20, color: COLORS.textSecondary }} />
+                  <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
+                    전체 라이더
+                  </Typography>
+                </Box>
+                <Typography variant="h4" fontWeight="600" sx={{ color: COLORS.textPrimary }}>
                   {stats.totalRiders}
                 </Typography>
-                <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
-                  총 라이더
-                </Typography>
               </CardContent>
             </Card>
           </Grid>
+
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ bgcolor: COLORS.backgroundCard, border: `1px solid ${COLORS.borderPrimary}` }}>
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Work sx={{ fontSize: 40, color: COLORS.success, mb: 1 }} />
-                <Typography variant="h6" fontWeight="bold" sx={{ color: COLORS.textPrimary }}>
+            <Card sx={{
+              bgcolor: COLORS.backgroundCard,
+              border: `1px solid ${COLORS.borderPrimary}`,
+              borderRadius: 1
+            }} elevation={0}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                  <Box sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: COLORS.success
+                  }} />
+                  <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
+                    온라인
+                  </Typography>
+                </Box>
+                <Typography variant="h4" fontWeight="600" sx={{ color: COLORS.success }}>
                   {stats.onlineRiders}
                 </Typography>
-                <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
-                  온라인
-                </Typography>
               </CardContent>
             </Card>
           </Grid>
+
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ bgcolor: COLORS.backgroundCard, border: `1px solid ${COLORS.borderPrimary}` }}>
-              <CardContent sx={{ textAlign: 'center' }}>
-                <AccessTime sx={{ fontSize: 40, color: COLORS.textMuted, mb: 1 }} />
-                <Typography variant="h6" fontWeight="bold" sx={{ color: COLORS.textPrimary }}>
+            <Card sx={{
+              bgcolor: COLORS.backgroundCard,
+              border: `1px solid ${COLORS.borderPrimary}`,
+              borderRadius: 1
+            }} elevation={0}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                  <Box sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: COLORS.textMuted
+                  }} />
+                  <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
+                    오프라인
+                  </Typography>
+                </Box>
+                <Typography variant="h4" fontWeight="600" sx={{ color: COLORS.textPrimary }}>
                   {stats.offlineRiders}
                 </Typography>
-                <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
-                  오프라인
-                </Typography>
               </CardContent>
             </Card>
           </Grid>
+
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ bgcolor: COLORS.backgroundCard, border: `1px solid ${COLORS.borderPrimary}` }}>
-              <CardContent sx={{ textAlign: 'center' }}>
-                <CheckCircle sx={{ fontSize: 40, color: COLORS.danger, mb: 1 }} />
-                <Typography variant="h6" fontWeight="bold" sx={{ color: COLORS.textPrimary }}>
+            <Card sx={{
+              bgcolor: COLORS.backgroundCard,
+              border: `1px solid ${COLORS.borderPrimary}`,
+              borderRadius: 1
+            }} elevation={0}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                  <Box sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: COLORS.danger
+                  }} />
+                  <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
+                    비활성
+                  </Typography>
+                </Box>
+                <Typography variant="h4" fontWeight="600" sx={{ color: COLORS.textPrimary }}>
                   {stats.inactiveRiders}
-                </Typography>
-                <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
-                  비활성
                 </Typography>
               </CardContent>
             </Card>
@@ -226,7 +265,7 @@ const AdminRiders = () => {
           }}
         >
           <Tab label="라이더 신청 관리" icon={<Assignment />} iconPosition="start" />
-          <Tab label="승인된 라이더" icon={<DirectionsCar />} iconPosition="start" />
+          <Tab label="라이더 목록" icon={<DirectionsCar />} iconPosition="start" />
         </Tabs>
 
         <TabPanel value={tabValue} index={0}>
