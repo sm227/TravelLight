@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   List,
@@ -56,6 +56,14 @@ const AdminLayout = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const mainContentRef = useRef<HTMLDivElement>(null);
+
+  // 페이지 전환 시 스크롤을 맨 위로 이동
+  useEffect(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTop = 0;
+    }
+  }, [location.pathname]);
 
   // 로그아웃 핸들러
   const handleLogout = () => {
@@ -477,6 +485,7 @@ const AdminLayout = () => {
       
       {/* 메인 콘텐츠 */}
       <Box 
+        ref={mainContentRef}
         component="main" 
         sx={{ 
           flex: 1,
