@@ -42,6 +42,9 @@ public class Driver {
     @Column
     private String phoneNumber;
 
+    @Column(name = "is_active")
+    private Boolean isActive;
+
     @Column
     private LocalDateTime lastLocationUpdate;
 
@@ -62,6 +65,9 @@ public class Driver {
         if (status == null) {
             status = DriverStatus.OFFLINE;
         }
+        if (isActive == null) {
+            isActive = true;
+        }
     }
 
     @PreUpdate
@@ -74,5 +80,21 @@ public class Driver {
         this.currentLatitude = latitude;
         this.currentLongitude = longitude;
         this.lastLocationUpdate = LocalDateTime.now();
+    }
+
+    // 출퇴근 상태 변경
+    public void updateStatus(DriverStatus status) {
+        this.status = status;
+    }
+
+    // 비활성화
+    public void deactivate() {
+        this.isActive = false;
+        this.status = DriverStatus.OFFLINE; // 비활성화 시 오프라인으로 변경
+    }
+
+    // 활성화
+    public void activate() {
+        this.isActive = true;
     }
 }

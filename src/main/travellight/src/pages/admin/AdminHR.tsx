@@ -466,11 +466,11 @@ const AdminHR = () => {
         bgcolor: COLORS.backgroundCard, 
         border: `1px solid ${COLORS.borderPrimary}` 
       }} elevation={0}>
-        <Tabs 
-          value={tabValue} 
-          onChange={handleTabChange} 
-          sx={{ 
-            borderBottom: 1, 
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          sx={{
+            borderBottom: 1,
             borderColor: COLORS.borderPrimary,
             '& .MuiTab-root': {
               color: COLORS.textSecondary,
