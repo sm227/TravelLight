@@ -1154,13 +1154,35 @@ const Map = () => {
     showReservations: initialShowReservations = false,
   } = (location.state as any) || {};
 
+  // 컴포넌트 마운트 시 제휴점 데이터 먼저 로드 (지도 초기화와 별개)
+  useEffect(() => {
+    const fetchPartnershipsData = async () => {
+      try {
+        const response = await axios.get("/api/partnership", {
+          timeout: 5000,
+        });
+        if (response.data && response.data.success) {
+          const partnershipData = response.data.data.filter(
+            (partnership: Partnership) => partnership.status === "APPROVED"
+          );
+          setPartnerships(partnershipData);
+          console.log('제휴점 데이터 먼저 로드 완료:', partnershipData.length);
+        }
+      } catch (error) {
+        console.error("제휴점 데이터 사전 로드 중 오류:", error);
+      }
+    };
+
+    fetchPartnershipsData();
+  }, []);
+
   // 선택된 장소의 리뷰 통계 가져오기
   useEffect(() => {
     const fetchReviewStats = async () => {
       if (selectedPlace && selectedPlace.place_name && selectedPlace.address_name) {
         try {
           const response = await reviewService.getPlaceReviewSummary(
-            selectedPlace.place_name, 
+            selectedPlace.place_name,
             selectedPlace.address_name
           );
           setReviewStats({
@@ -4329,6 +4351,10 @@ const Map = () => {
       // 쿠폰 할인을 적용한 최종 결제 금액 계산
       const finalPaymentAmount = totalPrice - couponDiscount;
 
+      // 모바일 결제를 위한 예약 번호 미리 생성
+      const reservationNumber = generateReservationNumber();
+      console.log("생성된 예약 번호:", reservationNumber);
+
       // 포트원 결제 요청
       const payment = await PortOne.requestPayment({
         storeId: "store-ef16a71d-87cc-4e73-a6b8-448a8b07840d", // 환경변수 또는 기본값
@@ -4348,8 +4374,11 @@ const Map = () => {
         customData: {
           reservationData: {
             userId: user?.id,
+            userEmail: user?.email || "",
+            userName: user?.name || "",
             placeName: selectedPlace.place_name,
             placeAddress: selectedPlace.address_name,
+            reservationNumber: reservationNumber,
             storageDate: storageDate,
             storageEndDate:
               storageDuration === "period" ? storageEndDate : storageDate,
@@ -4363,6 +4392,7 @@ const Map = () => {
             couponCode: appliedCoupon ? couponCode.trim().toUpperCase() : null,
             couponDiscount: couponDiscount,
             storageType: storageDuration,
+            status: "RESERVED",
           },
         } as any, // 타입 오류 임시 해결
       });

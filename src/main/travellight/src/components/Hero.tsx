@@ -137,6 +137,21 @@ const Hero: React.FC = () => {
         });
     };
 
+    // 매장 개수를 먼저 로드 (지도 초기화와 별개)
+    useEffect(() => {
+        const fetchPartnershipsCount = async () => {
+            try {
+                const response = await partnershipService.getAllPartnerships();
+                const partnershipsData = response.data || [];
+                setPartnerships(partnershipsData);
+            } catch (error) {
+                console.error('파트너십 데이터 로드 실패:', error);
+            }
+        };
+
+        fetchPartnershipsCount();
+    }, []);
+
     // 네이버 지도 초기화
     useEffect(() => {
         const initializeMap = async () => {
@@ -175,7 +190,7 @@ const Hero: React.FC = () => {
                 // 현재 위치 마커 추가
                 addCurrentLocationMarker(naverMap, position);
 
-                // 파트너십 데이터 로드
+                // 파트너십 데이터 로드 (지도 마커 표시용)
                 loadPartnerships(naverMap);
             }
         };
