@@ -2330,7 +2330,8 @@ const Map = () => {
         });
       }
     };
-  }, [isPaymentComplete]); // partnershipOverlays 의존성 제거
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 컴포넌트 마운트 시에만 실행 (새로고침 시에도 지도와 마커가 로드됨)
 
   // 현재 위치로 돌아가는 함수를 useCallback으로 메모이제이션
   const returnToMyLocation = useCallback(() => {
