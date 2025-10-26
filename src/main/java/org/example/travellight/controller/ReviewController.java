@@ -300,6 +300,19 @@ public class ReviewController {
         return ResponseEntity.ok(CommonApiResponse.success("신고가 많은 리뷰 목록을 조회했습니다.", reviews));
     }
     
+    @Operation(summary = "특정 사용자의 리뷰 조회", description = "관리자가 특정 사용자의 모든 리뷰를 조회합니다.")
+    @GetMapping("/admin/user/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CommonApiResponse<Page<ReviewDto.ReviewResponse>>> getAdminUserReviews(
+            @Parameter(description = "사용자 ID", required = true)
+            @PathVariable Long userId,
+            @PageableDefault(size = 100) Pageable pageable) {
+        
+        Page<ReviewDto.ReviewResponse> reviews = reviewService.getAdminUserReviews(userId, pageable);
+        
+        return ResponseEntity.ok(CommonApiResponse.success("사용자 리뷰 목록을 조회했습니다.", reviews));
+    }
+    
     // Private helper methods
     
     private User getCurrentUserLegacy(Principal principal) {

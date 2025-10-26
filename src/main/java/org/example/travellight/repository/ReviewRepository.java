@@ -27,6 +27,9 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     // 사용자의 리뷰 조회
     Page<Review> findByUserAndStatusOrderByCreatedAtDesc(User user, ReviewStatus status, Pageable pageable);
     
+    // 사용자의 모든 리뷰 조회 (관리자용, 상태 관계없이)
+    Page<Review> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
+    
     // 예약에 대한 리뷰 존재 여부 확인
     boolean existsByReservationIdAndStatus(Long reservationId, ReviewStatus status);
     

@@ -50,4 +50,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
            "(r.storageEndDate = CURRENT_DATE AND r.storageEndTime < CURRENT_TIME))")
     int updateExpiredReservationsForStoreToCompleted(@Param("placeName") String placeName, 
                                                     @Param("placeAddress") String placeAddress);
+    
+    // User를 fetch join하여 모든 예약 조회 (통계용)
+    @Query("SELECT r FROM Reservation r JOIN FETCH r.user")
+    List<Reservation> findAllWithUser();
 } 

@@ -4,7 +4,7 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import { adminUserService, AdminUserResponse, claimService, ClaimResponse, activityLogService, ActivityLogDto, paymentService, type PaymentDto } from '../../services/api';
+import { adminUserService, AdminUserResponse, claimService, ClaimResponse, activityLogService, ActivityLogDto, paymentService, type PaymentDto, partnershipService, reviewService, ReviewResponse } from '../../services/api';
 import { getMyReservations } from '../../services/reservationService';
 import { ReservationDto } from '../../types/reservation';
 
@@ -102,6 +102,8 @@ const UserDetail = () => {
   const [selectedClaim, setSelectedClaim] = useState<ClaimResponse | null>(null);
   const [resolutionText, setResolutionText] = useState('');
   const [processingResolve, setProcessingResolve] = useState(false);
+  const [reviews, setReviews] = useState<ReviewResponse[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   // 사용자 정보 로드
   const loadUser = async () => {
@@ -159,6 +161,13 @@ const UserDetail = () => {
       loadActivityLogs();
     }
   }, [tabValue, userId, activityLogFilter]);
+
+  // 예약 내역 탭이 활성화될 때 리뷰 목록 로드
+  useEffect(() => {
+    if (tabValue === 1 && userId) {
+      loadReviews();
+    }
+  }, [tabValue, userId]);
 
   // 사용자 정보가 로드되면 고객 통계 계산
   useEffect(() => {
@@ -249,6 +258,29 @@ const UserDetail = () => {
       setAlertMessage({type: 'error', message: '결제 목록을 불러오는데 실패했습니다.'});
     } finally {
       setLoadingPayments(false);
+    }
+  };
+
+  // 리뷰 목록 로드
+  const loadReviews = async () => {
+    if (!userId) {
+      return;
+    }
+
+    try {
+      setLoadingReviews(true);
+      const response = await reviewService.getUserReviews(parseInt(userId));
+      if (response.success) {
+        setReviews(response.data.content);
+      } else {
+        console.log('리뷰 조회 실패');
+      }
+    } catch (error) {
+      console.error('리뷰 목록 로드 중 오류:', error);
+      // 오류가 발생해도 빈 배열로 처리
+      setReviews([]);
+    } finally {
+      setLoadingReviews(false);
     }
   };
 
@@ -936,6 +968,141 @@ const UserDetail = () => {
                   </div>
                 </div>
 
+                {/* 매장별 예약 건수 */}
+                <div style={{ 
+                  backgroundColor: '#27272a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '4px',
+                  padding: '15px',
+                  marginBottom: '20px'
+                }}>
+                  <h4 style={{ 
+                    color: '#fafafa', 
+                    fontSize: '14px', 
+                    marginBottom: '10px',
+                    fontWeight: 'bold'
+                  }}>매장별 예약 건수 & 짐 보관 통계</h4>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+                    gap: '10px'
+                  }}>
+                    {Array.from(
+                      reservations.reduce((acc, r) => {
+                        const key = `${r.placeName}|${r.placeAddress}`;
+                        const existing = acc.get(key) || { count: 0, small: 0, medium: 0, large: 0 };
+                        acc.set(key, {
+                          count: existing.count + 1,
+                          small: existing.small + (r.smallBags || 0),
+                          medium: existing.medium + (r.mediumBags || 0),
+                          large: existing.large + (r.largeBags || 0)
+                        });
+                        return acc;
+                      }, new Map())
+                    )
+                    .sort((a, b) => (b[1] as any).count - (a[1] as any).count)
+                    .map(([key, stats]) => {
+                      const [name, address] = (key as string).split('|');
+                      const { count, small, medium, large } = stats as any;
+                      return (
+                        <div 
+                          key={key as string}
+                          style={{ 
+                            padding: '12px',
+                            backgroundColor: '#1f1f23',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                          onClick={async () => {
+                            // 매장 상세로 이동 - 제휴점 정보 조회 후 이동
+                            try {
+                              const response = await partnershipService.getAllPartnerships();
+                              if (response.success && response.data) {
+                                // placeName과 placeAddress로 제휴점 찾기
+                                const matchingPartnership = response.data.find((p: any) => {
+                                  return p.businessName === name || 
+                                         p.address === address ||
+                                         p.businessName.includes(name) ||
+                                         name.includes(p.businessName);
+                                });
+                                
+                                if (matchingPartnership) {
+                                  navigate(`/admin/partnerships/${matchingPartnership.id}`);
+                                } else {
+                                  alert('해당 매장의 제휴점 정보를 찾을 수 없습니다.');
+                                }
+                              }
+                            } catch (error) {
+                              console.error('제휴점 정보 조회 실패:', error);
+                              alert('제휴점 정보를 불러오는데 실패했습니다.');
+                            }
+                          }}
+                        >
+                          <div style={{ 
+                            fontWeight: 'bold',
+                            color: '#fafafa',
+                            marginBottom: '4px',
+                            fontSize: '13px'
+                          }}>{name}</div>
+                          <div style={{ 
+                            color: '#a1a1aa',
+                            fontSize: '11px',
+                            marginBottom: '8px'
+                          }}>{address}</div>
+                          <div style={{ 
+                            color: '#3b82f6',
+                            fontWeight: 'bold',
+                            fontSize: '14px',
+                            marginBottom: '8px'
+                          }}>{count}건</div>
+                          <div style={{
+                            borderTop: '1px solid #3f3f46',
+                            paddingTop: '8px',
+                            display: 'flex',
+                            gap: '8px',
+                            fontSize: '11px'
+                          }}>
+                            {small > 0 && (
+                              <div style={{ 
+                                backgroundColor: '#1e3a5f',
+                                color: '#60a5fa',
+                                padding: '4px 8px',
+                                borderRadius: '3px',
+                                fontWeight: 500
+                              }}>
+                                소형 {small}개
+                              </div>
+                            )}
+                            {medium > 0 && (
+                              <div style={{ 
+                                backgroundColor: '#78350f',
+                                color: '#fbbf24',
+                                padding: '4px 8px',
+                                borderRadius: '3px',
+                                fontWeight: 500
+                              }}>
+                                중형 {medium}개
+                              </div>
+                            )}
+                            {large > 0 && (
+                              <div style={{ 
+                                backgroundColor: '#7f1d1d',
+                                color: '#f87171',
+                                padding: '4px 8px',
+                                borderRadius: '3px',
+                                fontWeight: 500
+                              }}>
+                                대형 {large}개
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* 예약 내역 테이블 */}
                 <div style={{ 
                   backgroundColor: '#27272a',
@@ -973,7 +1140,43 @@ const UserDetail = () => {
                             </div>
                           </td>
                           <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
-                            <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
+                            <div 
+                              style={{ 
+                                fontWeight: 'bold', 
+                                marginBottom: '2px',
+                                color: '#3b82f6',
+                                cursor: 'pointer',
+                                textDecoration: 'none'
+                              }}
+                              onClick={async () => {
+                                try {
+                                  const response = await partnershipService.getAllPartnerships();
+                                  if (response.success && response.data) {
+                                    const matchingPartnership = response.data.find((p: any) => {
+                                      return p.businessName === reservation.placeName || 
+                                             p.address === reservation.placeAddress ||
+                                             p.businessName.includes(reservation.placeName || '') ||
+                                             (reservation.placeName || '').includes(p.businessName);
+                                    });
+                                    
+                                    if (matchingPartnership) {
+                                      navigate(`/admin/partnerships/${matchingPartnership.id}`);
+                                    } else {
+                                      alert('해당 매장의 제휴점 정보를 찾을 수 없습니다.');
+                                    }
+                                  }
+                                } catch (error) {
+                                  console.error('제휴점 정보 조회 실패:', error);
+                                  alert('제휴점 정보를 불러오는데 실패했습니다.');
+                                }
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.textDecoration = 'underline';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.textDecoration = 'none';
+                              }}
+                            >
                               {reservation.placeName}
                             </div>
                             <div style={{ fontSize: '12px', color: '#a1a1aa' }}>
@@ -1032,6 +1235,139 @@ const UserDetail = () => {
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                {/* 작성한 리뷰 목록 */}
+                <div style={{ 
+                  backgroundColor: '#27272a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '4px',
+                  padding: '15px',
+                  marginTop: '20px'
+                }}>
+                  <h4 style={{ 
+                    color: '#fafafa', 
+                    fontSize: '14px', 
+                    marginBottom: '10px',
+                    fontWeight: 'bold'
+                  }}>작성한 리뷰 ({reviews.length}개)</h4>
+                  
+                  {loadingReviews ? (
+                    <div style={{ textAlign: 'center', padding: '20px', color: '#a1a1aa' }}>
+                      리뷰 정보를 불러오는 중...
+                    </div>
+                  ) : reviews.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '20px', color: '#a1a1aa' }}>
+                      작성한 리뷰가 없습니다.
+                    </div>
+                  ) : (
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '10px'
+                    }}>
+                      {reviews.map((review) => (
+                        <div key={review.id} style={{
+                          padding: '12px',
+                          backgroundColor: '#1f1f23',
+                          border: '1px solid #3f3f46',
+                          borderRadius: '4px'
+                        }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            marginBottom: '8px'
+                          }}>
+                            <div>
+                              <div style={{ 
+                                fontWeight: 'bold', 
+                                color: '#fafafa',
+                                fontSize: '13px',
+                                marginBottom: '4px'
+                              }}>
+                                {review.placeName}
+                              </div>
+                              <div style={{ 
+                                fontSize: '11px', 
+                                color: '#a1a1aa'
+                              }}>
+                                {review.placeAddress}
+                              </div>
+                            </div>
+                            <div style={{ 
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}>
+                              <span style={{ 
+                                color: '#fbbf24',
+                                fontSize: '14px'
+                              }}>★</span>
+                              <span style={{ 
+                                color: '#fafafa',
+                                fontWeight: 'bold',
+                                fontSize: '14px'
+                              }}>{review.rating}.0</span>
+                            </div>
+                          </div>
+                          
+                          {review.title && (
+                            <div style={{ 
+                              fontWeight: 'bold',
+                              color: '#fafafa',
+                              fontSize: '13px',
+                              marginBottom: '4px'
+                            }}>
+                              {review.title}
+                            </div>
+                          )}
+                          
+                          {review.content && (
+                            <div style={{ 
+                              color: '#d1d5db',
+                              fontSize: '12px',
+                              lineHeight: '1.5',
+                              marginBottom: '8px'
+                            }}>
+                              {review.content}
+                            </div>
+                          )}
+                          
+                          <div style={{ 
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '11px',
+                            color: '#a1a1aa'
+                          }}>
+                            <span>{formatDateTime(review.createdAt)}</span>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                              {review.reportCount > 0 && (
+                                <span style={{ color: '#f87171' }}>
+                                  신고 {review.reportCount}회
+                                </span>
+                              )}
+                              {review.helpfulCount > 0 && (
+                                <span style={{ color: '#3b82f6' }}>
+                                  도움됨 {review.helpfulCount}회
+                                </span>
+                              )}
+                              <span style={{
+                                padding: '2px 6px',
+                                backgroundColor: review.status === 'ACTIVE' ? '#27272a' : '#27272a',
+                                color: review.status === 'ACTIVE' ? '#8c8' : '#f87171',
+                                border: `1px solid ${review.status === 'ACTIVE' ? '#8c8' : '#f87171'}`,
+                                borderRadius: '4px'
+                              }}>
+                                {review.status === 'ACTIVE' ? '활성' : 
+                                 review.status === 'BLOCKED' ? '차단됨' : review.status}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

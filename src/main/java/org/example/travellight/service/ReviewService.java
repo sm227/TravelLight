@@ -71,4 +71,7 @@ public interface ReviewService {
     
     // 신고가 많은 리뷰 조회 (관리자용)
     List<ReviewDto.ReviewResponse> getReviewsWithHighReports(int threshold);
+    
+    // 특정 사용자의 모든 리뷰 조회 (관리자용)
+    Page<ReviewDto.ReviewResponse> getAdminUserReviews(Long userId, Pageable pageable);
 }

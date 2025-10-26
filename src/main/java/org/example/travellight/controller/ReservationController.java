@@ -23,6 +23,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/reservations")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class ReservationController {
     
     private static final Logger logger = LoggerFactory.getLogger(ReservationController.class);
@@ -509,6 +510,34 @@ public class ReservationController {
             result.put("hasStorage", false);
             result.put("status", "ERROR");
             return ResponseEntity.ok(CommonApiResponse.success("보관 상태를 확인했습니다.", result));
+        }
+    }
+    
+    // 관리자용 전체 예약 목록 조회 (페이징 없음)
+    @GetMapping("/admin/all")
+    public ResponseEntity<List<ReservationDto>> getAllReservations() {
+        logger.info("관리자 전체 예약 목록 조회 요청");
+        try {
+            List<ReservationDto> reservations = reservationService.getAllReservations();
+            logger.info("전체 예약 목록 조회 성공 - 총 {}건", reservations.size());
+            return ResponseEntity.ok(reservations);
+        } catch (Exception e) {
+            logger.error("전체 예약 목록 조회 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    // 매장별 회원별 예약 통계 조회 (관리자용)
+    @GetMapping("/admin/stats/by-store-and-user")
+    public ResponseEntity<Map<String, Object>> getReservationStatsByStoreAndUser() {
+        logger.info("매장별 회원별 예약 통계 조회 요청");
+        try {
+            Map<String, Object> stats = reservationService.getReservationStatsByStoreAndUser();
+            logger.info("예약 통계 조회 성공");
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            logger.error("예약 통계 조회 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 } 

@@ -28,7 +28,13 @@ import {
   DialogContent,
   DialogActions,
   DialogContentText,
-  alpha
+  alpha,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import {
   ArrowBack,
@@ -45,11 +51,14 @@ import {
   Image,
   Description,
   AccountBalance,
-  LocalOffer
+  LocalOffer,
+  EventNote
 } from '@mui/icons-material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { partnershipService } from '../../services/api';
+import { partnershipService, reviewService, ReviewResponse } from '../../services/api';
+import { getReservationStats, getAllReservations } from '../../services/reservationService';
+import { ReservationDto } from '../../types/reservation';
 
 // 동일한 색상 테마
 const COLORS = {
@@ -164,6 +173,16 @@ const PartnershipDetail = () => {
   // 편의시설 및 이미지 편집 상태
   const [newAmenity, setNewAmenity] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  
+  // 예약 현황 상태
+  const [reservationStats, setReservationStats] = useState<any>(null);
+  const [loadingReservations, setLoadingReservations] = useState(false);
+  const [userReservations, setUserReservations] = useState<Array<{userId: number, userName: string, userEmail: string, count: number}>>([]);
+  const [reservationList, setReservationList] = useState<ReservationDto[]>([]);
+  
+  // 리뷰 상태
+  const [reviews, setReviews] = useState<ReviewResponse[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   // 운영시간 파싱 함수
   const parseBusinessHours = (businessHours: Record<string, string>): Record<string, BusinessHourEdit> => {
@@ -199,12 +218,58 @@ const PartnershipDetail = () => {
       setLoading(true);
       // 전체 제휴점 목록에서 해당 ID 찾기 (개별 조회 API가 없어서)
       const response = await partnershipService.getAllPartnerships();
-      if (response.success) {
-        const foundPartnership = response.data.find((p: Partnership) => p.id === parseInt(partnershipId));
+      if (response.success && response.data) {
+        const foundPartnership = (response.data as any[]).find((p: any) => p.id === parseInt(partnershipId));
         if (foundPartnership) {
-          setPartnership(foundPartnership);
-          setEditData(foundPartnership);
-          setEditBusinessHours(parseBusinessHours(foundPartnership.businessHours || {}));
+          // businessHours가 객체 형태일 경우 문자열로 변환
+          const convertedBusinessHours: Record<string, string> = {};
+          if (foundPartnership.businessHours) {
+            Object.entries(foundPartnership.businessHours).forEach(([day, hours]: [string, any]) => {
+              if (typeof hours === 'object' && hours.enabled) {
+                convertedBusinessHours[day] = `${hours.open}-${hours.close}`;
+              } else if (typeof hours === 'string') {
+                convertedBusinessHours[day] = hours;
+              } else {
+                convertedBusinessHours[day] = '휴무';
+              }
+            });
+          }
+          
+          const partnershipData = {
+            id: foundPartnership.id,
+            businessName: foundPartnership.businessName,
+            ownerName: foundPartnership.ownerName,
+            email: foundPartnership.email,
+            phone: foundPartnership.phone,
+            address: foundPartnership.address,
+            latitude: foundPartnership.latitude,
+            longitude: foundPartnership.longitude,
+            businessType: foundPartnership.businessType,
+            spaceSize: foundPartnership.spaceSize,
+            additionalInfo: foundPartnership.additionalInfo,
+            agreeTerms: foundPartnership.agreeTerms,
+            is24Hours: foundPartnership.is24Hours,
+            businessHours: convertedBusinessHours,
+            submissionId: foundPartnership.submissionId,
+            createdAt: foundPartnership.createdAt,
+            status: foundPartnership.status,
+            smallBagsAvailable: foundPartnership.smallBagsAvailable,
+            mediumBagsAvailable: foundPartnership.mediumBagsAvailable,
+            largeBagsAvailable: foundPartnership.largeBagsAvailable,
+            storePictures: foundPartnership.storePictures,
+            amenities: foundPartnership.amenities,
+            insuranceAvailable: foundPartnership.insuranceAvailable,
+            businessRegistrationUrl: foundPartnership.businessRegistrationUrl,
+            bankBookUrl: foundPartnership.bankBookUrl,
+            accountNumber: foundPartnership.accountNumber,
+            bankName: foundPartnership.bankName,
+            accountHolder: foundPartnership.accountHolder,
+            rejectionReason: foundPartnership.rejectionReason
+          } as Partnership;
+          
+          setPartnership(partnershipData);
+          setEditData(partnershipData);
+          setEditBusinessHours(parseBusinessHours(convertedBusinessHours));
         } else {
           setAlertMessage({type: 'error', message: '제휴점을 찾을 수 없습니다.'});
         }
@@ -222,6 +287,119 @@ const PartnershipDetail = () => {
   useEffect(() => {
     loadPartnership();
   }, [partnershipId]);
+  
+  // 예약 통계 로드
+  const loadReservationStats = async () => {
+    if (!partnership) return;
+    
+    try {
+      setLoadingReservations(true);
+      const stats = await getReservationStats();
+      const allReservations = await getAllReservations();
+      
+      setReservationStats(stats);
+      
+      // 이 제휴점의 예약 데이터 필터링
+      // businessName과 address를 placeName, placeAddress와 매칭
+      const storeUserStats = stats.storeUserStats || {};
+      const userInfo = stats.userInfo || {};
+      
+      // 제휴점의 businessName과 address로 매칭되는 예약 찾기
+      const matchingKeys = Object.keys(storeUserStats).filter(key => {
+        const [placeName, placeAddress] = key.split('|');
+        // 정확히 일치하거나 유사한 경우 (주소나 상호명이 약간 다를 수 있음)
+        return placeName === partnership.businessName || 
+               placeAddress === partnership.address ||
+               placeName.includes(partnership.businessName) ||
+               partnership.businessName.includes(placeName);
+      });
+      
+      // 모든 매칭되는 키의 예약 데이터 합산
+      const combinedUserStats: Record<number, number> = {};
+      matchingKeys.forEach(key => {
+        const stats = storeUserStats[key];
+        Object.entries(stats).forEach(([userId, count]) => {
+          const uid = parseInt(userId);
+          combinedUserStats[uid] = (combinedUserStats[uid] || 0) + (count as number);
+        });
+      });
+      
+      // 회원별 예약 건수 배열 생성
+      const userReservationList = Object.entries(combinedUserStats).map(([userId, count]) => {
+        const user = userInfo[parseInt(userId)] || {};
+        return {
+          userId: parseInt(userId),
+          userName: user.name || '알 수 없음',
+          userEmail: user.email || '-',
+          count: count
+        };
+      });
+      
+      // 예약 건수 많은 순으로 정렬
+      userReservationList.sort((a, b) => b.count - a.count);
+      
+      setUserReservations(userReservationList);
+      
+      // 해당 매장의 예약 목록 필터링
+      const filteredReservations = allReservations.filter((reservation: ReservationDto) => {
+        return reservation.placeName === partnership.businessName ||
+               reservation.placeAddress === partnership.address ||
+               reservation.placeName.includes(partnership.businessName) ||
+               partnership.businessName.includes(reservation.placeName);
+      });
+      
+      // 최신순으로 정렬
+      filteredReservations.sort((a: ReservationDto, b: ReservationDto) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      setReservationList(filteredReservations);
+    } catch (error) {
+      console.error('예약 통계 로드 실패:', error);
+      toast.error('예약 통계를 불러오는데 실패했습니다.');
+    } finally {
+      setLoadingReservations(false);
+    }
+  };
+  
+  // 탭이 예약 현황으로 변경될 때 데이터 로드
+  useEffect(() => {
+    if (tabValue === 6 && partnership) {
+      loadReservationStats();
+    }
+  }, [tabValue, partnership]);
+  
+  // 탭이 리뷰로 변경될 때 데이터 로드
+  useEffect(() => {
+    if (tabValue === 7 && partnership) {
+      loadReviews();
+    }
+  }, [tabValue, partnership]);
+  
+  // 리뷰 로드
+  const loadReviews = async () => {
+    if (!partnership) return;
+    
+    try {
+      setLoadingReviews(true);
+      const response = await reviewService.getPlaceReviews(
+        partnership.businessName, 
+        partnership.address,
+        'latest',
+        0,
+        100
+      );
+      
+      if (response.success) {
+        setReviews(response.data.content);
+      }
+    } catch (error) {
+      console.error('리뷰 로드 실패:', error);
+      toast.error('리뷰를 불러오는데 실패했습니다.');
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -618,6 +796,8 @@ const PartnershipDetail = () => {
           <Tab label="매장 정보" />
           <Tab label="서류 & 계좌" />
           <Tab label="관리" />
+          <Tab label="예약 현황" />
+          <Tab label="리뷰 관리" />
         </Tabs>
 
         <TabPanel value={tabValue} index={0}>
@@ -1647,6 +1827,593 @@ const PartnershipDetail = () => {
                     이 제휴점은 고객들에게 표시되지 않습니다.
                   </Typography>
                 </Box>
+              )}
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={6}>
+          <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <EventNote sx={{ color: COLORS.accentPrimary }} />
+                <Typography variant="h6" sx={{ color: COLORS.textPrimary }}>
+                  예약 현황
+                </Typography>
+              </Box>
+              
+              {loadingReservations ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+                  <CircularProgress sx={{ color: COLORS.accentPrimary }} />
+                </Box>
+              ) : (
+                <>
+                  {/* 통계 카드 */}
+                  <Grid container spacing={3} sx={{ mb: 3 }}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box sx={{ 
+                        p: 2, 
+                        bgcolor: COLORS.backgroundCard, 
+                        borderRadius: 1,
+                        border: `1px solid ${COLORS.borderSecondary}`
+                      }}>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                          총 예약 건수
+                        </Typography>
+                        <Typography variant="h4" sx={{ color: COLORS.accentPrimary, fontWeight: 600 }}>
+                          {reservationList.length}건
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box sx={{ 
+                        p: 2, 
+                        bgcolor: COLORS.backgroundCard, 
+                        borderRadius: 1,
+                        border: `1px solid ${COLORS.borderSecondary}`
+                      }}>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                          이용 회원 수
+                        </Typography>
+                        <Typography variant="h4" sx={{ color: COLORS.success, fontWeight: 600 }}>
+                          {userReservations.length}명
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box sx={{ 
+                        p: 2, 
+                        bgcolor: COLORS.backgroundCard, 
+                        borderRadius: 1,
+                        border: `1px solid ${COLORS.borderSecondary}`
+                      }}>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                          소형 가방
+                        </Typography>
+                        <Typography variant="h4" sx={{ color: COLORS.accentPrimary, fontWeight: 600 }}>
+                          {reservationList.reduce((sum, r) => sum + r.smallBags, 0)}개
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box sx={{ 
+                        p: 2, 
+                        bgcolor: COLORS.backgroundCard, 
+                        borderRadius: 1,
+                        border: `1px solid ${COLORS.borderSecondary}`
+                      }}>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                          중형 가방
+                        </Typography>
+                        <Typography variant="h4" sx={{ color: COLORS.warning, fontWeight: 600 }}>
+                          {reservationList.reduce((sum, r) => sum + r.mediumBags, 0)}개
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box sx={{ 
+                        p: 2, 
+                        bgcolor: COLORS.backgroundCard, 
+                        borderRadius: 1,
+                        border: `1px solid ${COLORS.borderSecondary}`
+                      }}>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                          대형 가방
+                        </Typography>
+                        <Typography variant="h4" sx={{ color: COLORS.danger, fontWeight: 600 }}>
+                          {reservationList.reduce((sum, r) => sum + r.largeBags, 0)}개
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Box sx={{ 
+                        p: 2, 
+                        bgcolor: COLORS.backgroundCard, 
+                        borderRadius: 1,
+                        border: `1px solid ${COLORS.borderSecondary}`
+                      }}>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                          총 가방 수
+                        </Typography>
+                        <Typography variant="h4" sx={{ color: COLORS.textPrimary, fontWeight: 600 }}>
+                          {reservationList.reduce((sum, r) => sum + r.smallBags + r.mediumBags + r.largeBags, 0)}개
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+
+                  <Divider sx={{ mb: 3, bgcolor: COLORS.borderSecondary }} />
+
+                  {/* 회원별 예약 건수 테이블 */}
+                  <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 2, fontWeight: 600 }}>
+                    회원별 예약 건수
+                  </Typography>
+                  
+                  {userReservations.length > 0 ? (
+                    <TableContainer>
+                      <Table>
+                        <TableHead sx={{ bgcolor: COLORS.backgroundLight }}>
+                          <TableRow>
+                            <TableCell sx={{ 
+                              color: COLORS.textSecondary, 
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              borderBottom: `2px solid ${COLORS.borderSecondary}`
+                            }}>
+                              순위
+                            </TableCell>
+                            <TableCell sx={{ 
+                              color: COLORS.textSecondary, 
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              borderBottom: `2px solid ${COLORS.borderSecondary}`
+                            }}>
+                              회원명
+                            </TableCell>
+                            <TableCell sx={{ 
+                              color: COLORS.textSecondary, 
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              borderBottom: `2px solid ${COLORS.borderSecondary}`
+                            }}>
+                              이메일
+                            </TableCell>
+                            <TableCell align="right" sx={{ 
+                              color: COLORS.textSecondary, 
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              borderBottom: `2px solid ${COLORS.borderSecondary}`
+                            }}>
+                              예약 건수
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {userReservations.map((item, index) => (
+                            <TableRow 
+                              key={item.userId}
+                              onClick={() => navigate(`/admin/users/${item.userId}`)}
+                              sx={{ 
+                                bgcolor: index % 2 === 0 ? COLORS.backgroundCard : alpha(COLORS.backgroundLight, 0.5),
+                                '&:hover': { 
+                                  bgcolor: alpha(COLORS.accentPrimary, 0.08),
+                                  cursor: 'pointer'
+                                },
+                                borderBottom: `1px solid ${COLORS.borderSecondary}`,
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <TableCell sx={{ color: COLORS.textSecondary, fontSize: '0.875rem' }}>
+                                {index + 1}
+                              </TableCell>
+                              <TableCell sx={{ 
+                                color: COLORS.textPrimary, 
+                                fontSize: '0.875rem',
+                                fontWeight: 600
+                              }}>
+                                {item.userName}
+                              </TableCell>
+                              <TableCell sx={{ color: COLORS.textSecondary, fontSize: '0.875rem' }}>
+                                {item.userEmail}
+                              </TableCell>
+                              <TableCell align="right" sx={{ 
+                                color: COLORS.accentPrimary, 
+                                fontSize: '0.875rem',
+                                fontWeight: 700
+                              }}>
+                                {item.count}건
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      py: 6,
+                      color: COLORS.textMuted,
+                      bgcolor: COLORS.backgroundCard,
+                      borderRadius: 1,
+                      border: `1px solid ${COLORS.borderSecondary}`
+                    }}>
+                      <EventNote sx={{ fontSize: '3rem', mb: 1, opacity: 0.3 }} />
+                      <Typography variant="body2">
+                        예약 내역이 없습니다
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* 전체 예약 목록 */}
+                  <Divider sx={{ my: 4, bgcolor: COLORS.borderSecondary }} />
+                  
+                  <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 2, fontWeight: 600 }}>
+                    예약 목록 ({reservationList.length}건)
+                  </Typography>
+                  
+                  {reservationList.length > 0 ? (
+                    <TableContainer sx={{ 
+                      bgcolor: COLORS.backgroundCard,
+                      border: `1px solid ${COLORS.borderSecondary}`,
+                      borderRadius: 1,
+                      mt: 2
+                    }}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ 
+                              color: COLORS.textSecondary, 
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              borderBottom: `2px solid ${COLORS.borderSecondary}`
+                            }}>
+                              예약번호
+                            </TableCell>
+                            <TableCell sx={{ 
+                              color: COLORS.textSecondary, 
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              borderBottom: `2px solid ${COLORS.borderSecondary}`
+                            }}>
+                              회원명
+                            </TableCell>
+                            <TableCell sx={{ 
+                              color: COLORS.textSecondary, 
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              borderBottom: `2px solid ${COLORS.borderSecondary}`
+                            }}>
+                              보관 날짜
+                            </TableCell>
+                            <TableCell sx={{ 
+                              color: COLORS.textSecondary, 
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              borderBottom: `2px solid ${COLORS.borderSecondary}`
+                            }}>
+                              짐 정보
+                            </TableCell>
+                            <TableCell sx={{ 
+                              color: COLORS.textSecondary, 
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              borderBottom: `2px solid ${COLORS.borderSecondary}`
+                            }}>
+                              상태
+                            </TableCell>
+                            <TableCell sx={{ 
+                              color: COLORS.textSecondary, 
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              borderBottom: `2px solid ${COLORS.borderSecondary}`
+                            }}>
+                              예약일
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {reservationList.map((reservation, index) => (
+                            <TableRow 
+                              key={reservation.id}
+                              sx={{ 
+                                bgcolor: index % 2 === 0 ? COLORS.backgroundCard : alpha(COLORS.backgroundLight, 0.5),
+                                '&:hover': { 
+                                  bgcolor: alpha(COLORS.accentPrimary, 0.08),
+                                },
+                                borderBottom: `1px solid ${COLORS.borderSecondary}`,
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <TableCell sx={{ color: COLORS.textSecondary, fontSize: '0.875rem' }}>
+                                {reservation.reservationNumber}
+                              </TableCell>
+                              <TableCell>
+                                <Typography
+                                  sx={{ 
+                                    color: COLORS.accentPrimary, 
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                    '&:hover': { textDecoration: 'underline' }
+                                  }}
+                                  onClick={() => navigate(`/admin/users/${reservation.userId}`)}
+                                >
+                                  {reservation.userName}
+                                </Typography>
+                              </TableCell>
+                              <TableCell sx={{ color: COLORS.textPrimary, fontSize: '0.875rem' }}>
+                                <div>{reservation.storageDate}</div>
+                                <div style={{ fontSize: '0.75rem', color: COLORS.textMuted }}>
+                                  {reservation.storageStartTime} ~ {reservation.storageEndTime}
+                                </div>
+                              </TableCell>
+                              <TableCell sx={{ color: COLORS.textPrimary, fontSize: '0.875rem' }}>
+                                <div style={{ marginBottom: '4px' }}>
+                                  {reservation.smallBags > 0 && <span>소형 {reservation.smallBags}개 </span>}
+                                  {reservation.mediumBags > 0 && <span>중형 {reservation.mediumBags}개 </span>}
+                                  {reservation.largeBags > 0 && <span>대형 {reservation.largeBags}개 </span>}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: COLORS.textMuted }}>
+                                  총 {reservation.smallBags + reservation.mediumBags + reservation.largeBags}개
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={reservation.status === 'RESERVED' ? '예약됨' : reservation.status === 'COMPLETED' ? '완료' : '취소됨'}
+                                  size="small"
+                                  sx={{
+                                    bgcolor: reservation.status === 'COMPLETED' 
+                                      ? alpha(COLORS.success, 0.2)
+                                      : reservation.status === 'RESERVED'
+                                      ? alpha(COLORS.accentPrimary, 0.2)
+                                      : alpha(COLORS.danger, 0.2),
+                                    color: reservation.status === 'COMPLETED' 
+                                      ? COLORS.success
+                                      : reservation.status === 'RESERVED'
+                                      ? COLORS.accentPrimary
+                                      : COLORS.danger,
+                                    fontSize: '0.7rem',
+                                    fontWeight: 600
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell sx={{ color: COLORS.textSecondary, fontSize: '0.875rem' }}>
+                                {new Date(reservation.createdAt).toLocaleDateString('ko-KR')}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      py: 6,
+                      color: COLORS.textMuted,
+                      bgcolor: COLORS.backgroundCard,
+                      borderRadius: 1,
+                      border: `1px solid ${COLORS.borderSecondary}`,
+                      mt: 2
+                    }}>
+                      <EventNote sx={{ fontSize: '3rem', mb: 1, opacity: 0.3 }} />
+                      <Typography variant="body2">
+                        예약 목록이 없습니다
+                      </Typography>
+                    </Box>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={7}>
+          <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <EventNote sx={{ color: COLORS.accentPrimary }} />
+                <Typography variant="h6" sx={{ color: COLORS.textPrimary }}>
+                  리뷰 관리
+                </Typography>
+              </Box>
+              
+              {loadingReviews ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+                  <CircularProgress sx={{ color: COLORS.accentPrimary }} />
+                </Box>
+              ) : (
+                <>
+                  {/* 통계 카드 */}
+                  <Grid container spacing={3} sx={{ mb: 3 }}>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Box sx={{ 
+                        p: 2, 
+                        bgcolor: COLORS.backgroundCard, 
+                        borderRadius: 1,
+                        border: `1px solid ${COLORS.borderSecondary}`
+                      }}>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                          총 리뷰 수
+                        </Typography>
+                        <Typography variant="h4" sx={{ color: COLORS.accentPrimary, fontWeight: 600 }}>
+                          {reviews.length}개
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Box sx={{ 
+                        p: 2, 
+                        bgcolor: COLORS.backgroundCard, 
+                        borderRadius: 1,
+                        border: `1px solid ${COLORS.borderSecondary}`
+                      }}>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                          평균 평점
+                        </Typography>
+                        <Typography variant="h4" sx={{ color: COLORS.warning, fontWeight: 600 }}>
+                          {reviews.length > 0 
+                            ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+                            : 0}점
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Box sx={{ 
+                        p: 2, 
+                        bgcolor: COLORS.backgroundCard, 
+                        borderRadius: 1,
+                        border: `1px solid ${COLORS.borderSecondary}`
+                      }}>
+                        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 1 }}>
+                          활성 리뷰
+                        </Typography>
+                        <Typography variant="h4" sx={{ color: COLORS.success, fontWeight: 600 }}>
+                          {reviews.filter(r => r.status === 'ACTIVE').length}개
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+
+                  <Divider sx={{ mb: 3, bgcolor: COLORS.borderSecondary }} />
+
+                  {/* 리뷰 목록 */}
+                  <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 2, fontWeight: 600 }}>
+                    리뷰 목록
+                  </Typography>
+                  
+                  {reviews.length > 0 ? (
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '10px'
+                    }}>
+                      {reviews.map((review) => (
+                        <div key={review.id} style={{
+                          padding: '12px',
+                          backgroundColor: COLORS.backgroundCard,
+                          border: `1px solid ${COLORS.borderSecondary}`,
+                          borderRadius: '4px'
+                        }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            marginBottom: '8px'
+                          }}>
+                            <div 
+                              style={{
+                                cursor: 'pointer',
+                                color: COLORS.accentPrimary
+                              }}
+                              onClick={() => navigate(`/admin/users/${review.user.id}`)}
+                            >
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 500,
+                                '&:hover': { textDecoration: 'underline' }
+                              }}>
+                                {review.user.name}
+                              </Typography>
+                            </div>
+                            <div style={{ 
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}>
+                              <span style={{ 
+                                color: '#fbbf24',
+                                fontSize: '14px'
+                              }}>★</span>
+                              <span style={{ 
+                                color: COLORS.textPrimary,
+                                fontWeight: 'bold',
+                                fontSize: '14px'
+                              }}>{review.rating}.0</span>
+                            </div>
+                          </div>
+                          
+                          {review.title && (
+                            <Typography variant="body2" sx={{ 
+                              color: COLORS.textPrimary,
+                              fontWeight: 600,
+                              mb: 1
+                            }}>
+                              {review.title}
+                            </Typography>
+                          )}
+                          
+                          {review.content && (
+                            <Typography variant="body2" sx={{ 
+                              color: COLORS.textSecondary,
+                              mb: 1,
+                              lineHeight: 1.6
+                            }}>
+                              {review.content}
+                            </Typography>
+                          )}
+                          
+                          <Box sx={{ 
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            mt: 1
+                          }}>
+                            <Typography variant="caption" sx={{ color: COLORS.textMuted }}>
+                              {new Date(review.createdAt).toLocaleDateString('ko-KR')}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                              {review.reportCount > 0 && (
+                                <Chip 
+                                  label={`신고 ${review.reportCount}`} 
+                                  size="small"
+                                  sx={{ 
+                                    bgcolor: alpha(COLORS.danger, 0.2),
+                                    color: COLORS.danger,
+                                    fontSize: '0.7rem'
+                                  }} 
+                                />
+                              )}
+                              {review.helpfulCount > 0 && (
+                                <Chip 
+                                  label={`도움됨 ${review.helpfulCount}`} 
+                                  size="small"
+                                  sx={{ 
+                                    bgcolor: alpha(COLORS.accentPrimary, 0.2),
+                                    color: COLORS.accentPrimary,
+                                    fontSize: '0.7rem'
+                                  }} 
+                                />
+                              )}
+                              <Chip
+                                label={review.status === 'ACTIVE' ? '활성' : '차단됨'}
+                                size="small"
+                                sx={{
+                                  bgcolor: review.status === 'ACTIVE' 
+                                    ? alpha(COLORS.success, 0.2) 
+                                    : alpha(COLORS.danger, 0.2),
+                                  color: review.status === 'ACTIVE' ? COLORS.success : COLORS.danger,
+                                  fontSize: '0.7rem'
+                                }}
+                              />
+                            </Box>
+                          </Box>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      py: 6,
+                      color: COLORS.textMuted,
+                      bgcolor: COLORS.backgroundCard,
+                      borderRadius: 1,
+                      border: `1px solid ${COLORS.borderSecondary}`
+                    }}>
+                      <EventNote sx={{ fontSize: '3rem', mb: 1, opacity: 0.3 }} />
+                      <Typography variant="body2">
+                        리뷰가 없습니다
+                      </Typography>
+                    </Box>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
