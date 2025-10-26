@@ -28,7 +28,8 @@ import {
   Logout as LogoutIcon,
   QuestionAnswer as QuestionAnswerIcon,
   LiveHelp as LiveHelpIcon,
-  LocalOffer as LocalOfferIcon
+  LocalOffer as LocalOfferIcon,
+  DirectionsCar as DirectionsCarIcon
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../services/AuthContext';
@@ -75,6 +76,7 @@ const AdminLayout = () => {
       items: [
         { text: '시스템 상태', icon: <MonitorHeartIcon />, path: '/admin/services' },
         { text: '이벤트 짐보관', icon: <EventIcon />, path: '/admin/event-storage' },
+        { text: '라이더 관리', icon: <DirectionsCarIcon />, path: '/admin/riders' },
       ]
     },
     {
