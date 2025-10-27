@@ -4399,6 +4399,23 @@ const Map = () => {
       // 쿠폰 할인을 적용한 최종 결제 금액 계산
       const finalPaymentAmount = totalPrice - couponDiscount;
 
+      console.log("=== 금액 계산 ===");
+      console.log("원래 금액 (totalPrice):", totalPrice);
+      console.log("쿠폰 할인 (couponDiscount):", couponDiscount);
+      console.log("최종 결제 금액 (finalPaymentAmount):", finalPaymentAmount);
+
+      // PayPal용 금액 계산 (USD)
+      let paymentAmount = finalPaymentAmount;
+      if (paymentMethod === "paypal") {
+        // 원화를 달러로 환산 (1달러 = 1300원으로 계산)
+        const usdAmount = Math.ceil(finalPaymentAmount / 13);
+        console.log("PayPal USD 환산 금액:", usdAmount, "센트");
+        console.log("PayPal USD 금액:", (usdAmount / 100).toFixed(2), "달러");
+        paymentAmount = usdAmount; // 센트 단위
+      }
+      console.log("PortOne에 전달할 금액:", paymentAmount);
+      console.log("================");
+
       // 모바일 결제를 위한 예약 번호 미리 생성
       const reservationNumber = generateReservationNumber();
       console.log("생성된 예약 번호:", reservationNumber);
@@ -4409,7 +4426,7 @@ const Map = () => {
         channelKey,
         paymentId,
         orderName: `${selectedPlace.place_name} 짐보관 서비스${appliedCoupon ? ' (쿠폰 할인 적용)' : ''}`,
-        totalAmount: paymentMethod === "paypal" ? Math.ceil(finalPaymentAmount / 1300) : finalPaymentAmount, // USD 환산 (대략 1300원 = 1달러)
+        totalAmount: paymentAmount,
         currency: currency as any,
         payMethod: payMethodType as any,
         ...payMethodConfig,
@@ -4438,6 +4455,7 @@ const Map = () => {
             totalPrice: finalPaymentAmount,
             originalPrice: totalPrice,
             couponCode: appliedCoupon ? couponCode.trim().toUpperCase() : null,
+            couponName: appliedCoupon ? appliedCoupon.couponName : null,
             couponDiscount: couponDiscount,
             storageType: storageDuration,
             status: "RESERVED",
