@@ -104,6 +104,8 @@ const UserDetail = () => {
   const [processingResolve, setProcessingResolve] = useState(false);
   const [reviews, setReviews] = useState<ReviewResponse[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reservationSortField, setReservationSortField] = useState<string | null>(null);
+  const [reservationSortDirection, setReservationSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // 사용자 정보 로드
   const loadUser = async () => {
