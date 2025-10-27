@@ -68,6 +68,13 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
            "GROUP BY r.placeName, r.placeAddress " +
            "HAVING COUNT(r) >= :minReviewCount " +
            "ORDER BY recommendationScore DESC, avgRating DESC, reviewCount DESC")
-    List<Object[]> findTopRatedPlaces(@Param("status") ReviewStatus status, 
+    List<Object[]> findTopRatedPlaces(@Param("status") ReviewStatus status,
                                      @Param("minReviewCount") long minReviewCount);
+
+    // 통합 검색 - 사용자명, 장소명, 내용으로 검색
+    @Query("SELECT r FROM Review r JOIN r.user u " +
+           "WHERE LOWER(u.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(r.placeName) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(r.content) LIKE LOWER(CONCAT('%', :query, '%'))")
+    List<Review> searchReviews(@Param("query") String query, Pageable pageable);
 }

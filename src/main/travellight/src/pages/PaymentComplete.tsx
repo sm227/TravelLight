@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CircularProgress, Box, Typography } from '@mui/material';
+import axios from 'axios';
 
 const PaymentComplete: React.FC = () => {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ const PaymentComplete: React.FC = () => {
       const code = searchParams.get('code');
       const message = searchParams.get('message');
 
-      console.log('=== 결제 완료 페이지 ===');
+      console.log('=== 결제 완료 페이지 (모바일 리다이렉트) ===');
       console.log('Payment ID:', paymentId);
       console.log('Code:', code);
       console.log('Message:', message);
@@ -42,126 +43,151 @@ const PaymentComplete: React.FC = () => {
         return;
       }
 
-      // 결제 성공 - 백엔드에서 결제 검증 및 예약 완료 처리
+      // 결제 성공 - PC와 동일한 방식으로 처리
       try {
         console.log('=== 결제 검증 시작 ===');
 
-        // 1. 결제 검증 요청
-        const completeResponse = await fetch('/api/payment/portone/complete', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            paymentId: paymentId,
-            payMethod: searchParams.get('payMethod') || 'card',
-          }),
+        // 1. 결제 검증 및 완료 처리 (PC와 동일)
+        const completeResponse = await axios.post('/api/payment/portone/complete', {
+          paymentId: paymentId,
+          payMethod: 'card', // 모바일에서는 대부분 카드 결제
         });
 
-        if (!completeResponse.ok) {
-          const errorText = await completeResponse.text();
-          throw new Error(`결제 검증 실패: ${errorText}`);
-        }
+        console.log('결제 검증 결과:', completeResponse.data);
 
-        const paymentComplete = await completeResponse.json();
-        console.log('결제 검증 결과:', paymentComplete);
-
-        if (paymentComplete.status !== 'PAID') {
+        if (completeResponse.data.status !== 'PAID') {
           throw new Error('결제가 완료되지 않았습니다.');
         }
 
-        // 2. 백엔드에서 결제 정보 상세 조회하여 customData 추출
-        const paymentInfoResponse = await fetch(`/api/payment/portone/info/${paymentId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+        // 2. PortOne에서 결제 정보 조회하여 customData 추출
+        console.log('=== 결제 정보 조회 시작 ===');
+        const paymentInfoResponse = await axios.get(`/api/payment/portone/info/${paymentId}`);
+        const paymentInfo = paymentInfoResponse.data;
 
-        if (!paymentInfoResponse.ok) {
-          throw new Error('결제 정보 조회 실패');
+        console.log('PortOne 결제 정보:', paymentInfo);
+
+        // customData 추출 - PortOne API 응답 구조에 맞춰 접근
+        let customData;
+        if (paymentInfo.customData) {
+          customData = paymentInfo.customData;
+        } else {
+          console.error('customData를 찾을 수 없음. paymentInfo 전체:', JSON.stringify(paymentInfo));
+          throw new Error('예약 정보를 찾을 수 없습니다.');
         }
-
-        const paymentInfo = await paymentInfoResponse.json();
-        console.log('결제 정보 상세:', paymentInfo);
 
         let reservationData;
-        try {
-          if (!paymentInfo.customData || !paymentInfo.customData.reservationData) {
-            throw new Error('예약 정보를 찾을 수 없습니다.');
+        if (typeof customData === 'string') {
+          // customData가 문자열인 경우 파싱
+          try {
+            const parsed = JSON.parse(customData);
+            reservationData = parsed.reservationData || parsed;
+          } catch (e) {
+            console.error('customData 문자열 파싱 실패:', e);
+            throw new Error('예약 정보 파싱 실패');
           }
-          reservationData = paymentInfo.customData.reservationData;
-          console.log('예약 데이터:', reservationData);
-        } catch (e) {
-          console.error('customData 파싱 오류:', e);
-          throw new Error('예약 정보 파싱에 실패했습니다.');
+        } else if (customData.reservationData) {
+          // customData가 객체이고 reservationData가 있는 경우
+          reservationData = customData.reservationData;
+        } else {
+          // customData 자체가 reservationData인 경우
+          reservationData = customData;
         }
 
-        // 3. 예약 저장
+        console.log('추출된 예약 데이터:', reservationData);
+
+        if (!reservationData || !reservationData.userId) {
+          throw new Error('유효하지 않은 예약 정보입니다.');
+        }
+
+        // 3. 날짜/시간 포맷팅 함수 (Map.tsx의 submitReservation과 동일)
+        const formatDateForServer = (dateInput: any) => {
+          if (!dateInput) return null;
+          if (typeof dateInput === 'string') {
+            return dateInput; // 이미 문자열 형식인 경우 그대로 반환
+          }
+          const year = dateInput.getFullYear();
+          const month = String(dateInput.getMonth() + 1).padStart(2, '0');
+          const day = String(dateInput.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
+        const formatTimeForServer = (timeString: string) => {
+          if (timeString && !timeString.includes(':00')) {
+            return timeString + ':00';
+          }
+          return timeString;
+        };
+
+        // 4. 예약 저장 (PC와 동일)
         console.log('=== 예약 저장 시작 ===');
-        const reservationResponse = await fetch('/api/reservation/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-          },
-          body: JSON.stringify({
-            ...reservationData,
-            portonePaymentId: paymentId,
-          }),
-        });
+        console.log('원본 예약 데이터:', reservationData);
 
-        if (!reservationResponse.ok) {
-          const errorText = await reservationResponse.text();
-          throw new Error(`예약 저장 실패: ${errorText}`);
-        }
+        // 날짜/시간 포맷팅 적용
+        const formattedReservationData = {
+          ...reservationData,
+          userId: typeof reservationData.userId === 'string' ? parseInt(reservationData.userId, 10) : reservationData.userId,
+          storageDate: formatDateForServer(reservationData.storageDate),
+          storageEndDate: formatDateForServer(reservationData.storageEndDate || reservationData.storageDate),
+          storageStartTime: formatTimeForServer(reservationData.storageStartTime),
+          storageEndTime: formatTimeForServer(reservationData.storageEndTime),
+          smallBags: reservationData.smallBags || 0,
+          mediumBags: reservationData.mediumBags || 0,
+          largeBags: reservationData.largeBags || 0,
+          portonePaymentId: paymentId,
+        };
 
-        const savedReservation = await reservationResponse.json();
+        console.log('포맷팅된 예약 데이터:', formattedReservationData);
+
+        const reservationResponse = await axios.post(
+          '/api/reservations',
+          formattedReservationData,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 10000
+          }
+        );
+
+        const savedReservation = reservationResponse.data;
         console.log('예약 저장 결과:', savedReservation);
 
-        // 4. 쿠폰 사용 처리 (쿠폰이 적용된 경우)
+        // 5. 쿠폰 사용 처리 (있는 경우)
         if (reservationData.couponCode) {
           try {
             console.log('=== 쿠폰 사용 처리 시작 ===');
-            await fetch('/api/user-coupons/use', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-              },
-              body: JSON.stringify({
+            await axios.post(
+              '/api/user-coupons/use',
+              {
                 userId: reservationData.userId,
                 couponCode: reservationData.couponCode,
                 purchaseAmount: reservationData.originalPrice,
                 orderId: savedReservation.reservationNumber || savedReservation.data?.reservationNumber
-              }),
-            });
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+                }
+              }
+            );
             console.log('쿠폰 사용 처리 완료');
           } catch (couponError) {
             console.error('쿠폰 사용 처리 중 오류:', couponError);
-            // 쿠폰 사용 실패해도 결제는 완료되었으므로 계속 진행
           }
         }
 
-        // 5. Payment 테이블에 저장
+        // 6. Payment 테이블에 저장
         const reservationNumber = savedReservation.reservationNumber || savedReservation.data?.reservationNumber;
         if (reservationNumber) {
           try {
             console.log('=== Payment 테이블 저장 시작 ===');
-            await fetch('/api/payment/save', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                paymentId: paymentId,
-                reservationNumber: reservationNumber,
-              }),
+            await axios.post('/api/payment/save', {
+              paymentId: paymentId,
+              reservationNumber: reservationNumber,
             });
             console.log('Payment 테이블 저장 완료');
           } catch (paymentError) {
             console.error('Payment 저장 중 오류:', paymentError);
-            // Payment 저장 실패해도 예약은 완료되었으므로 계속 진행
           }
         }
 
@@ -172,9 +198,10 @@ const PaymentComplete: React.FC = () => {
         alert('결제가 완료되었습니다!');
         navigate('/map', { state: { showReservations: true } });
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('결제 처리 중 오류:', error);
-        setError(error instanceof Error ? error.message : '결제 처리 중 오류가 발생했습니다.');
+        console.error('오류 상세:', error.response?.data || error.message);
+        setError(error.response?.data?.error || error.message || '결제 처리 중 오류가 발생했습니다.');
         setProcessing(false);
         setTimeout(() => {
           navigate('/map');

@@ -1154,13 +1154,36 @@ const Map = () => {
     showReservations: initialShowReservations = false,
   } = (location.state as any) || {};
 
+  // 컴포넌트 마운트 시 제휴점 데이터 먼저 로드 (지도 초기화와 별개)
+  // iOS Safari에서 안정적인 마커 표시를 위해 제거 - 지도 초기화 후에만 fetch
+  // useEffect(() => {
+  //   const fetchPartnershipsData = async () => {
+  //     try {
+  //       const response = await axios.get("/api/partnership", {
+  //         timeout: 5000,
+  //       });
+  //       if (response.data && response.data.success) {
+  //         const partnershipData = response.data.data.filter(
+  //           (partnership: Partnership) => partnership.status === "APPROVED"
+  //         );
+  //         setPartnerships(partnershipData);
+  //         console.log('제휴점 데이터 먼저 로드 완료:', partnershipData.length);
+  //       }
+  //     } catch (error) {
+  //       console.error("제휴점 데이터 사전 로드 중 오류:", error);
+  //     }
+  //   };
+
+  //   fetchPartnershipsData();
+  // }, []);
+
   // 선택된 장소의 리뷰 통계 가져오기
   useEffect(() => {
     const fetchReviewStats = async () => {
       if (selectedPlace && selectedPlace.place_name && selectedPlace.address_name) {
         try {
           const response = await reviewService.getPlaceReviewSummary(
-            selectedPlace.place_name, 
+            selectedPlace.place_name,
             selectedPlace.address_name
           );
           setReviewStats({
@@ -1517,6 +1540,9 @@ const Map = () => {
 
       const map = new window.naver.maps.Map(container, options);
 
+      // iOS Safari에서 안정적인 마커 표시를 위해 지도 완전 초기화 플래그 사용
+      let isMapFullyInitialized = false;
+
       window.naver.maps.Event.once(map, "init_stylemap", () => {
         console.log("지도 로드 완료, 추가 설정 적용");
 
@@ -1569,6 +1595,12 @@ const Map = () => {
               position: window.naver.maps.Position.BOTTOM_RIGHT,
             },
           });
+
+          // iOS Safari를 위한 추가 대기 시간
+          setTimeout(() => {
+            isMapFullyInitialized = true;
+            console.log("지도 완전 초기화 완료 (iOS 대응)");
+          }, 100);
         } catch (e) {
           console.error("지도 스타일 설정 오류:", e);
         }
@@ -1577,6 +1609,7 @@ const Map = () => {
       setMapInstance(map);
       let currentInfoWindow: any = null;
       let selectedMarker: any = null;
+      let isPartnershipsFetching = false; // 중복 fetch 방지
 
       function displayUserMarker(locPosition: any) {
         const marker = new window.naver.maps.Marker({
@@ -1647,7 +1680,41 @@ const Map = () => {
 
       // 제휴점 데이터 가져오는 함수
       const fetchPartnerships = async () => {
+        // 중복 fetch 방지
+        if (isPartnershipsFetching) {
+          console.log("이미 제휴점 데이터를 가져오는 중입니다");
+          return;
+        }
+
         try {
+          isPartnershipsFetching = true;
+
+          // iOS Safari 대응: 지도 완전 초기화 대기
+          const waitForMapInit = () => {
+            return new Promise<void>((resolve) => {
+              if (isMapFullyInitialized) {
+                resolve();
+                return;
+              }
+
+              // 최대 3초 대기
+              const maxWaitTime = 3000;
+              const checkInterval = 50;
+              let elapsed = 0;
+
+              const intervalId = setInterval(() => {
+                elapsed += checkInterval;
+                if (isMapFullyInitialized || elapsed >= maxWaitTime) {
+                  clearInterval(intervalId);
+                  console.log(`지도 초기화 대기 완료 (${elapsed}ms)`);
+                  resolve();
+                }
+              }, checkInterval);
+            });
+          };
+
+          await waitForMapInit();
+
           // API 호출 시 catch 블록 추가 및 오류 로깅 개선
           const response = await axios.get("/api/partnership", {
             timeout: 5000,
@@ -1656,7 +1723,7 @@ const Map = () => {
             const partnershipData = response.data.data.filter(
               (partnership: Partnership) => partnership.status === "APPROVED"
             );
-            //console.log('제휴점 데이터:', partnershipData);
+            console.log('제휴점 데이터 로드 완료:', partnershipData.length);
             setPartnerships(partnershipData);
 
             // 기존 마커 제거
@@ -1671,6 +1738,7 @@ const Map = () => {
               }
             });
             setPartnershipOverlays(newOverlays);
+            console.log('마커 생성 완료:', newOverlays.length);
           } else {
             console.error(
               "제휴점 데이터 가져오기 실패:",
@@ -1684,6 +1752,8 @@ const Map = () => {
           if (process.env.NODE_ENV === "development") {
             console.log("개발 환경에서 API 호출 실패, 임시 데이터 사용");
           }
+        } finally {
+          isPartnershipsFetching = false;
         }
       };
 
@@ -4329,6 +4399,10 @@ const Map = () => {
       // 쿠폰 할인을 적용한 최종 결제 금액 계산
       const finalPaymentAmount = totalPrice - couponDiscount;
 
+      // 모바일 결제를 위한 예약 번호 미리 생성
+      const reservationNumber = generateReservationNumber();
+      console.log("생성된 예약 번호:", reservationNumber);
+
       // 포트원 결제 요청
       const payment = await PortOne.requestPayment({
         storeId: "store-ef16a71d-87cc-4e73-a6b8-448a8b07840d", // 환경변수 또는 기본값
@@ -4348,8 +4422,11 @@ const Map = () => {
         customData: {
           reservationData: {
             userId: user?.id,
+            userEmail: user?.email || "",
+            userName: user?.name || "",
             placeName: selectedPlace.place_name,
             placeAddress: selectedPlace.address_name,
+            reservationNumber: reservationNumber,
             storageDate: storageDate,
             storageEndDate:
               storageDuration === "period" ? storageEndDate : storageDate,
@@ -4363,6 +4440,7 @@ const Map = () => {
             couponCode: appliedCoupon ? couponCode.trim().toUpperCase() : null,
             couponDiscount: couponDiscount,
             storageType: storageDuration,
+            status: "RESERVED",
           },
         } as any, // 타입 오류 임시 해결
       });

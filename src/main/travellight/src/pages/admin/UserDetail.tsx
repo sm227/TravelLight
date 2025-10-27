@@ -496,6 +496,65 @@ const UserDetail = () => {
     setTimeout(() => setAlertMessage(null), 3000);
   };
 
+  // 예약 정렬 핸들러
+  const handleReservationSort = (field: string) => {
+    if (reservationSortField === field) {
+      // 같은 필드를 클릭하면 방향 전환
+      setReservationSortDirection(reservationSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 새로운 필드를 클릭하면 해당 필드로 오름차순 정렬
+      setReservationSortField(field);
+      setReservationSortDirection('asc');
+    }
+  };
+
+  // 예약 정렬 함수
+  const getSortedReservations = () => {
+    if (!reservationSortField) return reservations;
+
+    return [...reservations].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (reservationSortField) {
+        case 'reservationNumber':
+          aValue = a.reservationNumber;
+          bValue = b.reservationNumber;
+          break;
+        case 'placeName':
+          aValue = a.placeName;
+          bValue = b.placeName;
+          break;
+        case 'storageDate':
+          aValue = new Date(a.storageDate).getTime();
+          bValue = new Date(b.storageDate).getTime();
+          break;
+        case 'bagCount':
+          aValue = a.smallBags + a.mediumBags + a.largeBags;
+          bValue = b.smallBags + b.mediumBags + b.largeBags;
+          break;
+        case 'totalPrice':
+          aValue = a.totalPrice;
+          bValue = b.totalPrice;
+          break;
+        case 'status':
+          aValue = a.status;
+          bValue = b.status;
+          break;
+        case 'createdAt':
+          aValue = new Date(a.storageDate).getTime();
+          bValue = new Date(b.storageDate).getTime();
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return reservationSortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return reservationSortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
   if (loading) {
     return (
       <div style={{ 
@@ -1120,17 +1179,101 @@ const UserDetail = () => {
                   }}>
                     <thead>
                       <tr style={{ backgroundColor: '#1f1f23' }}>
-                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>예약번호</th>
-                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>매장명</th>
-                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>보관 기간</th>
-                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>가방 수량</th>
-                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>결제 금액</th>
-                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>상태</th>
-                        <th style={{ padding: '12px', border: '1px solid #3f3f46', textAlign: 'left', fontWeight: 'bold' }}>예약일</th>
+                        <th
+                          onClick={() => handleReservationSort('reservationNumber')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                          }}
+                        >
+                          예약번호 {reservationSortField === 'reservationNumber' && <span style={{ fontSize: '10px' }}>{reservationSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th
+                          onClick={() => handleReservationSort('placeName')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                          }}
+                        >
+                          매장명 {reservationSortField === 'placeName' && <span style={{ fontSize: '10px' }}>{reservationSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th
+                          onClick={() => handleReservationSort('storageDate')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                          }}
+                        >
+                          보관 기간 {reservationSortField === 'storageDate' && <span style={{ fontSize: '10px' }}>{reservationSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th
+                          onClick={() => handleReservationSort('bagCount')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                          }}
+                        >
+                          가방 수량 {reservationSortField === 'bagCount' && <span style={{ fontSize: '10px' }}>{reservationSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th
+                          onClick={() => handleReservationSort('totalPrice')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                          }}
+                        >
+                          결제 금액 {reservationSortField === 'totalPrice' && <span style={{ fontSize: '10px' }}>{reservationSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th
+                          onClick={() => handleReservationSort('status')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                          }}
+                        >
+                          상태 {reservationSortField === 'status' && <span style={{ fontSize: '10px' }}>{reservationSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th
+                          onClick={() => handleReservationSort('createdAt')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                          }}
+                        >
+                          예약일 {reservationSortField === 'createdAt' && <span style={{ fontSize: '10px' }}>{reservationSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {reservations.map((reservation) => (
+                      {getSortedReservations().map((reservation) => (
                         <tr key={reservation.id}>
                           <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
                             <div style={{ 
