@@ -19,6 +19,7 @@ import {
   Map as MapIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 // AdminDashboard와 동일한 색상 테마
 const COLORS = {
@@ -207,6 +208,7 @@ const calculatePathCenter = (pathData: string): [number, number] => {
 };
 
 const RegionalStoreMap: React.FC = () => {
+  const navigate = useNavigate();
   const [partnerships, setPartnerships] = useState<Partnership[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
@@ -401,7 +403,7 @@ const RegionalStoreMap: React.FC = () => {
             flex: 1,
             bgcolor: COLORS.backgroundCard, 
             border: `1px solid ${COLORS.borderPrimary}`,
-            borderRadius: 1,
+            borderRadius: 0,
             p: 2,
             minHeight: '850px',
             display: 'flex',
@@ -422,7 +424,7 @@ const RegionalStoreMap: React.FC = () => {
               }}
             >
               {/* 배경 */}
-              <rect width="500" height="700" fill={COLORS.backgroundLight} rx="8" />
+              <rect width="500" height="700" fill={COLORS.backgroundLight} />
               
               {/* 권역들 - 실제 GeoJSON 데이터 기반 */}
               {regionData.map((data) => {
@@ -437,15 +439,13 @@ const RegionalStoreMap: React.FC = () => {
                       <path
                         key={idx}
                         d={path}
-                        fill={REGION_COLORS[data.region]}
-                        fillOpacity={isSelected ? 0.85 : isHovered ? 0.7 : 0.6}
-                        stroke={isSelected ? '#ffffff' : isHovered ? REGION_COLORS[data.region] : '#333333'}
-                        strokeWidth={isSelected ? 2 : isHovered ? 1.5 : 0.8}
+                        fill="transparent"
+                        stroke={REGION_COLORS[data.region]}
+                        strokeWidth={isSelected ? 1.5 : isHovered ? 1.2 : 1}
                         strokeLinejoin="round"
                         style={{
                           cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          filter: isHovered || isSelected ? 'brightness(1.2)' : 'none'
+                          transition: 'all 0.2s ease'
                         }}
                         onMouseEnter={() => setHoveredRegion(region)}
                         onMouseLeave={() => setHoveredRegion(null)}
@@ -476,42 +476,6 @@ const RegionalStoreMap: React.FC = () => {
               })}
             </svg>
           </Box>
-
-          {/* 범례 */}
-          <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap', gap: 1.5, justifyContent: 'center' }}>
-            {regionStats
-              .sort((a, b) => {
-                // 서울을 맨 앞으로
-                if (a.region === '서울') return -1;
-                if (b.region === '서울') return 1;
-                return a.region.localeCompare(b.region, 'ko');
-              })
-              .map(({ region, storeCount }) => {
-                const regionEng = Object.keys(REGION_NAME_KR).find(k => REGION_NAME_KR[k] === region);
-                return (
-                  <Chip
-                    key={region}
-                    label={`${region}: ${storeCount}개`}
-                    size="small"
-                    onClick={() => handleRegionClick(region)}
-                    sx={{
-                      bgcolor: alpha(REGION_COLORS[regionEng || ''], 0.2),
-                      color: REGION_COLORS[regionEng || ''],
-                      border: `2px solid ${REGION_COLORS[regionEng || '']}`,
-                      fontWeight: 600,
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                      '&:hover': {
-                        bgcolor: alpha(REGION_COLORS[regionEng || ''], 0.3),
-                        transform: 'translateY(-2px)',
-                        boxShadow: `0 4px 12px ${alpha(REGION_COLORS[regionEng || ''], 0.4)}`
-                      },
-                      transition: 'all 0.2s ease'
-                    }}
-                  />
-                );
-              })}
-          </Box>
         </Paper>
 
         {/* 통계 패널 (데스크톱 뷰) */}
@@ -524,7 +488,7 @@ const RegionalStoreMap: React.FC = () => {
             sx={{ 
               bgcolor: COLORS.backgroundCard, 
               border: `1px solid ${COLORS.borderPrimary}`,
-              borderRadius: 1,
+              borderRadius: 0,
               p: 2,
               mb: 2
             }}
@@ -547,21 +511,21 @@ const RegionalStoreMap: React.FC = () => {
                     onClick={() => handleRegionClick(region)}
                     sx={{
                       p: 1.5,
-                      bgcolor: alpha(REGION_COLORS[regionEng || ''], 0.1),
-                      border: `2px solid ${alpha(REGION_COLORS[regionEng || ''], 0.3)}`,
-                      borderRadius: 1,
+                      bgcolor: 'transparent',
+                      border: `2px solid #ffffff`,
+                      borderRadius: 0,
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       '&:hover': {
-                        bgcolor: alpha(REGION_COLORS[regionEng || ''], 0.2),
+                        bgcolor: alpha('#ffffff', 0.05),
                         transform: 'translateX(4px)',
-                        borderColor: REGION_COLORS[regionEng || '']
+                        borderColor: '#ffffff'
                       }
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                       <Typography sx={{ 
-                        color: COLORS.textPrimary,
+                        color: '#ffffff',
                         fontWeight: 600,
                         fontSize: '0.875rem'
                       }}>
@@ -575,7 +539,7 @@ const RegionalStoreMap: React.FC = () => {
                     
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography sx={{ 
-                        color: COLORS.textSecondary,
+                        color: '#ffffff',
                         fontSize: '0.75rem'
                       }}>
                         {storeCount}개 매장 · {totalCapacity}개 용량
@@ -598,7 +562,7 @@ const RegionalStoreMap: React.FC = () => {
           sx: {
             width: { xs: '100%', sm: '500px', md: '600px' },
             bgcolor: COLORS.backgroundDark,
-            borderLeft: selectedRegion ? `4px solid ${REGION_COLORS[Object.keys(REGION_NAME_KR).find(k => REGION_NAME_KR[k] === selectedRegion) || '']}` : 'none'
+            borderLeft: selectedRegion ? `1px solid ${alpha(REGION_COLORS[Object.keys(REGION_NAME_KR).find(k => REGION_NAME_KR[k] === selectedRegion) || ''], 0.3)}` : 'none'
           }
         }}
       >
@@ -610,11 +574,11 @@ const RegionalStoreMap: React.FC = () => {
             alignItems: 'center',
             mb: 3,
             pb: 2,
-            borderBottom: selectedRegion ? `2px solid ${REGION_COLORS[Object.keys(REGION_NAME_KR).find(k => REGION_NAME_KR[k] === selectedRegion) || '']}` : `2px solid ${COLORS.borderPrimary}`
+            borderBottom: selectedRegion ? `1px solid ${alpha(REGION_COLORS[Object.keys(REGION_NAME_KR).find(k => REGION_NAME_KR[k] === selectedRegion) || ''], 0.3)}` : `1px solid ${COLORS.borderPrimary}`
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <LocationOn sx={{ 
-                color: selectedRegion ? REGION_COLORS[Object.keys(REGION_NAME_KR).find(k => REGION_NAME_KR[k] === selectedRegion) || ''] : COLORS.accentPrimary,
+                color: selectedRegion ? alpha(REGION_COLORS[Object.keys(REGION_NAME_KR).find(k => REGION_NAME_KR[k] === selectedRegion) || ''], 0.6) : COLORS.accentPrimary,
                 fontSize: '1.5rem'
               }} />
               <Box>
@@ -661,29 +625,30 @@ const RegionalStoreMap: React.FC = () => {
                   <Paper
                     key={store.id}
                     elevation={0}
+                    onClick={() => navigate(`/admin/partnerships/${store.id}`)}
                     sx={{
                       bgcolor: COLORS.backgroundCard,
-                      border: `1px solid ${COLORS.borderSecondary}`,
-                      borderLeft: selectedRegion ? `4px solid ${REGION_COLORS[regionEng || '']}` : 'none',
-                      borderRadius: 1,
+                      border: `2px solid #ffffff`,
+                      borderRadius: 0,
                       p: 2,
+                      cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       '&:hover': {
-                        bgcolor: COLORS.backgroundSurface,
-                        borderColor: selectedRegion ? REGION_COLORS[regionEng || ''] : COLORS.borderSecondary,
+                        bgcolor: alpha('#ffffff', 0.05),
+                        borderColor: '#ffffff',
                         transform: 'translateX(4px)'
                       }
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 2 }}>
                       <StorefrontOutlined sx={{ 
-                        color: selectedRegion ? REGION_COLORS[regionEng || ''] : COLORS.accentPrimary,
+                        color: '#ffffff',
                         fontSize: '1.5rem',
                         mt: 0.5
                       }} />
                       <Box sx={{ flex: 1 }}>
                         <Typography sx={{ 
-                          color: COLORS.textPrimary,
+                          color: '#ffffff',
                           fontWeight: 600,
                           fontSize: '1rem',
                           mb: 0.5
@@ -691,7 +656,7 @@ const RegionalStoreMap: React.FC = () => {
                           {store.businessName}
                         </Typography>
                         <Typography sx={{ 
-                          color: COLORS.textSecondary,
+                          color: '#ffffff',
                           fontSize: '0.8125rem',
                           mb: 0.5
                         }}>
@@ -701,8 +666,9 @@ const RegionalStoreMap: React.FC = () => {
                           label={store.businessType}
                           size="small"
                           sx={{
-                            bgcolor: alpha(COLORS.info, 0.15),
-                            color: COLORS.info,
+                            bgcolor: 'transparent',
+                            color: '#ffffff',
+                            border: '1px solid #ffffff',
                             fontSize: '0.7rem',
                             height: 22
                           }}
@@ -714,25 +680,26 @@ const RegionalStoreMap: React.FC = () => {
                       display: 'flex', 
                       gap: 2,
                       pt: 2,
-                      borderTop: `1px solid ${COLORS.borderSecondary}`
+                      borderTop: `1px solid #ffffff`
                     }}>
                       <Tooltip title="소형 가방">
                         <Box sx={{ 
                           flex: 1,
                           textAlign: 'center',
                           p: 1,
-                          bgcolor: alpha(COLORS.success, 0.1),
-                          borderRadius: 1
+                          bgcolor: 'transparent',
+                          border: '1px solid #ffffff',
+                          borderRadius: 0
                         }}>
                           <Typography sx={{ 
-                            color: COLORS.textMuted,
+                            color: '#ffffff',
                             fontSize: '0.7rem',
                             mb: 0.5
                           }}>
                             소형
                           </Typography>
                           <Typography sx={{ 
-                            color: COLORS.success,
+                            color: '#ffffff',
                             fontWeight: 700,
                             fontSize: '1rem'
                           }}>
@@ -746,18 +713,19 @@ const RegionalStoreMap: React.FC = () => {
                           flex: 1,
                           textAlign: 'center',
                           p: 1,
-                          bgcolor: alpha(COLORS.warning, 0.1),
-                          borderRadius: 1
+                          bgcolor: 'transparent',
+                          border: '1px solid #ffffff',
+                          borderRadius: 0
                         }}>
                           <Typography sx={{ 
-                            color: COLORS.textMuted,
+                            color: '#ffffff',
                             fontSize: '0.7rem',
                             mb: 0.5
                           }}>
                             중형
                           </Typography>
                           <Typography sx={{ 
-                            color: COLORS.warning,
+                            color: '#ffffff',
                             fontWeight: 700,
                             fontSize: '1rem'
                           }}>
@@ -771,18 +739,19 @@ const RegionalStoreMap: React.FC = () => {
                           flex: 1,
                           textAlign: 'center',
                           p: 1,
-                          bgcolor: alpha(COLORS.danger, 0.1),
-                          borderRadius: 1
+                          bgcolor: 'transparent',
+                          border: '1px solid #ffffff',
+                          borderRadius: 0
                         }}>
                           <Typography sx={{ 
-                            color: COLORS.textMuted,
+                            color: '#ffffff',
                             fontSize: '0.7rem',
                             mb: 0.5
                           }}>
                             대형
                           </Typography>
                           <Typography sx={{ 
-                            color: COLORS.danger,
+                            color: '#ffffff',
                             fontWeight: 700,
                             fontSize: '1rem'
                           }}>
@@ -796,18 +765,19 @@ const RegionalStoreMap: React.FC = () => {
                           flex: 1,
                           textAlign: 'center',
                           p: 1,
-                          bgcolor: alpha(COLORS.accentPrimary, 0.1),
-                          borderRadius: 1
+                          bgcolor: 'transparent',
+                          border: '1px solid #ffffff',
+                          borderRadius: 0
                         }}>
                           <Typography sx={{ 
-                            color: COLORS.textMuted,
+                            color: '#ffffff',
                             fontSize: '0.7rem',
                             mb: 0.5
                           }}>
                             총계
                           </Typography>
                           <Typography sx={{ 
-                            color: COLORS.accentPrimary,
+                            color: '#ffffff',
                             fontWeight: 700,
                             fontSize: '1rem'
                           }}>
@@ -859,3 +829,4 @@ const RegionalStoreMap: React.FC = () => {
 };
 
 export default RegionalStoreMap;
+

@@ -26,15 +26,15 @@ public class WebConfig implements WebMvcConfigurer {
                 );
     }
 
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOrigins("http://localhost:5173","http://52.79.53.239:5173","https://travelight.co.kr","http://1.236.13.63:5173")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(false)
-                .maxAge(3600);
-    }
+//     @Override
+//     public void addCorsMappings(CorsRegistry registry) {
+//         registry.addMapping("/**")
+//                 .allowedOrigins("http://localhost:5173","http://52.79.53.239:5173","https://travelight.co.kr","http://1.236.13.63:5173")
+//                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+//                 .allowedHeaders("*")
+//                 .allowCredentials(true)
+//                 .maxAge(3600);
+//     }
     
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {

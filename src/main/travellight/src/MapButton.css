@@ -5,8 +5,8 @@
 
 .map-button-container {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    bottom: calc(20px + var(--safe-area-inset-bottom));
+    right: calc(20px + var(--safe-area-inset-right));
     z-index: 1000;
 }
 

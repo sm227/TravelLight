@@ -19,6 +19,7 @@ import AdminProducts from './pages/admin/AdminProducts';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminEventStorage from './pages/admin/AdminEventStorage';
 import AdminHR from './pages/admin/AdminHR';
+import AdminRiders from './pages/admin/AdminRiders';
 import AdminLayout from './components/admin/AdminLayout';
 import ProtectedAdminRoute from './components/admin/ProtectedAdminRoute';
 import Profile from './pages/Profile';
@@ -337,6 +338,7 @@ function App() {
               <Route path="partnerships/:partnershipId" element={<PartnershipDetail />} />
               <Route path="services" element={<AdminServices />} />
               <Route path="hr" element={<AdminHR />} />
+              <Route path="riders" element={<AdminRiders />} />
               <Route path="reviews" element={<AdminReviews />} />
               <Route path="faqs" element={<AdminFAQs />} />
               <Route path="inquiries" element={<AdminInquiries />} />

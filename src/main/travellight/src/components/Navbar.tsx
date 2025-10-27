@@ -308,6 +308,10 @@ const Navbar: React.FC = () => {
           boxShadow: isPartnerPage ? "none" : undefined,
           border: "none",
           borderBottom: "none",
+          // iOS Safe Area 대응
+          paddingTop: 'var(--safe-area-inset-top)',
+          paddingLeft: 'var(--safe-area-inset-left)',
+          paddingRight: 'var(--safe-area-inset-right)',
         }}
       >
         <Container maxWidth="lg">
@@ -555,7 +559,7 @@ const Navbar: React.FC = () => {
         <Box
           sx={{
             position: "fixed",
-            top: "64px",
+            top: "calc(64px + var(--safe-area-inset-top))",
             left: 0,
             right: 0,
             bottom: 0,
@@ -572,7 +576,7 @@ const Navbar: React.FC = () => {
         <Box
           sx={{
             position: "fixed",
-            top: "64px",
+            top: "calc(64px + var(--safe-area-inset-top))",
             left: 0,
             right: 0,
             backgroundColor: isPartnerPage ? "#2E7DF1" : "white",
@@ -582,6 +586,8 @@ const Navbar: React.FC = () => {
             maxHeight: hamburgerMenuOpen ? { xs: "400px", md: "300px" } : 0,
             overflow: "hidden",
             transition: "max-height 0.3s ease-in-out",
+            paddingLeft: 'var(--safe-area-inset-left)',
+            paddingRight: 'var(--safe-area-inset-right)',
           }}
         >
           <Container
@@ -875,7 +881,9 @@ const Navbar: React.FC = () => {
           </Container>
         </Box>
       </>
-      <Box sx={{ height: "64px" }} /> {/* AppBar 높이만큼의 여백 추가 */}
+      <Box sx={{
+        height: "calc(64px + var(--safe-area-inset-top))"
+      }} /> {/* AppBar 높이 + safe area만큼의 여백 추가 */}
     </>
   );
 };

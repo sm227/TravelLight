@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   List,
@@ -13,17 +13,12 @@ import {
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
-  Assessment as AssessmentIcon,
-  Inventory as InventoryIcon,
   MonitorHeart as MonitorHeartIcon,
-  CloudQueue as CloudQueueIcon,
   Event as EventIcon,
   Handshake as HandshakeIcon,
   Store as StoreIcon,
-  Analytics as AnalyticsIcon,
   People as PeopleIcon,
   Work as WorkIcon,
-  Settings as SettingsIcon,
   ChevronLeft as ChevronLeftIcon,
   Menu as MenuIcon,
   Notifications as NotificationsIcon,
@@ -33,7 +28,8 @@ import {
   Logout as LogoutIcon,
   QuestionAnswer as QuestionAnswerIcon,
   LiveHelp as LiveHelpIcon,
-  LocalOffer as LocalOfferIcon
+  LocalOffer as LocalOfferIcon,
+  DirectionsCar as DirectionsCarIcon
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../services/AuthContext';
@@ -60,6 +56,14 @@ const AdminLayout = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const mainContentRef = useRef<HTMLDivElement>(null);
+
+  // 페이지 전환 시 스크롤을 맨 위로 이동
+  useEffect(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTop = 0;
+    }
+  }, [location.pathname]);
 
   // 로그아웃 핸들러
   const handleLogout = () => {
@@ -73,16 +77,14 @@ const AdminLayout = () => {
       title: '대시보드',
       items: [
         { text: '서비스 현황', icon: <DashboardIcon />, path: '/admin' },
-        { text: '실시간 분석', icon: <AssessmentIcon />, path: '/admin/analytics' },
       ]
     },
     {
       title: '운영 관리',
       items: [
-        { text: '보관함 모니터링', icon: <InventoryIcon />, path: '/admin/lockers' },
         { text: '시스템 상태', icon: <MonitorHeartIcon />, path: '/admin/services' },
         { text: '이벤트 짐보관', icon: <EventIcon />, path: '/admin/event-storage' },
-        { text: '클라우드 현황', icon: <CloudQueueIcon />, path: '/admin/cloud-status' },
+        { text: '라이더 관리', icon: <DirectionsCarIcon />, path: '/admin/riders' },
       ]
     },
     {
@@ -106,8 +108,6 @@ const AdminLayout = () => {
       items: [
         { text: '사용자 관리', icon: <PeopleIcon />, path: '/admin/users' },
         { text: 'HR 관리', icon: <WorkIcon />, path: '/admin/hr' },
-        { text: '로그 분석', icon: <AnalyticsIcon />, path: '/admin/logs' },
-        { text: '시스템 설정', icon: <SettingsIcon />, path: '/admin/settings' },
       ]
     }
   ];
@@ -420,12 +420,11 @@ const AdminLayout = () => {
 
             {/* 관리자 정보 및 로그아웃 */}
             {user && (
-              <Box sx={{ 
-                display: 'flex', 
+              <Box sx={{
+                display: 'flex',
                 flexDirection: 'column',
                 gap: 1
               }}>
-
                 <ListItemButton
                   onClick={handleLogout}
                   sx={{
@@ -433,7 +432,7 @@ const AdminLayout = () => {
                     px: 1.5,
                     py: 0.75,
                     borderRadius: 1,
-                    justifyContent: 'flex-start',
+                    justifyContent: 'space-between',
                     color: '#ef4444',
                     backgroundColor: 'transparent',
                     border: `1px solid #ef4444`,
@@ -444,26 +443,39 @@ const AdminLayout = () => {
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <ListItemIcon 
-                    sx={{ 
-                      minWidth: 'unset',
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <ListItemIcon
+                      sx={{
+                        minWidth: 'unset',
+                        color: 'inherit',
+                        mr: 1.5,
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1rem'
+                        }
+                      }}
+                    >
+                      <LogoutIcon />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="로그아웃"
+                      primaryTypographyProps={{
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        color: 'inherit'
+                      }}
+                    />
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
                       color: 'inherit',
-                      mr: 1.5,
-                      '& .MuiSvgIcon-root': {
-                        fontSize: '1rem'
-                      }
+                      ml: 1
                     }}
                   >
-                    <LogoutIcon />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="로그아웃" 
-                    primaryTypographyProps={{
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      color: 'inherit'
-                    }}
-                  />
+                    {user.name}
+                  </Typography>
                 </ListItemButton>
               </Box>
             )}
@@ -473,6 +485,7 @@ const AdminLayout = () => {
       
       {/* 메인 콘텐츠 */}
       <Box 
+        ref={mainContentRef}
         component="main" 
         sx={{ 
           flex: 1,

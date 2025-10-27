@@ -969,4 +969,161 @@ export const paymentService = {
   }
 };
 
+// ==================== Rider API ====================
+
+export interface RiderRegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+  phoneNumber: string;
+  vehicleNumber: string;
+  licenseNumber?: string;
+}
+
+export interface RiderLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RiderLoginResponse {
+  userId: number;
+  name: string;
+  email: string;
+  role: string;
+  driverId: number;
+  vehicleNumber: string;
+  phoneNumber: string;
+  driverStatus: string;
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface RiderApplicationResponse {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  phoneNumber: string;
+  vehicleNumber: string;
+  licenseNumber?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason?: string;
+  approvedAt?: string;
+  rejectedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RejectRequest {
+  rejectionReason: string;
+}
+
+export interface RiderResponse {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  phoneNumber: string;
+  vehicleNumber: string;
+  licenseNumber?: string;
+  status: 'ONLINE' | 'OFFLINE' | 'BUSY' | 'BREAK';
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RiderStats {
+  totalRiders: number;
+  onlineRiders: number;
+  offlineRiders: number;
+  inactiveRiders: number;
+}
+
+export const riderService = {
+  // 라이더 회원가입
+  register: async (data: RiderRegisterRequest): Promise<ApiResponse<RiderApplicationResponse>> => {
+    const response = await api.post<ApiResponse<RiderApplicationResponse>>('/riders/register', data);
+    return response.data;
+  },
+
+  // 라이더 로그인
+  login: async (data: RiderLoginRequest): Promise<ApiResponse<RiderLoginResponse>> => {
+    const response = await api.post<ApiResponse<RiderLoginResponse>>('/riders/login', data);
+    return response.data;
+  },
+
+  // 내 신청 상태 조회
+  getApplicationStatus: async (userId: number): Promise<ApiResponse<RiderApplicationResponse>> => {
+    const response = await api.get<ApiResponse<RiderApplicationResponse>>(`/riders/application/status?userId=${userId}`);
+    return response.data;
+  }
+};
+
+// 관리자용 라이더 관리 서비스
+export const adminRiderService = {
+  // 모든 라이더 신청 목록 조회
+  getAllApplications: async (): Promise<ApiResponse<RiderApplicationResponse[]>> => {
+    const response = await api.get<ApiResponse<RiderApplicationResponse[]>>('/riders/admin/applications');
+    return response.data;
+  },
+
+  // 특정 상태의 라이더 신청 목록 조회
+  getApplicationsByStatus: async (status: 'PENDING' | 'APPROVED' | 'REJECTED'): Promise<ApiResponse<RiderApplicationResponse[]>> => {
+    const response = await api.get<ApiResponse<RiderApplicationResponse[]>>(`/riders/admin/applications/status/${status}`);
+    return response.data;
+  },
+
+  // 라이더 신청 상세 조회
+  getApplicationById: async (applicationId: number): Promise<ApiResponse<RiderApplicationResponse>> => {
+    const response = await api.get<ApiResponse<RiderApplicationResponse>>(`/riders/admin/applications/${applicationId}`);
+    return response.data;
+  },
+
+  // 라이더 신청 승인
+  approveApplication: async (applicationId: number): Promise<ApiResponse<RiderApplicationResponse>> => {
+    const response = await api.post<ApiResponse<RiderApplicationResponse>>(`/riders/admin/applications/${applicationId}/approve`);
+    return response.data;
+  },
+
+  // 라이더 신청 거절
+  rejectApplication: async (applicationId: number, reason: string): Promise<ApiResponse<RiderApplicationResponse>> => {
+    const response = await api.post<ApiResponse<RiderApplicationResponse>>(`/riders/admin/applications/${applicationId}/reject`, {
+      rejectionReason: reason
+    });
+    return response.data;
+  },
+
+  // 승인된 라이더 목록 조회
+  getApprovedRiders: async (): Promise<ApiResponse<RiderResponse[]>> => {
+    const response = await api.get<ApiResponse<RiderResponse[]>>('/riders/admin/approved');
+    return response.data;
+  },
+
+  // 라이더 통계 조회
+  getRiderStats: async (): Promise<ApiResponse<RiderStats>> => {
+    const response = await api.get<ApiResponse<RiderStats>>('/riders/admin/stats');
+    return response.data;
+  },
+
+  // 라이더 출퇴근 상태 변경
+  updateDriverStatus: async (driverId: number, status: 'ONLINE' | 'OFFLINE' | 'BUSY' | 'BREAK'): Promise<ApiResponse<RiderResponse>> => {
+    const response = await api.put<ApiResponse<RiderResponse>>(`/riders/admin/${driverId}/status`, {
+      status
+    });
+    return response.data;
+  },
+
+  // 라이더 비활성화
+  deactivateDriver: async (driverId: number): Promise<ApiResponse<RiderResponse>> => {
+    const response = await api.put<ApiResponse<RiderResponse>>(`/riders/admin/${driverId}/deactivate`);
+    return response.data;
+  },
+
+  // 라이더 활성화
+  activateDriver: async (driverId: number): Promise<ApiResponse<RiderResponse>> => {
+    const response = await api.put<ApiResponse<RiderResponse>>(`/riders/admin/${driverId}/activate`);
+    return response.data;
+  }
+};
+
 export default api;
