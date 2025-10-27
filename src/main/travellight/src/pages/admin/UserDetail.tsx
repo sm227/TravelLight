@@ -106,6 +106,10 @@ const UserDetail = () => {
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [reservationSortField, setReservationSortField] = useState<string | null>(null);
   const [reservationSortDirection, setReservationSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [paymentSortField, setPaymentSortField] = useState<string | null>(null);
+  const [paymentSortDirection, setPaymentSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [reservationDetailModalOpen, setReservationDetailModalOpen] = useState(false);
+  const [selectedReservation, setSelectedReservation] = useState<ReservationDto | null>(null);
 
   // 사용자 정보 로드
   const loadUser = async () => {
@@ -496,6 +500,18 @@ const UserDetail = () => {
     setTimeout(() => setAlertMessage(null), 3000);
   };
 
+  // 예약 상세 모달 열기
+  const handleOpenReservationDetail = (reservation: ReservationDto) => {
+    setSelectedReservation(reservation);
+    setReservationDetailModalOpen(true);
+  };
+
+  // 예약 상세 모달 닫기
+  const handleCloseReservationDetail = () => {
+    setReservationDetailModalOpen(false);
+    setSelectedReservation(null);
+  };
+
   // 예약 정렬 핸들러
   const handleReservationSort = (field: string) => {
     if (reservationSortField === field) {
@@ -551,6 +567,61 @@ const UserDetail = () => {
 
       if (aValue < bValue) return reservationSortDirection === 'asc' ? -1 : 1;
       if (aValue > bValue) return reservationSortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  // 결제 정렬 핸들러
+  const handlePaymentSort = (field: string) => {
+    if (paymentSortField === field) {
+      // 같은 필드를 클릭하면 방향 전환
+      setPaymentSortDirection(paymentSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 새로운 필드를 클릭하면 해당 필드로 오름차순 정렬
+      setPaymentSortField(field);
+      setPaymentSortDirection('asc');
+    }
+  };
+
+  // 결제 정렬 함수
+  const getSortedPayments = () => {
+    if (!paymentSortField) return payments;
+
+    return [...payments].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (paymentSortField) {
+        case 'paymentTime':
+          aValue = a.paymentTime ? new Date(a.paymentTime).getTime() : 0;
+          bValue = b.paymentTime ? new Date(b.paymentTime).getTime() : 0;
+          break;
+        case 'paymentAmount':
+          aValue = a.paymentAmount || 0;
+          bValue = b.paymentAmount || 0;
+          break;
+        case 'paymentStatus':
+          aValue = a.paymentStatus;
+          bValue = b.paymentStatus;
+          break;
+        case 'paymentMethod':
+          aValue = a.paymentMethod || '';
+          bValue = b.paymentMethod || '';
+          break;
+        case 'cardCompany':
+          aValue = a.cardCompany || '';
+          bValue = b.cardCompany || '';
+          break;
+        case 'paymentId':
+          aValue = a.paymentId;
+          bValue = b.paymentId;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return paymentSortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return paymentSortDirection === 'asc' ? 1 : -1;
       return 0;
     });
   };
@@ -1276,11 +1347,16 @@ const UserDetail = () => {
                       {getSortedReservations().map((reservation) => (
                         <tr key={reservation.id}>
                           <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
-                            <div style={{ 
-                              fontFamily: 'monospace', 
-                              fontSize: '12px',
-                              color: '#3b82f6'
-                            }}>
+                            <div
+                              onClick={() => handleOpenReservationDetail(reservation)}
+                              style={{
+                                fontFamily: 'monospace',
+                                fontSize: '12px',
+                                color: '#3b82f6',
+                                cursor: 'pointer',
+                                textDecoration: 'underline'
+                              }}
+                            >
                               {reservation.reservationNumber}
                             </div>
                           </td>
@@ -1519,7 +1595,7 @@ const UserDetail = () => {
           </div>
         </TabPanel>
 
-        {/* 결제분석 탭 */}
+        {/* 결제내역 탭 */}
         <TabPanel value={tabValue} index={2}>
           <div style={{
             backgroundColor: '#1f1f23',
@@ -1555,291 +1631,305 @@ const UserDetail = () => {
                 결제 내역이 없습니다.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {payments.map((payment) => (
-                  <div
-                    key={payment.id}
-                    style={{
-                      padding: '20px',
-                      backgroundColor: '#27272a',
-                      border: '1px solid #3f3f46',
-                      borderRadius: '4px'
-                    }}
-                  >
-                    {/* 결제 상태 및 금액 */}
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      marginBottom: '15px',
-                      paddingBottom: '15px',
-                      borderBottom: '1px solid #3f3f46'
-                    }}>
-                      <div>
-                        <div style={{
-                          color: '#fafafa',
-                          fontSize: '18px',
-                          fontWeight: 'bold',
-                          marginBottom: '8px'
-                        }}>
-                          {(payment.paymentAmount || 0).toLocaleString()}원
-                        </div>
-                        <div style={{
-                          color: '#a1a1aa',
-                          fontSize: '12px'
-                        }}>
-                          {payment.paymentTime ? formatDateTime(payment.paymentTime) : '-'}
-                        </div>
-                      </div>
-                      <span style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#1f1f23',
-                        color: payment.paymentStatus === 'PAID' ? '#10b981' :
-                               payment.paymentStatus === 'CANCELLED' ? '#f87171' :
-                               payment.paymentStatus === 'REFUNDED' ? '#f59e0b' :
-                               payment.paymentStatus === 'FAILED' ? '#ef4444' : '#fafafa',
-                        border: `1px solid ${payment.paymentStatus === 'PAID' ? '#10b981' :
-                                         payment.paymentStatus === 'CANCELLED' ? '#f87171' :
-                                         payment.paymentStatus === 'REFUNDED' ? '#f59e0b' :
-                                         payment.paymentStatus === 'FAILED' ? '#ef4444' : '#3f3f46'}`,
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: 'bold'
-                      }}>
-                        {payment.paymentStatus}
-                      </span>
+              <div>
+                {/* 결제 통계 */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '15px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{
+                    padding: '15px',
+                    backgroundColor: '#27272a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '4px'
+                  }}>
+                    <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>총 결제 건수</div>
+                    <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>{payments.length}건</div>
+                  </div>
+                  <div style={{
+                    padding: '15px',
+                    backgroundColor: '#27272a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '4px'
+                  }}>
+                    <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>총 결제 금액</div>
+                    <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
+                      {payments.reduce((sum, p) => sum + (p.paymentAmount || 0), 0).toLocaleString()}원
                     </div>
-
-                    {/* 결제 정보 그리드 */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                      gap: '12px'
-                    }}>
-                      {/* 결제 ID */}
-                      <div>
-                        <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
-                          결제 ID
-                        </div>
-                        <div style={{
-                          color: '#3b82f6',
-                          fontSize: '12px',
-                          fontFamily: 'monospace',
-                          wordBreak: 'break-all'
-                        }}>
-                          {payment.paymentId}
-                        </div>
-                      </div>
-
-                      {/* 결제 수단 */}
-                      <div>
-                        <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
-                          결제 수단
-                        </div>
-                        <div style={{ color: '#fafafa', fontSize: '13px' }}>
-                          {payment.paymentMethod === 'card' ? '카드' :
-                           payment.paymentMethod === 'easypay' ? '간편결제' :
-                           payment.paymentMethod || '-'}
-                        </div>
-                      </div>
-
-                      {/* 카드사 */}
-                      {payment.cardCompany && (
-                        <div>
-                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
-                            카드사
-                          </div>
-                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
-                            {payment.cardCompany}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 카드 타입 */}
-                      {payment.cardType && (
-                        <div>
-                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
-                            카드 타입
-                          </div>
-                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
-                            {payment.cardType}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 카드 번호 */}
-                      {payment.cardNumber && (
-                        <div>
-                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
-                            카드 번호
-                          </div>
-                          <div style={{
-                            color: '#a1a1aa',
-                            fontSize: '12px',
-                            fontFamily: 'monospace'
-                          }}>
-                            {payment.cardNumber}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 카드명 */}
-                      {payment.cardName && (
-                        <div>
-                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
-                            카드명
-                          </div>
-                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
-                            {payment.cardName}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 할부 정보 */}
-                      {payment.installmentMonth !== undefined && payment.installmentMonth !== null && (
-                        <div>
-                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
-                            할부
-                          </div>
-                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
-                            {payment.installmentMonth === 0 ? '일시불' : `${payment.installmentMonth}개월`}
-                            {payment.isInterestFree && (
-                              <span style={{
-                                marginLeft: '6px',
-                                color: '#10b981',
-                                fontSize: '11px'
-                              }}>
-                                (무이자)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 승인번호 */}
-                      {payment.approvalNumber && (
-                        <div>
-                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
-                            승인번호
-                          </div>
-                          <div style={{
-                            color: '#fafafa',
-                            fontSize: '12px',
-                            fontFamily: 'monospace'
-                          }}>
-                            {payment.approvalNumber}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* PG사 */}
-                      {payment.paymentProvider && (
-                        <div>
-                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
-                            PG사
-                          </div>
-                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
-                            {payment.paymentProvider}
-                            {payment.channelName && (
-                              <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '2px' }}>
-                                {payment.channelName}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 간편결제 */}
-                      {payment.easyPayProvider && (
-                        <div>
-                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
-                            간편결제
-                          </div>
-                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
-                            {payment.easyPayProvider}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 거래 ID */}
-                      {payment.transactionId && (
-                        <div>
-                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginBottom: '4px' }}>
-                            거래 ID
-                          </div>
-                          <div style={{
-                            color: '#a1a1aa',
-                            fontSize: '11px',
-                            fontFamily: 'monospace',
-                            wordBreak: 'break-all'
-                          }}>
-                            {payment.transactionId}
-                          </div>
-                        </div>
-                      )}
+                  </div>
+                  <div style={{
+                    padding: '15px',
+                    backgroundColor: '#27272a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '4px'
+                  }}>
+                    <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>결제 완료</div>
+                    <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
+                      {payments.filter(p => p.paymentStatus === 'PAID').length}건
                     </div>
+                  </div>
+                  <div style={{
+                    padding: '15px',
+                    backgroundColor: '#27272a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '4px'
+                  }}>
+                    <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>환불</div>
+                    <div style={{ color: '#fafafa', fontSize: '18px', fontWeight: 'bold' }}>
+                      {payments.filter(p => p.paymentStatus === 'REFUNDED').length}건
+                    </div>
+                  </div>
+                </div>
 
-                    {/* 취소/환불 정보 */}
-                    {(payment.cancelReason || payment.refundAmount) && (
-                      <div style={{
-                        marginTop: '15px',
-                        paddingTop: '15px',
-                        borderTop: '1px solid #3f3f46'
-                      }}>
-                        {payment.refundAmount && (
-                          <div style={{ marginBottom: '8px' }}>
-                            <span style={{ color: '#a1a1aa', fontSize: '12px' }}>환불 금액: </span>
-                            <span style={{ color: '#f59e0b', fontSize: '13px', fontWeight: 'bold' }}>
-                              {payment.refundAmount.toLocaleString()}원
-                            </span>
-                          </div>
-                        )}
-                        {payment.cancelReason && (
-                          <div>
-                            <span style={{ color: '#a1a1aa', fontSize: '12px' }}>취소/환불 사유: </span>
-                            <span style={{ color: '#fafafa', fontSize: '12px' }}>
-                              {payment.cancelReason}
-                            </span>
-                          </div>
-                        )}
-                        {payment.cancelledAt && (
-                          <div style={{ marginTop: '4px' }}>
-                            <span style={{ color: '#a1a1aa', fontSize: '11px' }}>
-                              취소일시: {formatDateTime(payment.cancelledAt)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* 환불 버튼 */}
-                    {payment.paymentStatus === 'PAID' && (
-                      <div style={{
-                        marginTop: '15px',
-                        paddingTop: '15px',
-                        borderTop: '1px solid #3f3f46',
-                        display: 'flex',
-                        justifyContent: 'flex-end'
-                      }}>
-                        <button
-                          onClick={() => handleOpenRefundModal(payment)}
+                {/* 결제 내역 테이블 */}
+                <div style={{
+                  backgroundColor: '#27272a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '4px',
+                  overflow: 'auto'
+                }}>
+                  <table style={{
+                    width: '100%',
+                    borderCollapse: 'collapse',
+                    fontSize: '14px',
+                    color: '#fafafa'
+                  }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#1f1f23' }}>
+                        <th
+                          onClick={() => handlePaymentSort('paymentId')}
                           style={{
-                            padding: '8px 16px',
-                            backgroundColor: '#1f1f23',
-                            color: '#fafafa',
-                            border: '1px solid #ef4444',
-                            borderRadius: '4px',
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
                             cursor: 'pointer',
-                            fontSize: '13px',
-                            fontWeight: 'bold'
+                            userSelect: 'none',
+                            minWidth: '140px'
                           }}
                         >
-                          환불 요청
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                          결제 ID {paymentSortField === 'paymentId' && <span style={{ fontSize: '10px' }}>{paymentSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th
+                          onClick={() => handlePaymentSort('paymentTime')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            minWidth: '150px'
+                          }}
+                        >
+                          결제일시 {paymentSortField === 'paymentTime' && <span style={{ fontSize: '10px' }}>{paymentSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th
+                          onClick={() => handlePaymentSort('paymentAmount')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            minWidth: '120px'
+                          }}
+                        >
+                          결제금액 {paymentSortField === 'paymentAmount' && <span style={{ fontSize: '10px' }}>{paymentSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th style={{
+                          padding: '12px',
+                          border: '1px solid #3f3f46',
+                          textAlign: 'left',
+                          fontWeight: 'bold',
+                          minWidth: '120px'
+                        }}>
+                          쿠폰 사용
+                        </th>
+                        <th
+                          onClick={() => handlePaymentSort('paymentStatus')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            minWidth: '100px'
+                          }}
+                        >
+                          상태 {paymentSortField === 'paymentStatus' && <span style={{ fontSize: '10px' }}>{paymentSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th
+                          onClick={() => handlePaymentSort('paymentMethod')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            minWidth: '100px'
+                          }}
+                        >
+                          결제수단 {paymentSortField === 'paymentMethod' && <span style={{ fontSize: '10px' }}>{paymentSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th
+                          onClick={() => handlePaymentSort('cardCompany')}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #3f3f46',
+                            textAlign: 'left',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            minWidth: '100px'
+                          }}
+                        >
+                          카드사 {paymentSortField === 'cardCompany' && <span style={{ fontSize: '10px' }}>{paymentSortDirection === 'asc' ? '▲' : '▼'}</span>}
+                        </th>
+                        <th style={{
+                          padding: '12px',
+                          border: '1px solid #3f3f46',
+                          textAlign: 'left',
+                          fontWeight: 'bold',
+                          minWidth: '100px'
+                        }}>
+                          작업
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getSortedPayments().map((payment) => (
+                        <tr key={payment.id}>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <div style={{
+                              fontFamily: 'monospace',
+                              fontSize: '11px',
+                              color: '#3b82f6',
+                              wordBreak: 'break-all'
+                            }}>
+                              {payment.paymentId}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <div style={{ fontSize: '12px' }}>
+                              {payment.paymentTime ? formatDateTime(payment.paymentTime) : '-'}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <div style={{ fontWeight: 'bold' }}>
+                              {payment.currency === 'USD'
+                                ? `$${((payment.paymentAmount || 0) / 100).toFixed(2)}`
+                                : `${(payment.paymentAmount || 0).toLocaleString()}원`
+                              }
+                            </div>
+                            {payment.refundAmount && (
+                              <div style={{ fontSize: '11px', color: '#f59e0b', marginTop: '2px' }}>
+                                환불: {payment.currency === 'USD'
+                                  ? `$${(payment.refundAmount / 100).toFixed(2)}`
+                                  : `${payment.refundAmount.toLocaleString()}원`
+                                }
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            {payment.couponName || payment.couponDiscount ? (
+                              <div>
+                                {payment.couponName && (
+                                  <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#10b981' }}>
+                                    {payment.couponName}
+                                  </div>
+                                )}
+                                {payment.couponDiscount && payment.couponDiscount > 0 && (
+                                  <div style={{ fontSize: '11px', color: '#10b981', marginTop: '2px' }}>
+                                    -{payment.couponDiscount.toLocaleString()}원
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: '12px', color: '#a1a1aa' }}>-</div>
+                            )}
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <span style={{
+                              padding: '4px 8px',
+                              backgroundColor: '#1f1f23',
+                              color: payment.paymentStatus === 'PAID' ? '#10b981' :
+                                     payment.paymentStatus === 'CANCELLED' ? '#f87171' :
+                                     payment.paymentStatus === 'REFUNDED' ? '#f59e0b' :
+                                     payment.paymentStatus === 'FAILED' ? '#ef4444' : '#fafafa',
+                              border: `1px solid ${payment.paymentStatus === 'PAID' ? '#10b981' :
+                                               payment.paymentStatus === 'CANCELLED' ? '#f87171' :
+                                               payment.paymentStatus === 'REFUNDED' ? '#f59e0b' :
+                                               payment.paymentStatus === 'FAILED' ? '#ef4444' : '#3f3f46'}`,
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: 'bold'
+                            }}>
+                              {payment.paymentStatus}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <div style={{ fontSize: '12px' }}>
+                              {payment.paymentMethod === 'card' ? '카드' :
+                               payment.paymentMethod === 'easypay' ? '간편결제' :
+                               payment.paymentMethod || '-'}
+                            </div>
+                            {payment.easyPayProvider && (
+                              <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '2px' }}>
+                                {payment.easyPayProvider}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            <div style={{ fontSize: '12px' }}>
+                              {payment.cardCompany || '-'}
+                            </div>
+                            {payment.cardName && (
+                              <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '2px' }}>
+                                {payment.cardName}
+                              </div>
+                            )}
+                            {payment.installmentMonth !== undefined && payment.installmentMonth !== null && (
+                              <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '2px' }}>
+                                {payment.installmentMonth === 0 ? '일시불' : `${payment.installmentMonth}개월`}
+                                {payment.isInterestFree && ' (무이자)'}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '12px', border: '1px solid #3f3f46' }}>
+                            {payment.paymentStatus === 'PAID' && (
+                              <button
+                                onClick={() => handleOpenRefundModal(payment)}
+                                style={{
+                                  padding: '6px 12px',
+                                  backgroundColor: '#1f1f23',
+                                  color: '#fafafa',
+                                  border: '1px solid #ef4444',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '11px',
+                                  fontWeight: 'bold'
+                                }}
+                              >
+                                환불
+                              </button>
+                            )}
+                            {payment.cancelReason && (
+                              <div style={{ fontSize: '10px', color: '#a1a1aa', marginTop: '4px' }}>
+                                {payment.cancelReason}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -3190,6 +3280,363 @@ const UserDetail = () => {
                 {processingResolve ? '처리 중...' : '처리 완료'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 예약 상세 모달 */}
+      {reservationDetailModalOpen && selectedReservation && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#1f1f23',
+            border: '1px solid #27272a',
+            borderRadius: '8px',
+            padding: '30px',
+            maxWidth: '800px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              <h3 style={{
+                margin: 0,
+                color: '#fafafa',
+                fontSize: '18px',
+                fontWeight: 'bold'
+              }}>
+                예약 상세 정보
+              </h3>
+              <button
+                onClick={handleCloseReservationDetail}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#27272a',
+                  color: '#fafafa',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                닫기
+              </button>
+            </div>
+
+            {/* 예약 정보 */}
+            <div style={{
+              marginBottom: '20px',
+              padding: '20px',
+              backgroundColor: '#27272a',
+              border: '1px solid #3f3f46',
+              borderRadius: '4px'
+            }}>
+              <h4 style={{
+                margin: '0 0 15px 0',
+                color: '#fafafa',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                borderBottom: '1px solid #3f3f46',
+                paddingBottom: '10px'
+              }}>
+                예약 정보
+              </h4>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+                gap: '15px'
+              }}>
+                <div>
+                  <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>예약번호</div>
+                  <div style={{
+                    color: '#3b82f6',
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                    fontWeight: 'bold'
+                  }}>
+                    {selectedReservation.reservationNumber}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>상태</div>
+                  <span style={{
+                    padding: '4px 8px',
+                    backgroundColor: selectedReservation.status === 'COMPLETED' ? '#27272a' :
+                                    selectedReservation.status === 'CANCELLED' ? '#27272a' : '#27272a',
+                    color: selectedReservation.status === 'COMPLETED' ? '#8c8' :
+                           selectedReservation.status === 'CANCELLED' ? '#f87171' : '#fafafa',
+                    border: `1px solid ${selectedReservation.status === 'COMPLETED' ? '#8c8' :
+                                     selectedReservation.status === 'CANCELLED' ? '#f87171' : '#3f3f46'}`,
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                  }}>
+                    {selectedReservation.status === 'RESERVED' ? '예약됨' :
+                     selectedReservation.status === 'COMPLETED' ? '완료' : '취소됨'}
+                  </span>
+                </div>
+
+                <div>
+                  <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>매장명</div>
+                  <div style={{ color: '#fafafa', fontSize: '14px', fontWeight: 'bold' }}>
+                    {selectedReservation.placeName}
+                  </div>
+                  <div style={{ color: '#a1a1aa', fontSize: '12px', marginTop: '2px' }}>
+                    {selectedReservation.placeAddress}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>보관 기간</div>
+                  <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                    {formatDate(selectedReservation.storageDate)} ~ {formatDate(selectedReservation.storageEndDate)}
+                  </div>
+                  <div style={{ color: '#a1a1aa', fontSize: '12px', marginTop: '2px' }}>
+                    {selectedReservation.storageStartTime} ~ {selectedReservation.storageEndTime}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>가방 수량</div>
+                  <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                    소: {selectedReservation.smallBags}개 / 중: {selectedReservation.mediumBags}개 / 대: {selectedReservation.largeBags}개
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>총 금액</div>
+                  <div style={{ color: '#fafafa', fontSize: '16px', fontWeight: 'bold' }}>
+                    {selectedReservation.totalPrice.toLocaleString()}원
+                  </div>
+                  <div style={{ color: '#a1a1aa', fontSize: '12px', marginTop: '2px' }}>
+                    {selectedReservation.storageType === 'day' ? '일일 보관' : '기간 보관'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 결제 정보 */}
+            {selectedReservation.paymentId && selectedReservation.paymentId.trim() !== '' && (
+              <div style={{
+                padding: '20px',
+                backgroundColor: '#27272a',
+                border: '1px solid #3f3f46',
+                borderRadius: '4px'
+              }}>
+                <h4 style={{
+                  margin: '0 0 15px 0',
+                  color: '#fafafa',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  borderBottom: '1px solid #3f3f46',
+                  paddingBottom: '10px'
+                }}>
+                  결제 정보
+                </h4>
+
+                {(() => {
+                  const payment = payments.find(p => p.paymentId === selectedReservation.paymentId);
+
+                  if (!payment) {
+                    return (
+                      <div style={{ color: '#a1a1aa', fontSize: '14px' }}>
+                        결제 정보를 불러오는 중...
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                      gap: '15px'
+                    }}>
+                      <div>
+                        <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>결제 ID</div>
+                        <div style={{
+                          color: '#3b82f6',
+                          fontSize: '12px',
+                          fontFamily: 'monospace',
+                          wordBreak: 'break-all'
+                        }}>
+                          {payment.paymentId}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>결제 금액</div>
+                        <div style={{ color: '#fafafa', fontSize: '16px', fontWeight: 'bold' }}>
+                          {payment.currency === 'USD'
+                            ? `$${((payment.paymentAmount || 0) / 100).toFixed(2)}`
+                            : `${(payment.paymentAmount || 0).toLocaleString()}원`
+                          }
+                        </div>
+                        {payment.couponDiscount && payment.couponDiscount > 0 && (
+                          <div style={{ color: '#10b981', fontSize: '12px', marginTop: '4px' }}>
+                            쿠폰 할인: -{payment.currency === 'USD'
+                              ? `$${(payment.couponDiscount / 100).toFixed(2)}`
+                              : `${payment.couponDiscount.toLocaleString()}원`
+                            }
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>결제 상태</div>
+                        <span style={{
+                          padding: '4px 8px',
+                          backgroundColor: '#1f1f23',
+                          color: payment.paymentStatus === 'PAID' ? '#10b981' :
+                                 payment.paymentStatus === 'CANCELLED' ? '#f87171' :
+                                 payment.paymentStatus === 'REFUNDED' ? '#f59e0b' :
+                                 payment.paymentStatus === 'FAILED' ? '#ef4444' : '#fafafa',
+                          border: `1px solid ${payment.paymentStatus === 'PAID' ? '#10b981' :
+                                           payment.paymentStatus === 'CANCELLED' ? '#f87171' :
+                                           payment.paymentStatus === 'REFUNDED' ? '#f59e0b' :
+                                           payment.paymentStatus === 'FAILED' ? '#ef4444' : '#3f3f46'}`,
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}>
+                          {payment.paymentStatus}
+                        </span>
+                      </div>
+
+                      <div>
+                        <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>결제 일시</div>
+                        <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                          {payment.paymentTime ? formatDateTime(payment.paymentTime) : '-'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>결제 수단</div>
+                        <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                          {payment.paymentMethod === 'card' ? '카드' :
+                           payment.paymentMethod === 'easypay' ? '간편결제' :
+                           payment.paymentMethod || '-'}
+                        </div>
+                        {payment.easyPayProvider && (
+                          <div style={{ color: '#a1a1aa', fontSize: '11px', marginTop: '2px' }}>
+                            {payment.easyPayProvider}
+                          </div>
+                        )}
+                      </div>
+
+                      {payment.cardCompany && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>카드사</div>
+                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                            {payment.cardCompany}
+                          </div>
+                          {payment.cardName && (
+                            <div style={{ color: '#a1a1aa', fontSize: '11px', marginTop: '2px' }}>
+                              {payment.cardName}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {payment.cardNumber && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>카드 번호</div>
+                          <div style={{
+                            color: '#a1a1aa',
+                            fontSize: '12px',
+                            fontFamily: 'monospace'
+                          }}>
+                            {payment.cardNumber}
+                          </div>
+                        </div>
+                      )}
+
+                      {payment.installmentMonth !== undefined && payment.installmentMonth !== null && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>할부</div>
+                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                            {payment.installmentMonth === 0 ? '일시불' : `${payment.installmentMonth}개월`}
+                            {payment.isInterestFree && (
+                              <span style={{
+                                marginLeft: '6px',
+                                color: '#10b981',
+                                fontSize: '11px'
+                              }}>
+                                (무이자)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {payment.approvalNumber && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>승인번호</div>
+                          <div style={{
+                            color: '#fafafa',
+                            fontSize: '12px',
+                            fontFamily: 'monospace'
+                          }}>
+                            {payment.approvalNumber}
+                          </div>
+                        </div>
+                      )}
+
+                      {payment.couponName && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>사용 쿠폰</div>
+                          <div style={{ color: '#10b981', fontSize: '13px', fontWeight: 'bold' }}>
+                            {payment.couponName}
+                          </div>
+                          {payment.couponCode && (
+                            <div style={{ color: '#a1a1aa', fontSize: '11px', marginTop: '2px', fontFamily: 'monospace' }}>
+                              {payment.couponCode}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {payment.refundAmount && (
+                        <div>
+                          <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>환불 금액</div>
+                          <div style={{ color: '#f59e0b', fontSize: '14px', fontWeight: 'bold' }}>
+                            {payment.currency === 'USD'
+                              ? `$${(payment.refundAmount / 100).toFixed(2)}`
+                              : `${payment.refundAmount.toLocaleString()}원`
+                            }
+                          </div>
+                        </div>
+                      )}
+
+                      {payment.cancelReason && (
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '5px' }}>취소/환불 사유</div>
+                          <div style={{ color: '#fafafa', fontSize: '13px' }}>
+                            {payment.cancelReason}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         </div>
       )}
