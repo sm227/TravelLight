@@ -921,6 +921,10 @@ export interface PaymentDto {
   channelName?: string;
   pgMerchantId?: string;
   pgTransactionId?: string;
+  couponCode?: string;
+  couponName?: string;
+  couponDiscount?: number;
+  currency?: string;
   createdAt: string;
   updatedAt: string;
 }
