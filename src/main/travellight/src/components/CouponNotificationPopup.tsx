@@ -11,7 +11,8 @@ import {
   Chip,
   Divider,
   FormControlLabel,
-  Checkbox
+  Checkbox,
+  Snackbar
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -33,6 +34,9 @@ const CouponNotificationPopup: React.FC<CouponNotificationPopupProps> = ({ userI
   const [loading, setLoading] = useState(false);
   const [dontShowToday, setDontShowToday] = useState(false);
   const [issuingCoupon, setIssuingCoupon] = useState<number | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 
   useEffect(() => {
     if (open && userId) {
@@ -89,13 +93,17 @@ const CouponNotificationPopup: React.FC<CouponNotificationPopupProps> = ({ userI
       );
 
       if (response.data.success) {
-        alert('쿠폰이 발급되었습니다! 이제 사용하실 수 있습니다.');
+        setSnackbarMessage('쿠폰이 발급되었습니다! 이제 사용하실 수 있습니다.');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
         // 발급된 쿠폰을 목록에서 제거
         setCoupons(prev => prev.filter(c => c.id !== couponId));
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || '쿠폰 발급에 실패했습니다.';
-      alert(errorMessage);
+      setSnackbarMessage(errorMessage);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
     } finally {
       setIssuingCoupon(null);
     }
@@ -129,6 +137,7 @@ const CouponNotificationPopup: React.FC<CouponNotificationPopupProps> = ({ userI
   }
 
   return (
+    <>
     <Dialog
       open={open}
       onClose={handleClose}
@@ -340,6 +349,22 @@ const CouponNotificationPopup: React.FC<CouponNotificationPopupProps> = ({ userI
         </Button>
       </DialogActions>
     </Dialog>
+
+    <Snackbar
+      open={snackbarOpen}
+      autoHideDuration={3000}
+      onClose={() => setSnackbarOpen(false)}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    >
+      <Alert
+        onClose={() => setSnackbarOpen(false)}
+        severity={snackbarSeverity}
+        sx={{ width: '100%' }}
+      >
+        {snackbarMessage}
+      </Alert>
+    </Snackbar>
+    </>
   );
 };
 
