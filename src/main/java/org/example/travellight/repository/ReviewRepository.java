@@ -27,6 +27,9 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     // 사용자의 리뷰 조회
     Page<Review> findByUserAndStatusOrderByCreatedAtDesc(User user, ReviewStatus status, Pageable pageable);
     
+    // 사용자의 모든 리뷰 조회 (관리자용, 상태 관계없이)
+    Page<Review> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
+    
     // 예약에 대한 리뷰 존재 여부 확인
     boolean existsByReservationIdAndStatus(Long reservationId, ReviewStatus status);
     
@@ -65,6 +68,13 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
            "GROUP BY r.placeName, r.placeAddress " +
            "HAVING COUNT(r) >= :minReviewCount " +
            "ORDER BY recommendationScore DESC, avgRating DESC, reviewCount DESC")
-    List<Object[]> findTopRatedPlaces(@Param("status") ReviewStatus status, 
+    List<Object[]> findTopRatedPlaces(@Param("status") ReviewStatus status,
                                      @Param("minReviewCount") long minReviewCount);
+
+    // 통합 검색 - 사용자명, 장소명, 내용으로 검색
+    @Query("SELECT r FROM Review r JOIN r.user u " +
+           "WHERE LOWER(u.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(r.placeName) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(r.content) LIKE LOWER(CONCAT('%', :query, '%'))")
+    List<Review> searchReviews(@Param("query") String query, Pageable pageable);
 }

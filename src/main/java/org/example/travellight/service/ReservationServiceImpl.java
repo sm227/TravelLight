@@ -281,6 +281,77 @@ public class ReservationServiceImpl implements ReservationService {
     }
     
     @Override
+    public List<ReservationDto> getAllReservations() {
+        logger.info("전체 예약 조회 시작");
+        List<Reservation> reservations = reservationRepository.findAll();
+        logger.info("전체 예약 {}건 조회 완료", reservations.size());
+        return reservations.stream()
+            .map(this::mapToDto)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getReservationStatsByStoreAndUser() {
+        logger.info("매장별 회원별 예약 통계 조회 시작");
+        
+        try {
+            // User를 fetch join하여 조회
+            List<Reservation> reservations = reservationRepository.findAllWithUser();
+            logger.info("예약 {}건 조회 완료 (User fetch join)", reservations.size());
+            
+            Map<String, Object> result = new java.util.HashMap<>();
+            
+            // 매장별 회원별 예약 건수 집계
+            Map<String, Map<Long, Long>> storeUserStats = reservations.stream()
+                .filter(r -> r.getUser() != null) // null 체크
+                .collect(Collectors.groupingBy(
+                    r -> r.getPlaceName() + "|" + r.getPlaceAddress(),
+                    Collectors.groupingBy(
+                        r -> r.getUser().getId(),
+                        Collectors.counting()
+                    )
+                ));
+            
+            // 회원별 매장별 예약 건수 집계
+            Map<Long, Map<String, Long>> userStoreStats = reservations.stream()
+                .filter(r -> r.getUser() != null) // null 체크
+                .collect(Collectors.groupingBy(
+                    r -> r.getUser().getId(),
+                    Collectors.groupingBy(
+                        r -> r.getPlaceName() + "|" + r.getPlaceAddress(),
+                        Collectors.counting()
+                    )
+                ));
+            
+            // 회원 정보 포함
+            Map<Long, Map<String, String>> userInfo = new java.util.HashMap<>();
+            reservations.stream()
+                .map(Reservation::getUser)
+                .filter(user -> user != null) // null 체크
+                .distinct()
+                .forEach(user -> {
+                    Map<String, String> info = new java.util.HashMap<>();
+                    info.put("name", user.getName() != null ? user.getName() : "알 수 없음");
+                    info.put("email", user.getEmail() != null ? user.getEmail() : "");
+                    userInfo.put(user.getId(), info);
+                });
+            
+            result.put("storeUserStats", storeUserStats);
+            result.put("userStoreStats", userStoreStats);
+            result.put("userInfo", userInfo);
+            
+            logger.info("매장별 회원별 예약 통계 조회 완료 - 매장 {}개, 회원 {}명", 
+                storeUserStats.size(), userInfo.size());
+            return result;
+            
+        } catch (Exception e) {
+            logger.error("예약 통계 조회 중 오류 발생", e);
+            throw new RuntimeException("예약 통계 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+    }
+    
+    @Override
     @Transactional
     public void updatePaymentId(String reservationNumber, String paymentId) {
         Reservation reservation = reservationRepository.findByReservationNumber(reservationNumber)

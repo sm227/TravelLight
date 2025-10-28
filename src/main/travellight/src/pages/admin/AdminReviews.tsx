@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -53,7 +54,7 @@ import {
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { ReviewResponse, reviewService } from '../../services/api';
+import { ReviewResponse, reviewService, partnershipService } from '../../services/api';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -161,6 +162,7 @@ const formatDateTime = (dateString: string) => {
 };
 
 const AdminReviews: React.FC = () => {
+  const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [reviews, setReviews] = useState<ReviewResponse[]>([]);
   const [highReportReviews, setHighReportReviews] = useState<ReviewResponse[]>([]);
@@ -741,7 +743,24 @@ const AdminReviews: React.FC = () => {
                             />
                           </TableCell>
                           <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box 
+                              sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 1.5,
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  '& .user-name': {
+                                    textDecoration: 'underline',
+                                    color: COLORS.accentPrimary
+                                  }
+                                }
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/admin/users/${review.user.id}`);
+                              }}
+                            >
                               <Avatar sx={{ 
                                 width: 36, 
                                 height: 36,
@@ -751,7 +770,15 @@ const AdminReviews: React.FC = () => {
                                 {review.user.name.charAt(0)}
                               </Avatar>
                               <Box>
-                                <Typography variant="body2" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                                <Typography 
+                                  className="user-name"
+                                  variant="body2" 
+                                  sx={{ 
+                                    color: COLORS.textPrimary, 
+                                    fontWeight: 500,
+                                    transition: 'all 0.2s'
+                                  }}
+                                >
                                   {review.user.name}
                                 </Typography>
                                 <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
@@ -761,8 +788,48 @@ const AdminReviews: React.FC = () => {
                             </Box>
                           </TableCell>
                           <TableCell>
-                            <Box>
-                              <Typography variant="body2" sx={{ color: COLORS.textPrimary, fontWeight: 500 }}>
+                            <Box 
+                              sx={{
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  '& .place-name': {
+                                    textDecoration: 'underline',
+                                    color: COLORS.accentPrimary
+                                  }
+                                }
+                              }}
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  const response = await partnershipService.getAllPartnerships();
+                                  if (response.success && response.data) {
+                                    const matchingPartnership = response.data.find((p: any) => {
+                                      return p.businessName === review.placeName || 
+                                             p.address === review.placeAddress ||
+                                             p.businessName.includes(review.placeName || '') ||
+                                             (review.placeName || '').includes(p.businessName);
+                                    });
+                                    
+                                    if (matchingPartnership) {
+                                      navigate(`/admin/partnerships/${matchingPartnership.id}`);
+                                    } else {
+                                      console.log('해당 매장의 제휴점 정보를 찾을 수 없습니다.');
+                                    }
+                                  }
+                                } catch (error) {
+                                  console.error('제휴점 정보 조회 실패:', error);
+                                }
+                              }}
+                            >
+                              <Typography 
+                                className="place-name"
+                                variant="body2" 
+                                sx={{ 
+                                  color: COLORS.textPrimary, 
+                                  fontWeight: 500,
+                                  transition: 'all 0.2s'
+                                }}
+                              >
                                 {review.placeName}
                               </Typography>
                               <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>

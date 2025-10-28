@@ -26,6 +26,10 @@ export interface ReservationDto {
     paymentProvider?: string; // 결제 제공자 (portone, paypal, tosspayments 등)
     cardCompany?: string; // 카드사명 (신한, 삼성, 현대 등)
     cardType?: string; // 카드 타입 (신용카드, 체크카드, 할부카드 등)
+    couponCode?: string; // 사용한 쿠폰 코드
+    couponName?: string; // 쿠폰 이름
+    couponDiscount?: number; // 쿠폰 할인 금액
+    originalPrice?: number; // 쿠폰 적용 전 원가
     createdAt?: string;
 }
 

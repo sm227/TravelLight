@@ -102,6 +102,18 @@ public class Payment {
     @Column(name = "pg_transaction_id")
     private String pgTransactionId; // PG사 거래 ID
 
+    @Column(name = "coupon_code")
+    private String couponCode; // 사용한 쿠폰 코드
+
+    @Column(name = "coupon_name")
+    private String couponName; // 쿠폰명
+
+    @Column(name = "coupon_discount")
+    private Integer couponDiscount; // 쿠폰 할인 금액
+
+    @Column(name = "currency")
+    private String currency; // 통화 단위 (KRW, USD 등)
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

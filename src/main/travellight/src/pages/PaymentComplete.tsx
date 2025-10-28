@@ -194,8 +194,7 @@ const PaymentComplete: React.FC = () => {
         console.log('=== 결제 및 예약 처리 완료 ===');
         setProcessing(false);
 
-        // 성공 메시지 표시 후 지도 페이지로 이동
-        alert('결제가 완료되었습니다!');
+        // 지도 페이지로 이동 (성공 메시지는 UI로 표시)
         navigate('/map', { state: { showReservations: true } });
 
       } catch (error: any) {

@@ -263,6 +263,9 @@ const Map = () => {
   const [cancelError, setCancelError] = useState<string>('');
   const [cancelSuccess, setCancelSuccess] = useState<string>('');
 
+  // 쿠폰 성공 메시지 상태
+  const [couponSuccess, setCouponSuccess] = useState<string>('');
+
   // 리뷰 관련 상태
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
   const [selectedReservationForReview, setSelectedReservationForReview] = useState<ReservationDto | null>(null);
@@ -1160,7 +1163,7 @@ const Map = () => {
   //   const fetchPartnershipsData = async () => {
   //     try {
   //       const response = await axios.get("/api/partnership", {
-  //         timeout: 5000,
+  //         timeout: 60000,
   //       });
   //       if (response.data && response.data.success) {
   //         const partnershipData = response.data.data.filter(
@@ -1540,9 +1543,6 @@ const Map = () => {
 
       const map = new window.naver.maps.Map(container, options);
 
-      // iOS Safari에서 안정적인 마커 표시를 위해 지도 완전 초기화 플래그 사용
-      let isMapFullyInitialized = false;
-
       window.naver.maps.Event.once(map, "init_stylemap", () => {
         console.log("지도 로드 완료, 추가 설정 적용");
 
@@ -1596,11 +1596,6 @@ const Map = () => {
             },
           });
 
-          // iOS Safari를 위한 추가 대기 시간
-          setTimeout(() => {
-            isMapFullyInitialized = true;
-            console.log("지도 완전 초기화 완료 (iOS 대응)");
-          }, 100);
         } catch (e) {
           console.error("지도 스타일 설정 오류:", e);
         }
@@ -1689,35 +1684,10 @@ const Map = () => {
         try {
           isPartnershipsFetching = true;
 
-          // iOS Safari 대응: 지도 완전 초기화 대기
-          const waitForMapInit = () => {
-            return new Promise<void>((resolve) => {
-              if (isMapFullyInitialized) {
-                resolve();
-                return;
-              }
-
-              // 최대 3초 대기
-              const maxWaitTime = 3000;
-              const checkInterval = 50;
-              let elapsed = 0;
-
-              const intervalId = setInterval(() => {
-                elapsed += checkInterval;
-                if (isMapFullyInitialized || elapsed >= maxWaitTime) {
-                  clearInterval(intervalId);
-                  console.log(`지도 초기화 대기 완료 (${elapsed}ms)`);
-                  resolve();
-                }
-              }, checkInterval);
-            });
-          };
-
-          await waitForMapInit();
 
           // API 호출 시 catch 블록 추가 및 오류 로깅 개선
           const response = await axios.get("/api/partnership", {
-            timeout: 5000,
+            timeout: 60000,
           });
           if (response.data && response.data.success) {
             const partnershipData = response.data.data.filter(
@@ -3855,7 +3825,7 @@ const Map = () => {
         setAppliedCoupon(couponData);
         setCouponDiscount(couponData.discountAmount);
         setCouponError("");
-        alert(`쿠폰이 적용되었습니다! ${couponData.discountAmount.toLocaleString()}원 할인`);
+        setCouponSuccess(`쿠폰이 적용되었습니다! ${couponData.discountAmount.toLocaleString()}원 할인`);
       }
     } catch (error: any) {
       console.error("쿠폰 검증 오류:", error);
@@ -3962,6 +3932,9 @@ const Map = () => {
         status: "RESERVED",
         paymentId: paymentId || portonePaymentId,
         couponCode: appliedCoupon ? couponCode.trim().toUpperCase() : null,
+        couponName: appliedCoupon ? appliedCoupon.couponName : null,
+        couponDiscount: appliedCoupon ? couponDiscount : null,
+        originalPrice: appliedCoupon ? totalPrice : null,
       };
 
       // 데이터 검증 로그
@@ -4399,6 +4372,23 @@ const Map = () => {
       // 쿠폰 할인을 적용한 최종 결제 금액 계산
       const finalPaymentAmount = totalPrice - couponDiscount;
 
+      console.log("=== 금액 계산 ===");
+      console.log("원래 금액 (totalPrice):", totalPrice);
+      console.log("쿠폰 할인 (couponDiscount):", couponDiscount);
+      console.log("최종 결제 금액 (finalPaymentAmount):", finalPaymentAmount);
+
+      // PayPal용 금액 계산 (USD)
+      let paymentAmount = finalPaymentAmount;
+      if (paymentMethod === "paypal") {
+        // 원화를 달러로 환산 (1달러 = 1300원으로 계산)
+        const usdAmount = Math.ceil(finalPaymentAmount / 13);
+        console.log("PayPal USD 환산 금액:", usdAmount, "센트");
+        console.log("PayPal USD 금액:", (usdAmount / 100).toFixed(2), "달러");
+        paymentAmount = usdAmount; // 센트 단위
+      }
+      console.log("PortOne에 전달할 금액:", paymentAmount);
+      console.log("================");
+
       // 모바일 결제를 위한 예약 번호 미리 생성
       const reservationNumber = generateReservationNumber();
       console.log("생성된 예약 번호:", reservationNumber);
@@ -4409,7 +4399,7 @@ const Map = () => {
         channelKey,
         paymentId,
         orderName: `${selectedPlace.place_name} 짐보관 서비스${appliedCoupon ? ' (쿠폰 할인 적용)' : ''}`,
-        totalAmount: paymentMethod === "paypal" ? Math.ceil(finalPaymentAmount / 1300) : finalPaymentAmount, // USD 환산 (대략 1300원 = 1달러)
+        totalAmount: paymentAmount,
         currency: currency as any,
         payMethod: payMethodType as any,
         ...payMethodConfig,
@@ -4438,6 +4428,7 @@ const Map = () => {
             totalPrice: finalPaymentAmount,
             originalPrice: totalPrice,
             couponCode: appliedCoupon ? couponCode.trim().toUpperCase() : null,
+            couponName: appliedCoupon ? appliedCoupon.couponName : null,
             couponDiscount: couponDiscount,
             storageType: storageDuration,
             status: "RESERVED",
@@ -4617,7 +4608,7 @@ const Map = () => {
             // 예약 완료 후 제휴점 데이터 새로고침하여 보관 용량 업데이트
             try {
               const response = await axios.get("/api/partnership", {
-                timeout: 5000,
+                timeout: 60000,
               });
               if (response.data && response.data.success) {
                 const partnershipData = response.data.data.filter(
@@ -5405,6 +5396,76 @@ const Map = () => {
                       )}
                     </Box>
                   </Box>
+
+                  {/* 쿠폰 정보 */}
+                  {selectedReservation.couponCode && (
+                    <>
+                      {selectedReservation.originalPrice && (
+                        <Box sx={{ mb: 1.5 }}>
+                          <Typography variant="caption" sx={{
+                            color: "#777",
+                            fontSize: "9px",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            mb: 0.5,
+                            display: "block"
+                          }}>
+                            원가
+                          </Typography>
+                          <Box sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center"
+                          }}>
+                            <Typography variant="body2" sx={{
+                              color: "#555",
+                              fontSize: "11px"
+                            }}>
+                              쿠폰 적용 전
+                            </Typography>
+                            <Typography variant="body2" sx={{
+                              fontWeight: 600,
+                              color: "#333",
+                              fontSize: "11px"
+                            }}>
+                              {selectedReservation.originalPrice.toLocaleString()}원
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+                      <Box sx={{ mb: 1.5 }}>
+                        <Typography variant="caption" sx={{
+                          color: "#777",
+                          fontSize: "9px",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          mb: 0.5,
+                          display: "block"
+                        }}>
+                          쿠폰 할인
+                        </Typography>
+                        <Box sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}>
+                          <Typography variant="body2" sx={{
+                            color: "#555",
+                            fontSize: "11px"
+                          }}>
+                            {selectedReservation.couponName || selectedReservation.couponCode}
+                          </Typography>
+                          <Typography variant="body2" sx={{
+                            fontWeight: 600,
+                            color: "#333",
+                            fontSize: "11px"
+                          }}>
+                            -{selectedReservation.couponDiscount?.toLocaleString()}원
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </>
+                  )}
 
                   {/* 총 금액 */}
                   <Box sx={{
@@ -6736,6 +6797,44 @@ const Map = () => {
                         {getBagSummary()}
                       </Typography>
                     </Box>
+
+                    {/* 쿠폰 정보 */}
+                    {appliedCoupon && (
+                      <>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            mb: 1,
+                          }}
+                        >
+                          <Typography
+                            sx={{ fontSize: "13px", color: "text.secondary" }}
+                          >
+                            원가
+                          </Typography>
+                          <Typography sx={{ fontSize: "13px", fontWeight: 500 }}>
+                            {totalPrice.toLocaleString()}{t('won')}
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            mb: 1,
+                          }}
+                        >
+                          <Typography
+                            sx={{ fontSize: "13px", color: "text.secondary" }}
+                          >
+                            쿠폰 할인 ({appliedCoupon.couponName || couponCode})
+                          </Typography>
+                          <Typography sx={{ fontSize: "13px", fontWeight: 500 }}>
+                            -{couponDiscount.toLocaleString()}{t('won')}
+                          </Typography>
+                        </Box>
+                      </>
+                    )}
 
                     <Box
                       sx={{
@@ -8611,6 +8710,22 @@ const Map = () => {
           sx={{ width: "100%" }}
         >
           {cancelSuccess}
+        </Alert>
+      </Snackbar>
+
+      {/* 쿠폰 적용 성공 메시지 스낵바 */}
+      <Snackbar
+        open={!!couponSuccess}
+        autoHideDuration={3000}
+        onClose={() => setCouponSuccess("")}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setCouponSuccess("")}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          {couponSuccess}
         </Alert>
       </Snackbar>
 

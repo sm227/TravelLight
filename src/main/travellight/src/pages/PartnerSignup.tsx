@@ -370,12 +370,16 @@ const PartnerSignup: React.FC = () => {
         handleSubmit();
       } else {
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
+        // 다음 단계로 이동 시 스크롤을 맨 위로
+        window.scrollTo(0, 0);
       }
     }
   };
 
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
+    // 이전 단계로 이동 시 스크롤을 맨 위로
+    window.scrollTo(0, 0);
   };
 
   const validateCurrentStep = () => {

@@ -506,6 +506,22 @@ public class ReviewServiceImpl implements ReviewService {
                 .collect(Collectors.toList());
     }
     
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ReviewDto.ReviewResponse> getAdminUserReviews(Long userId, Pageable pageable) {
+        log.info("관리자 - 사용자 ID {}의 리뷰 목록 조회 시작", userId);
+        
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        
+        // 해당 사용자의 모든 리뷰 조회 (상태 관계없이)
+        Page<Review> reviews = reviewRepository.findByUserOrderByCreatedAtDesc(user, pageable);
+        
+        log.info("사용자 ID {}의 리뷰 {}건 조회 완료", userId, reviews.getTotalElements());
+        
+        return reviews.map(review -> convertToResponse(review, null));
+    }
+    
     // Private helper methods
     
     private void saveReviewPhotos(Review review, List<String> photoFilenames) {

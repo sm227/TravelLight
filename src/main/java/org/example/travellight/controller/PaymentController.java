@@ -441,6 +441,10 @@ public class PaymentController {
         dto.put("channelName", payment.getChannelName());
         dto.put("pgMerchantId", payment.getPgMerchantId());
         dto.put("pgTransactionId", payment.getPgTransactionId());
+        dto.put("couponCode", payment.getCouponCode());
+        dto.put("couponName", payment.getCouponName());
+        dto.put("couponDiscount", payment.getCouponDiscount());
+        dto.put("currency", payment.getCurrency());
         dto.put("createdAt", payment.getCreatedAt());
         dto.put("updatedAt", payment.getUpdatedAt());
         return dto;

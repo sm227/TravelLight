@@ -2,6 +2,7 @@ package org.example.travellight.service;
 
 import org.example.travellight.dto.ReservationDto;
 import java.util.List;
+import java.util.Map;
 
 public interface ReservationService {
     
@@ -28,6 +29,12 @@ public interface ReservationService {
     
     // 최근 예약 조회 (관리자 대시보드용)
     List<ReservationDto> getRecentReservations(int limit);
+    
+    // 전체 예약 조회 (관리자용)
+    List<ReservationDto> getAllReservations();
+    
+    // 매장별 회원별 예약 통계 조회 (관리자용)
+    Map<String, Object> getReservationStatsByStoreAndUser();
     
     // 예약의 결제 ID 업데이트
     void updatePaymentId(String reservationNumber, String paymentId);

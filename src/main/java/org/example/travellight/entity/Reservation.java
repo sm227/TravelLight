@@ -90,7 +90,19 @@ public class Reservation {
     
     @Column(name = "card_type")
     private String cardType; // 카드 타입 (신용카드, 체크카드, 할부카드 등)
-    
+
+    @Column(name = "coupon_code")
+    private String couponCode; // 사용한 쿠폰 코드
+
+    @Column(name = "coupon_name")
+    private String couponName; // 쿠폰 이름
+
+    @Column(name = "coupon_discount")
+    private Integer couponDiscount; // 쿠폰 할인 금액
+
+    @Column(name = "original_price")
+    private Integer originalPrice; // 쿠폰 적용 전 원가
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
