@@ -1,5 +1,5 @@
-// @ts-ignore
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -28,7 +28,8 @@ import {
   InputLabel,
   SelectChangeEvent,
   Grid,
-  Divider
+  Divider,
+  CircularProgress
 } from '@mui/material';
 import {
   Search,
@@ -37,8 +38,11 @@ import {
   FilterList,
   LocalShipping
 } from '@mui/icons-material';
+import { getAllReservations } from '../../services/reservationService';
+import { ReservationDto } from '../../types/reservation';
+import { partnershipService } from '../../services/api';
 
-// 샘플 주문 데이터
+// 샘플 주문 데이터 (백업용)
 const sampleOrders = [
   { 
     id: 'ORD-2023-001', 
@@ -143,14 +147,16 @@ const sampleOrders = [
 ];
 
 const AdminOrders = () => {
+  const navigate = useNavigate();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [orders, setOrders] = useState(sampleOrders);
+  const [reservations, setReservations] = useState<ReservationDto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [alertMessage, setAlertMessage] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [openOrderDetail, setOpenOrderDetail] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<ReservationDto | null>(null);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -161,9 +167,27 @@ const AdminOrders = () => {
     setPage(0);
   };
 
+  // 예약 데이터 로드
+  const loadReservations = async () => {
+    try {
+      setLoading(true);
+      const data = await getAllReservations();
+      setReservations(data);
+    } catch (error) {
+      console.error('예약 데이터 로드 실패:', error);
+      setAlertMessage({type: 'error', message: '예약 데이터를 불러오는데 실패했습니다.'});
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReservations();
+  }, []);
+
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
-    setPage(0); // 검색 시 첫 페이지로 초기화
+    setPage(0);
   };
 
   const handleStatusFilterChange = (event: SelectChangeEvent) => {
@@ -171,13 +195,14 @@ const AdminOrders = () => {
     setPage(0);
   };
 
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = reservations.filter(reservation => {
     const matchesSearch = 
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.email.toLowerCase().includes(searchTerm.toLowerCase());
+      (reservation.reservationNumber?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (reservation.userName?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (reservation.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (reservation.placeName?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     
-    if (statusFilter && order.status !== statusFilter) {
+    if (statusFilter && reservation.status !== statusFilter) {
       return false;
     }
     
@@ -185,11 +210,11 @@ const AdminOrders = () => {
   });
 
   const handleRefresh = () => {
-    setOrders(sampleOrders);
+    loadReservations();
     setSearchTerm('');
     setStatusFilter('');
     setPage(0);
-    setAlertMessage({type: 'success', message: '주문 목록이 새로고침되었습니다.'});
+    setAlertMessage({type: 'success', message: '예약 목록이 새로고침되었습니다.'});
     setTimeout(() => setAlertMessage(null), 3000);
   };
 
@@ -203,28 +228,79 @@ const AdminOrders = () => {
     setSelectedOrder(null);
   };
 
-  // 주문 상태에 따른 색상 반환 함수
+  // 예약 상태에 따른 색상 반환 함수
   const getStatusColor = (status: string) => {
     switch (status) {
-      case '배송 완료':
+      case 'COMPLETED':
         return 'success';
-      case '배송 중':
-        return 'info';
-      case '결제 완료':
+      case 'RESERVED':
         return 'primary';
-      case '주문 접수':
-        return 'warning';
-      case '주문 취소':
+      case 'CANCELLED':
         return 'error';
       default:
         return 'default';
     }
   };
 
+  // 상태 한글 표시
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'COMPLETED':
+        return '완료';
+      case 'RESERVED':
+        return '예약중';
+      case 'CANCELLED':
+        return '취소';
+      default:
+        return status;
+    }
+  };
+
+  // 날짜 포맷
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('ko-KR');
+  };
+
+  // 회원 이름 클릭 핸들러
+  const handleUserClick = (userId?: number) => {
+    if (userId) {
+      navigate(`/admin/users/${userId}`);
+    }
+  };
+
+  // 매장 이름 클릭 핸들러
+  const handleStoreClick = async (placeName: string, placeAddress: string) => {
+    try {
+      // 모든 제휴점 목록 가져오기
+      const response = await partnershipService.getAllPartnerships();
+      if (response.success && response.data) {
+        // placeName과 placeAddress로 제휴점 찾기
+        const matchingPartnership = response.data.find((p: any) => {
+          // 정확히 일치하거나 유사한 경우
+          return p.businessName === placeName || 
+                 p.address === placeAddress ||
+                 p.businessName.includes(placeName) ||
+                 placeName.includes(p.businessName);
+        });
+        
+        if (matchingPartnership) {
+          // 제휴점 상세 페이지로 이동
+          navigate(`/admin/partnerships/${matchingPartnership.id}`);
+        } else {
+          setAlertMessage({ type: 'error', message: '해당 매장의 제휴점 정보를 찾을 수 없습니다.' });
+        }
+      }
+    } catch (error) {
+      console.error('제휴점 정보 조회 실패:', error);
+      setAlertMessage({ type: 'error', message: '제휴점 정보를 불러오는데 실패했습니다.' });
+    }
+  };
+
   return (
     <Box>
       <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
-        주문 관리
+        예약 관리
       </Typography>
 
       {alertMessage && (
@@ -240,7 +316,7 @@ const AdminOrders = () => {
       <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }} elevation={3}>
         <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
           <TextField
-            placeholder="주문번호, 고객명, 이메일로 검색"
+            placeholder="예약번호, 고객명, 이메일, 매장명으로 검색"
             variant="outlined"
             size="small"
             fullWidth
@@ -255,20 +331,18 @@ const AdminOrders = () => {
             }}
           />
           <FormControl sx={{ minWidth: 150 }} size="small">
-            <InputLabel id="status-filter-label">주문 상태</InputLabel>
+            <InputLabel id="status-filter-label">예약 상태</InputLabel>
             <Select
               labelId="status-filter-label"
               id="status-filter"
               value={statusFilter}
-              label="주문 상태"
+              label="예약 상태"
               onChange={handleStatusFilterChange}
             >
               <MenuItem value="">전체</MenuItem>
-              <MenuItem value="주문 접수">주문 접수</MenuItem>
-              <MenuItem value="결제 완료">결제 완료</MenuItem>
-              <MenuItem value="배송 중">배송 중</MenuItem>
-              <MenuItem value="배송 완료">배송 완료</MenuItem>
-              <MenuItem value="주문 취소">주문 취소</MenuItem>
+              <MenuItem value="RESERVED">예약중</MenuItem>
+              <MenuItem value="COMPLETED">완료</MenuItem>
+              <MenuItem value="CANCELLED">취소</MenuItem>
             </Select>
           </FormControl>
           <IconButton onClick={handleRefresh} color="primary">
@@ -280,62 +354,88 @@ const AdminOrders = () => {
         </Stack>
 
         <TableContainer>
-          <Table sx={{ minWidth: 650 }} aria-label="주문 테이블">
+          <Table sx={{ minWidth: 650 }} aria-label="예약 테이블">
             <TableHead>
               <TableRow>
-                <TableCell>주문번호</TableCell>
+                <TableCell>예약번호</TableCell>
                 <TableCell>고객명</TableCell>
-                <TableCell>이메일</TableCell>
-                <TableCell>주문일시</TableCell>
-                <TableCell>상품수</TableCell>
-                <TableCell>주문금액</TableCell>
-                <TableCell>결제방법</TableCell>
+                <TableCell>매장명</TableCell>
+                <TableCell>예약일시</TableCell>
+                <TableCell>보관일</TableCell>
+                <TableCell>금액</TableCell>
                 <TableCell>상태</TableCell>
                 <TableCell align="center">작업</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredOrders
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((order) => (
-                  <TableRow key={order.id} hover>
-                    <TableCell>{order.id}</TableCell>
-                    <TableCell>{order.customer}</TableCell>
-                    <TableCell>{order.email}</TableCell>
-                    <TableCell>{order.date}</TableCell>
-                    <TableCell>{order.items}개</TableCell>
-                    <TableCell>₩{order.amount}</TableCell>
-                    <TableCell>{order.paymentMethod}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={order.status} 
-                        color={getStatusColor(order.status) as any} 
-                        size="small" 
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <IconButton 
-                        size="small" 
-                        color="primary" 
-                        onClick={() => handleViewOrder(order)}
-                      >
-                        <Visibility fontSize="small" />
-                      </IconButton>
-                      {order.status === '결제 완료' && (
-                        <IconButton size="small" color="success">
-                          <LocalShipping fontSize="small" />
-                        </IconButton>
-                      )}
-                    </TableCell>
-                  </TableRow>
-              ))}
-              {filteredOrders.length === 0 && (
+              {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center">
-                    검색 결과가 없습니다.
+                  <TableCell colSpan={8} align="center" sx={{ py: 5 }}>
+                    <CircularProgress />
+                    <Typography sx={{ mt: 2 }}>로딩 중...</Typography>
                   </TableCell>
                 </TableRow>
+              ) : (
+                <>
+                  {filteredOrders
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((reservation) => (
+                      <TableRow key={reservation.id} hover>
+                        <TableCell>{reservation.reservationNumber}</TableCell>
+                        <TableCell>
+                          <Button
+                            onClick={() => handleUserClick(reservation.userId)}
+                            sx={{ 
+                              textTransform: 'none', 
+                              color: 'primary.main',
+                              '&:hover': { textDecoration: 'underline' }
+                            }}
+                          >
+                            {reservation.userName || '-'}
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            onClick={() => handleStoreClick(reservation.placeName || '', reservation.placeAddress || '')}
+                            sx={{ 
+                              textTransform: 'none', 
+                              color: 'secondary.main',
+                              '&:hover': { textDecoration: 'underline' }
+                            }}
+                          >
+                            {reservation.placeName || '-'}
+                          </Button>
+                        </TableCell>
+                        <TableCell>{formatDate(reservation.createdAt)}</TableCell>
+                        <TableCell>{reservation.storageDate || '-'}</TableCell>
+                        <TableCell>₩{reservation.totalPrice?.toLocaleString() || 0}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={getStatusLabel(reservation.status || '')} 
+                            color={getStatusColor(reservation.status || '') as any} 
+                            size="small" 
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <IconButton 
+                            size="small" 
+                            color="primary" 
+                            onClick={() => handleViewOrder(reservation)}
+                          >
+                            <Visibility fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                  ))}
+                  {filteredOrders.length === 0 && !loading && (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center">
+                        검색 결과가 없습니다.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
               )}
             </TableBody>
           </Table>
@@ -353,61 +453,71 @@ const AdminOrders = () => {
         />
       </Paper>
 
-      {/* 주문 상세 정보 다이얼로그 */}
+      {/* 예약 상세 정보 다이얼로그 */}
       <Dialog
         open={openOrderDetail}
         onClose={handleCloseOrderDetail}
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>주문 상세 정보</DialogTitle>
+        <DialogTitle>예약 상세 정보</DialogTitle>
         <DialogContent dividers>
           {selectedOrder && (
             <Box sx={{ p: 1 }}>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle2" color="text.secondary">주문번호</Typography>
-                  <Typography variant="body1" gutterBottom>{selectedOrder.id}</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">예약번호</Typography>
+                  <Typography variant="body1" gutterBottom>{selectedOrder.reservationNumber}</Typography>
                   
-                  <Typography variant="subtitle2" color="text.secondary">주문일시</Typography>
-                  <Typography variant="body1" gutterBottom>{selectedOrder.date}</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">예약일시</Typography>
+                  <Typography variant="body1" gutterBottom>{formatDate(selectedOrder.createdAt)}</Typography>
                   
-                  <Typography variant="subtitle2" color="text.secondary">주문 상태</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">예약 상태</Typography>
                   <Chip 
-                    label={selectedOrder.status} 
-                    color={getStatusColor(selectedOrder.status) as any} 
+                    label={getStatusLabel(selectedOrder.status || '')} 
+                    color={getStatusColor(selectedOrder.status || '') as any} 
                     size="small" 
                     sx={{ my: 1 }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">고객명</Typography>
-                  <Typography variant="body1" gutterBottom>{selectedOrder.customer}</Typography>
+                  <Typography variant="body1" gutterBottom>{selectedOrder.userName || '-'}</Typography>
                   
                   <Typography variant="subtitle2" color="text.secondary">이메일</Typography>
-                  <Typography variant="body1" gutterBottom>{selectedOrder.email}</Typography>
+                  <Typography variant="body1" gutterBottom>{selectedOrder.userEmail || '-'}</Typography>
                   
-                  <Typography variant="subtitle2" color="text.secondary">결제방법</Typography>
-                  <Typography variant="body1" gutterBottom>{selectedOrder.paymentMethod}</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">매장명</Typography>
+                  <Typography variant="body1" gutterBottom>{selectedOrder.placeName || '-'}</Typography>
                 </Grid>
                 
                 <Grid item xs={12}>
                   <Divider sx={{ my: 2 }} />
-                  <Typography variant="h6" gutterBottom>주문 상품</Typography>
-                  
-                  {/* 여기에는 실제로는 해당 주문의 상품 목록이 표시되어야 합니다. */}
-                  <Typography variant="body2" color="text.secondary">
-                    샘플 데이터에는 상품 목록이 포함되어 있지 않습니다. 실제 구현 시 연동 필요.
-                  </Typography>
+                  <Typography variant="h6" gutterBottom>보관 정보</Typography>
                   
                   <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-                    <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="subtitle2">총 상품수:</Typography>
-                      <Typography variant="subtitle2">{selectedOrder.items}개</Typography>
-                    </Stack>
-                    <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="subtitle2">총 주문금액:</Typography>
-                      <Typography variant="subtitle1" fontWeight="bold">₩{selectedOrder.amount}</Typography>
+                    <Stack spacing={1}>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="subtitle2">보관일:</Typography>
+                        <Typography variant="subtitle2">{selectedOrder.storageDate || '-'}</Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="subtitle2">소형 가방:</Typography>
+                        <Typography variant="subtitle2">{selectedOrder.smallBags || 0}개</Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="subtitle2">중형 가방:</Typography>
+                        <Typography variant="subtitle2">{selectedOrder.mediumBags || 0}개</Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="subtitle2">대형 가방:</Typography>
+                        <Typography variant="subtitle2">{selectedOrder.largeBags || 0}개</Typography>
+                      </Stack>
+                      <Divider sx={{ my: 1 }} />
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="subtitle2">총 금액:</Typography>
+                        <Typography variant="subtitle1" fontWeight="bold">₩{selectedOrder.totalPrice?.toLocaleString() || 0}</Typography>
+                      </Stack>
                     </Stack>
                   </Box>
                 </Grid>
@@ -417,15 +527,6 @@ const AdminOrders = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseOrderDetail}>닫기</Button>
-          {selectedOrder && selectedOrder.status === '결제 완료' && (
-            <Button 
-              variant="contained" 
-              color="primary" 
-              startIcon={<LocalShipping />}
-            >
-              배송 처리
-            </Button>
-          )}
         </DialogActions>
       </Dialog>
     </Box>

@@ -699,6 +699,14 @@ export const reviewService = {
       params: { threshold }
     });
     return response.data;
+  },
+
+  // 특정 사용자의 리뷰 조회 (관리자용)
+  getUserReviews: async (userId: number, page: number = 0, size: number = 100): Promise<ApiResponse<{content: ReviewResponse[], totalElements: number, totalPages: number}>> => {
+    const response = await api.get<ApiResponse<{content: ReviewResponse[], totalElements: number, totalPages: number}>>(`/reviews/admin/user/${userId}`, {
+      params: { page, size }
+    });
+    return response.data;
   }
 };
 
