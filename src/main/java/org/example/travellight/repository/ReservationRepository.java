@@ -55,14 +55,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     @Query("SELECT r FROM Reservation r JOIN FETCH r.user")
     List<Reservation> findAllWithUser();
 
-    @Query("SELECT r FROM Reservation r JOIN r.user u " +
-            "WHERE LOWER(r.reservationNumber) LIKE LOWER(CONCAT('%', :query, '%')) " +
-            "OR LOWER(u.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
-            "OR LOWER(r.placeName) LIKE LOWER(CONCAT('%', :query, '%')) " +
-            "OR LOWER(r.placeAddress) LIKE LOWER(CONCAT('%', :query, '%'))")
-    List<Reservation> searchReservations(@Param("query") String query, Pageable pageable);
-
-
     // 통합 검색 - 예약번호, 사용자명, 장소명, 주소로 검색
     @Query("SELECT r FROM Reservation r JOIN r.user u " +
            "WHERE LOWER(r.reservationNumber) LIKE LOWER(CONCAT('%', :query, '%')) " +
