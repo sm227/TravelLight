@@ -1163,7 +1163,7 @@ const Map = () => {
   //   const fetchPartnershipsData = async () => {
   //     try {
   //       const response = await axios.get("/api/partnership", {
-  //         timeout: 5000,
+  //         timeout: 60000,
   //       });
   //       if (response.data && response.data.success) {
   //         const partnershipData = response.data.data.filter(
@@ -1543,9 +1543,6 @@ const Map = () => {
 
       const map = new window.naver.maps.Map(container, options);
 
-      // iOS Safari에서 안정적인 마커 표시를 위해 지도 완전 초기화 플래그 사용
-      let isMapFullyInitialized = false;
-
       window.naver.maps.Event.once(map, "init_stylemap", () => {
         console.log("지도 로드 완료, 추가 설정 적용");
 
@@ -1599,11 +1596,6 @@ const Map = () => {
             },
           });
 
-          // iOS Safari를 위한 추가 대기 시간
-          setTimeout(() => {
-            isMapFullyInitialized = true;
-            console.log("지도 완전 초기화 완료 (iOS 대응)");
-          }, 100);
         } catch (e) {
           console.error("지도 스타일 설정 오류:", e);
         }
@@ -1692,35 +1684,10 @@ const Map = () => {
         try {
           isPartnershipsFetching = true;
 
-          // iOS Safari 대응: 지도 완전 초기화 대기
-          const waitForMapInit = () => {
-            return new Promise<void>((resolve) => {
-              if (isMapFullyInitialized) {
-                resolve();
-                return;
-              }
-
-              // 최대 3초 대기
-              const maxWaitTime = 3000;
-              const checkInterval = 50;
-              let elapsed = 0;
-
-              const intervalId = setInterval(() => {
-                elapsed += checkInterval;
-                if (isMapFullyInitialized || elapsed >= maxWaitTime) {
-                  clearInterval(intervalId);
-                  console.log(`지도 초기화 대기 완료 (${elapsed}ms)`);
-                  resolve();
-                }
-              }, checkInterval);
-            });
-          };
-
-          await waitForMapInit();
 
           // API 호출 시 catch 블록 추가 및 오류 로깅 개선
           const response = await axios.get("/api/partnership", {
-            timeout: 5000,
+            timeout: 60000,
           });
           if (response.data && response.data.success) {
             const partnershipData = response.data.data.filter(
@@ -4641,7 +4608,7 @@ const Map = () => {
             // 예약 완료 후 제휴점 데이터 새로고침하여 보관 용량 업데이트
             try {
               const response = await axios.get("/api/partnership", {
-                timeout: 5000,
+                timeout: 60000,
               });
               if (response.data && response.data.success) {
                 const partnershipData = response.data.data.filter(
