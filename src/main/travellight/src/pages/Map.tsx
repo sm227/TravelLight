@@ -263,6 +263,9 @@ const Map = () => {
   const [cancelError, setCancelError] = useState<string>('');
   const [cancelSuccess, setCancelSuccess] = useState<string>('');
 
+  // 쿠폰 성공 메시지 상태
+  const [couponSuccess, setCouponSuccess] = useState<string>('');
+
   // 리뷰 관련 상태
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
   const [selectedReservationForReview, setSelectedReservationForReview] = useState<ReservationDto | null>(null);
@@ -3855,7 +3858,7 @@ const Map = () => {
         setAppliedCoupon(couponData);
         setCouponDiscount(couponData.discountAmount);
         setCouponError("");
-        alert(`쿠폰이 적용되었습니다! ${couponData.discountAmount.toLocaleString()}원 할인`);
+        setCouponSuccess(`쿠폰이 적용되었습니다! ${couponData.discountAmount.toLocaleString()}원 할인`);
       }
     } catch (error: any) {
       console.error("쿠폰 검증 오류:", error);
@@ -3962,6 +3965,9 @@ const Map = () => {
         status: "RESERVED",
         paymentId: paymentId || portonePaymentId,
         couponCode: appliedCoupon ? couponCode.trim().toUpperCase() : null,
+        couponName: appliedCoupon ? appliedCoupon.couponName : null,
+        couponDiscount: appliedCoupon ? couponDiscount : null,
+        originalPrice: appliedCoupon ? totalPrice : null,
       };
 
       // 데이터 검증 로그
@@ -5424,6 +5430,76 @@ const Map = () => {
                     </Box>
                   </Box>
 
+                  {/* 쿠폰 정보 */}
+                  {selectedReservation.couponCode && (
+                    <>
+                      {selectedReservation.originalPrice && (
+                        <Box sx={{ mb: 1.5 }}>
+                          <Typography variant="caption" sx={{
+                            color: "#777",
+                            fontSize: "9px",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            mb: 0.5,
+                            display: "block"
+                          }}>
+                            원가
+                          </Typography>
+                          <Box sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center"
+                          }}>
+                            <Typography variant="body2" sx={{
+                              color: "#555",
+                              fontSize: "11px"
+                            }}>
+                              쿠폰 적용 전
+                            </Typography>
+                            <Typography variant="body2" sx={{
+                              fontWeight: 600,
+                              color: "#333",
+                              fontSize: "11px"
+                            }}>
+                              {selectedReservation.originalPrice.toLocaleString()}원
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+                      <Box sx={{ mb: 1.5 }}>
+                        <Typography variant="caption" sx={{
+                          color: "#777",
+                          fontSize: "9px",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          mb: 0.5,
+                          display: "block"
+                        }}>
+                          쿠폰 할인
+                        </Typography>
+                        <Box sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}>
+                          <Typography variant="body2" sx={{
+                            color: "#555",
+                            fontSize: "11px"
+                          }}>
+                            {selectedReservation.couponName || selectedReservation.couponCode}
+                          </Typography>
+                          <Typography variant="body2" sx={{
+                            fontWeight: 600,
+                            color: "#333",
+                            fontSize: "11px"
+                          }}>
+                            -{selectedReservation.couponDiscount?.toLocaleString()}원
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </>
+                  )}
+
                   {/* 총 금액 */}
                   <Box sx={{
                     pt: 1,
@@ -6754,6 +6830,44 @@ const Map = () => {
                         {getBagSummary()}
                       </Typography>
                     </Box>
+
+                    {/* 쿠폰 정보 */}
+                    {appliedCoupon && (
+                      <>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            mb: 1,
+                          }}
+                        >
+                          <Typography
+                            sx={{ fontSize: "13px", color: "text.secondary" }}
+                          >
+                            원가
+                          </Typography>
+                          <Typography sx={{ fontSize: "13px", fontWeight: 500 }}>
+                            {totalPrice.toLocaleString()}{t('won')}
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            mb: 1,
+                          }}
+                        >
+                          <Typography
+                            sx={{ fontSize: "13px", color: "text.secondary" }}
+                          >
+                            쿠폰 할인 ({appliedCoupon.couponName || couponCode})
+                          </Typography>
+                          <Typography sx={{ fontSize: "13px", fontWeight: 500 }}>
+                            -{couponDiscount.toLocaleString()}{t('won')}
+                          </Typography>
+                        </Box>
+                      </>
+                    )}
 
                     <Box
                       sx={{
@@ -8629,6 +8743,22 @@ const Map = () => {
           sx={{ width: "100%" }}
         >
           {cancelSuccess}
+        </Alert>
+      </Snackbar>
+
+      {/* 쿠폰 적용 성공 메시지 스낵바 */}
+      <Snackbar
+        open={!!couponSuccess}
+        autoHideDuration={3000}
+        onClose={() => setCouponSuccess("")}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setCouponSuccess("")}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          {couponSuccess}
         </Alert>
       </Snackbar>
 
