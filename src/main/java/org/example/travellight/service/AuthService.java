@@ -106,11 +106,11 @@ public class AuthService {
     public UserDto.UserLoginResponse login(UserDto.LoginRequest request) {
         // 이메일로 사용자 조회
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new CustomException("이메일 또는 비밀번호가 일치하지 않습니다.", HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() -> new CustomException("이메일 또는 비밀번호가 일치하지 않습니다.", HttpStatus.BAD_REQUEST));
 
         // 비밀번호 확인
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new CustomException("이메일 또는 비밀번호가 일치하지 않습니다.", HttpStatus.UNAUTHORIZED);
+            throw new CustomException("이메일 또는 비밀번호가 일치하지 않습니다.", HttpStatus.BAD_REQUEST);
         }
 
         // JWT 토큰 생성

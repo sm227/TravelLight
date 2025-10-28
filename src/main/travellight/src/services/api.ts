@@ -48,22 +48,25 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    
-    // 401 에러이고 아직 재시도하지 않은 경우
-    if (error.response?.status === 401 && !originalRequest._retry) {
+
+    // 401 에러이고 아직 재시도하지 않은 경우에만 토큰 갱신 시도
+    // refresh API 자체의 401은 제외
+    if (error.response?.status === 401 &&
+        !originalRequest._retry &&
+        originalRequest.url !== '/auth/refresh') {
       originalRequest._retry = true;
-      
+
       try {
         // 토큰 갱신 요청
         const refreshResponse = await axios.post('/auth/refresh', {}, {
           withCredentials: true,
           baseURL: API_BASE_URL
         });
-        
+
         if (refreshResponse.data.success) {
           const newAccessToken = refreshResponse.data.data.accessToken;
           setAccessToken(newAccessToken);
-          
+
           // 원래 요청에 새 토큰으로 재시도
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
@@ -76,7 +79,7 @@ api.interceptors.response.use(
         return Promise.reject(refreshError);
       }
     }
-    
+
     console.error('API 응답 오류:', error);
     return Promise.reject(error);
   }
