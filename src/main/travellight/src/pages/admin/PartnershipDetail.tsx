@@ -547,14 +547,14 @@ const PartnershipDetail = () => {
     }));
   };
 
-  // 이미지 업로드 (Base64 변환)
+  // 이미지 업로드 (서버에 업로드)
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
     setUploadingImage(true);
     try {
-      const newImages: string[] = [];
+      const filesToUpload: File[] = [];
       
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -571,24 +571,35 @@ const PartnershipDetail = () => {
           continue;
         }
 
-        // Base64로 변환
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        newImages.push(base64);
+        filesToUpload.push(file);
       }
 
-      if (newImages.length > 0) {
+      if (filesToUpload.length > 0) {
+        // 서버에 파일 업로드
+        const formData = new FormData();
+        filesToUpload.forEach(file => {
+          formData.append('files', file);
+        });
+
+        const response = await fetch('/api/partnership/photos/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('이미지 업로드에 실패했습니다.');
+        }
+
+        const result = await response.json();
+        const uploadedPaths: string[] = result.data;  // uploads/partnerships/xxx.jpg 형식
+        const fileUrls = uploadedPaths.map(path => `/api/files/${path}`);
+
         const currentPictures = editData.storePictures || partnership?.storePictures || [];
         setEditData(prev => ({
           ...prev,
-          storePictures: [...currentPictures, ...newImages]
+          storePictures: [...currentPictures, ...fileUrls]
         }));
-        toast.success(`${newImages.length}개의 이미지가 추가되었습니다.`);
+        toast.success(`${fileUrls.length}개의 이미지가 추가되었습니다.`);
       }
     } catch (error) {
       console.error('이미지 업로드 오류:', error);
@@ -606,6 +617,56 @@ const PartnershipDetail = () => {
       ...prev,
       storePictures: (prev.storePictures || partnership?.storePictures || []).filter((_, i) => i !== index)
     }));
+  };
+
+  // 단일 파일 업로드 핸들러 (사업자등록증, 통장사본용)
+  const handleSingleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, fieldName: 'businessRegistrationUrl' | 'bankBookUrl') => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // 파일 크기 체크 (5MB 제한)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(`파일 크기가 5MB를 초과합니다.`);
+      return;
+    }
+
+    // 이미지 파일인지 확인
+    if (!file.type.startsWith('image/')) {
+      toast.error(`이미지 파일만 업로드 가능합니다.`);
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      // 서버에 파일 업로드
+      const formData = new FormData();
+      formData.append('files', file);
+
+      const response = await fetch('/api/partnership/photos/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('이미지 업로드에 실패했습니다.');
+      }
+
+      const result = await response.json();
+      const uploadedPath: string = result.data[0];  // uploads/partnerships/xxx.jpg 형식
+      const fileUrl = `/api/files/${uploadedPath}`;
+
+      setEditData(prev => ({
+        ...prev,
+        [fieldName]: fileUrl
+      }));
+      toast.success('이미지가 업로드되었습니다.');
+    } catch (error) {
+      console.error('이미지 업로드 오류:', error);
+      toast.error('이미지 업로드 중 오류가 발생했습니다.');
+    } finally {
+      setUploadingImage(false);
+      event.target.value = '';
+    }
   };
 
   if (loading) {
@@ -1332,7 +1393,7 @@ const PartnershipDetail = () => {
                             border: `1px solid ${COLORS.borderSecondary}`
                           }}>
                             <img
-                              src={picture}
+                              src={picture.startsWith('/api/files/') ? picture : `/api/files/${picture.replace(/^\//, '')}`}
                               alt={`매장 사진 ${index + 1}`}
                               style={{
                                 position: 'absolute',
@@ -1540,11 +1601,33 @@ const PartnershipDetail = () => {
             <Grid item xs={12} md={6}>
               <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
                 <CardContent>
-                  <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Description sx={{ color: COLORS.accentPrimary }} />
-                    사업자등록증
-                  </Typography>
-                  {partnership.businessRegistrationUrl ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                    <Typography variant="h6" sx={{ color: COLORS.textPrimary, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Description sx={{ color: COLORS.accentPrimary }} />
+                      사업자등록증
+                    </Typography>
+                    {editMode && (
+                      <Button
+                        variant="contained"
+                        component="label"
+                        disabled={uploadingImage}
+                        size="small"
+                        sx={{
+                          bgcolor: COLORS.accentPrimary,
+                          '&:hover': { bgcolor: COLORS.accentPrimary, opacity: 0.8 }
+                        }}
+                      >
+                        {uploadingImage ? '업로드 중...' : '이미지 변경'}
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*"
+                          onChange={(e) => handleSingleFileUpload(e, 'businessRegistrationUrl')}
+                        />
+                      </Button>
+                    )}
+                  </Box>
+                  {(editData.businessRegistrationUrl || partnership.businessRegistrationUrl) ? (
                     <Box>
                       <Box sx={{
                         position: 'relative',
@@ -1557,7 +1640,10 @@ const PartnershipDetail = () => {
                         border: `1px solid ${COLORS.borderSecondary}`
                       }}>
                         <img
-                          src={partnership.businessRegistrationUrl}
+                          src={(() => {
+                            const url = editData.businessRegistrationUrl || partnership.businessRegistrationUrl;
+                            return url.startsWith('/api/files/') ? url : `/api/files/${url.replace(/^\//, '')}`;
+                          })()}
                           alt="사업자등록증"
                           style={{
                             width: '100%',
@@ -1569,7 +1655,7 @@ const PartnershipDetail = () => {
                       <Button
                         variant="outlined"
                         size="small"
-                        href={partnership.businessRegistrationUrl}
+                        href={editData.businessRegistrationUrl || partnership.businessRegistrationUrl}
                         target="_blank"
                         sx={{
                           mt: 2,
@@ -1599,6 +1685,26 @@ const PartnershipDetail = () => {
                       <Typography variant="body2">
                         사업자등록증이 등록되지 않았습니다
                       </Typography>
+                      {editMode && (
+                        <Button
+                          variant="outlined"
+                          component="label"
+                          disabled={uploadingImage}
+                          sx={{
+                            mt: 2,
+                            color: COLORS.accentPrimary,
+                            borderColor: COLORS.accentPrimary
+                          }}
+                        >
+                          이미지 업로드
+                          <input
+                            type="file"
+                            hidden
+                            accept="image/*"
+                            onChange={(e) => handleSingleFileUpload(e, 'businessRegistrationUrl')}
+                          />
+                        </Button>
+                      )}
                     </Box>
                   )}
                 </CardContent>
@@ -1608,11 +1714,33 @@ const PartnershipDetail = () => {
             <Grid item xs={12} md={6}>
               <Card sx={{ bgcolor: COLORS.backgroundSurface, border: `1px solid ${COLORS.borderSecondary}` }}>
                 <CardContent>
-                  <Typography variant="h6" sx={{ color: COLORS.textPrimary, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AccountBalance sx={{ color: COLORS.accentPrimary }} />
-                    통장사본
-                  </Typography>
-                  {partnership.bankBookUrl ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                    <Typography variant="h6" sx={{ color: COLORS.textPrimary, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AccountBalance sx={{ color: COLORS.accentPrimary }} />
+                      통장사본
+                    </Typography>
+                    {editMode && (
+                      <Button
+                        variant="contained"
+                        component="label"
+                        disabled={uploadingImage}
+                        size="small"
+                        sx={{
+                          bgcolor: COLORS.accentPrimary,
+                          '&:hover': { bgcolor: COLORS.accentPrimary, opacity: 0.8 }
+                        }}
+                      >
+                        {uploadingImage ? '업로드 중...' : '이미지 변경'}
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*"
+                          onChange={(e) => handleSingleFileUpload(e, 'bankBookUrl')}
+                        />
+                      </Button>
+                    )}
+                  </Box>
+                  {(editData.bankBookUrl || partnership.bankBookUrl) ? (
                     <Box>
                       <Box sx={{
                         position: 'relative',
@@ -1625,7 +1753,10 @@ const PartnershipDetail = () => {
                         border: `1px solid ${COLORS.borderSecondary}`
                       }}>
                         <img
-                          src={partnership.bankBookUrl}
+                          src={(() => {
+                            const url = editData.bankBookUrl || partnership.bankBookUrl;
+                            return url.startsWith('/api/files/') ? url : `/api/files/${url.replace(/^\//, '')}`;
+                          })()}
                           alt="통장사본"
                           style={{
                             width: '100%',
@@ -1637,7 +1768,7 @@ const PartnershipDetail = () => {
                       <Button
                         variant="outlined"
                         size="small"
-                        href={partnership.bankBookUrl}
+                        href={editData.bankBookUrl || partnership.bankBookUrl}
                         target="_blank"
                         sx={{
                           mt: 2,
@@ -1667,6 +1798,26 @@ const PartnershipDetail = () => {
                       <Typography variant="body2">
                         통장사본이 등록되지 않았습니다
                       </Typography>
+                      {editMode && (
+                        <Button
+                          variant="outlined"
+                          component="label"
+                          disabled={uploadingImage}
+                          sx={{
+                            mt: 2,
+                            color: COLORS.accentPrimary,
+                            borderColor: COLORS.accentPrimary
+                          }}
+                        >
+                          이미지 업로드
+                          <input
+                            type="file"
+                            hidden
+                            accept="image/*"
+                            onChange={(e) => handleSingleFileUpload(e, 'bankBookUrl')}
+                          />
+                        </Button>
+                      )}
                     </Box>
                   )}
                 </CardContent>

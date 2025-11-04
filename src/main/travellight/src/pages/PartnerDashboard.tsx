@@ -759,8 +759,9 @@ const PartnerDashboard: React.FC = () => {
     );
   }
 
-  // 승인 대기 중인 경우 (PARTNER 역할이 아니거나 WAIT 역할인 경우)
-  if (!isPartner || isWaiting) {
+  // 승인 대기 중인 경우 (승인된 매장이 없고 WAIT 상태인 경우만)
+  // 승인된 매장이 있으면 추가 신청 중이더라도 기존 매장 관리 가능
+  if (storeList.length === 0 && (isWaiting || !isPartner)) {
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
           <Navbar />
