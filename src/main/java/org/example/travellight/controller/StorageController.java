@@ -212,30 +212,10 @@ public class StorageController {
     }
 
     /**
-     * 사진 업로드 API (Base64)
+     * 사진 업로드 API
      */
-    @PostMapping("/upload-photo")
+    @PostMapping(value = "/upload-photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommonApiResponse<StorageItemDto.PhotoUploadResponse>> uploadPhoto(
-            @RequestBody StorageItemDto.PhotoUploadRequest request) {
-
-        logger.info("Base64 사진 업로드: reservationNumber = {}", request.getReservationNumber());
-
-        try {
-            StorageItemDto.PhotoUploadResponse response = storageFileService.uploadPhotoFromBase64(request);
-            return ResponseEntity.ok(CommonApiResponse.success("사진이 성공적으로 업로드되었습니다.", response));
-
-        } catch (Exception e) {
-            logger.error("Base64 사진 업로드 실패: {}", request.getReservationNumber(), e);
-            return ResponseEntity.badRequest()
-                    .body(CommonApiResponse.error("사진 업로드 중 오류가 발생했습니다: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * 사진 업로드 API (MultipartFile)
-     */
-    @PostMapping(value = "/upload-photo-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<CommonApiResponse<StorageItemDto.PhotoUploadResponse>> uploadPhotoFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam("reservationNumber") String reservationNumber) {
 
