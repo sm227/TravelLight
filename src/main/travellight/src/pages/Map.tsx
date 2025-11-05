@@ -1876,7 +1876,7 @@ const Map = () => {
                                         padding: 3px 8px;
                                         border-radius: 12px;
                                         margin-bottom: 8px;
-                                    ">${partnership.businessType}</div>
+                                    ">${getLocalizedBusinessType(partnership.businessType)}</div>
                                     <div style="
                                         font-size: 13px;
                                         line-height: 1.4;
@@ -1898,7 +1898,7 @@ const Map = () => {
                                             font-weight: 600;
                                             color: #2E7DF1;
                                             margin-bottom: 4px;
-                                        ">현재 보관 가능한 짐</div>
+                                        ">${t('currentAvailableLuggage')}</div>
                                         <div style="
                                             display: flex;
                                             gap: 8px;
@@ -2086,22 +2086,37 @@ const Map = () => {
 
       // 비즈니스 타입에 따른 카테고리 코드 반환
       function getCategoryCodeFromBusinessType(businessType: string): string {
-        switch (businessType) {
-          case "카페":
-          case t('cafe'):
-            return "CE7";
-          case "편의점":
-          case t('convenienceStore'):
-            return "CS2";
-          case "숙박":
-          case t('accommodation'):
-            return "AD5";
-          case "식당":
-          case t('restaurant'):
-            return "FD6";
-          default:
-            return "ETC";
-        }
+        // 비즈니스 타입 매핑 (한글/영문 모두 지원)
+        const typeMapping: { [key: string]: string } = {
+          // 한글
+          "카페": "CE7",
+          "편의점": "CS2",
+          "숙박": "AD5",
+          "식당": "FD6",
+          // 영문
+          "Cafe": "CE7",
+          "Convenience Store": "CS2",
+          "Accommodation": "AD5",
+          "Restaurant": "FD6",
+        };
+
+        return typeMapping[businessType] || "ETC";
+      }
+
+      // 비즈니스 타입을 다국어로 변환하는 함수
+      function getLocalizedBusinessType(businessType: string): string {
+        const typeMap: { [key: string]: string } = {
+          "카페": t('cafe'),
+          "편의점": t('convenienceStore'),
+          "숙박": t('accommodation'),
+          "식당": t('restaurant'),
+          "Cafe": t('cafe'),
+          "Convenience Store": t('convenienceStore'),
+          "Accommodation": t('accommodation'),
+          "Restaurant": t('restaurant'),
+        };
+
+        return typeMap[businessType] || businessType;
       }
 
       // 영업 시간 포맷팅 함수 (문자열 반환)
@@ -3038,22 +3053,50 @@ const Map = () => {
 
   // 비즈니스 타입에 따른 카테고리 코드 반환 함수
   const getCategoryCodeFromBusinessType = (businessType: string): string => {
-    switch (businessType) {
-      case "카페":
-      case t('cafe'):
-        return "CE7";
-      case "편의점":
-      case t('convenienceStore'):
-        return "CS2";
-      case "숙박":
-      case t('accommodation'):
-        return "AD5";
-      case "식당":
-      case t('restaurant'):
-        return "FD6";
-      default:
-        return "ETC";
-    }
+    // 비즈니스 타입 매핑 (한글/영문 모두 지원)
+    const typeMapping: { [key: string]: string } = {
+      // 한글
+      "카페": "CE7",
+      "편의점": "CS2",
+      "숙박": "AD5",
+      "식당": "FD6",
+      // 영문
+      "Cafe": "CE7",
+      "Convenience Store": "CS2",
+      "Accommodation": "AD5",
+      "Restaurant": "FD6",
+    };
+
+    return typeMapping[businessType] || "ETC";
+  };
+
+  // 비즈니스 타입을 다국어로 변환하는 함수
+  const getLocalizedBusinessType = (businessType: string): string => {
+    const typeMap: { [key: string]: string } = {
+      "카페": t('cafe'),
+      "편의점": t('convenienceStore'),
+      "숙박": t('accommodation'),
+      "식당": t('restaurant'),
+      "Cafe": t('cafe'),
+      "Convenience Store": t('convenienceStore'),
+      "Accommodation": t('accommodation'),
+      "Restaurant": t('restaurant'),
+    };
+
+    return typeMap[businessType] || businessType;
+  };
+
+  // 카테고리 코드를 다국어 레이블로 변환하는 함수
+  const getCategoryLabel = (categoryCode: string): string => {
+    const labelMap: { [key: string]: string } = {
+      "CE7": t('cafe'),
+      "CS2": t('convenienceStore'),
+      "AD5": t('accommodation'),
+      "FD6": t('restaurant'),
+      "BK9": t('bank'),
+    };
+
+    return labelMap[categoryCode] || "";
   };
 
   // 영업 시간 포맷팅 함수 (문자열 반환)
@@ -5579,7 +5622,7 @@ const Map = () => {
                   <ArrowBackIcon fontSize="small" />
                 </IconButton>
                 <Typography variant="h6" sx={{ fontWeight: 600, color: "#1a1a1a" }}>
-                  내 예약 목록
+                  {t('myReservations')}
                 </Typography>
               </Box>
 
@@ -8293,7 +8336,7 @@ const Map = () => {
                   {/* 쿠폰 적용 */}
                   <Box sx={{ mb: 3 }}>
                     <Typography sx={{ fontWeight: 500, mb: 1.5, fontSize: "14px" }}>
-                      쿠폰
+                      {t('coupon')}
                     </Typography>
 
                     {appliedCoupon ? (
@@ -8320,11 +8363,11 @@ const Map = () => {
                               "&:hover": { backgroundColor: "transparent" }
                             }}
                           >
-                            취소
+                            {t('cancel')}
                           </Button>
                         </Box>
                         <Typography sx={{ fontSize: "13px", color: "#2e7d32" }}>
-                          - {couponDiscount.toLocaleString()}원 할인
+                          {t('couponDiscount', { amount: couponDiscount.toLocaleString() })}
                         </Typography>
                       </Box>
                     ) : (
@@ -8348,7 +8391,7 @@ const Map = () => {
                             }
                           }}
                         >
-                          보유 쿠폰 선택하기
+                          {t('selectMyCoupons')}
                         </Button>
                         {couponError && (
                           <Typography sx={{ fontSize: "12px", color: "#d32f2f", mt: 1 }}>
@@ -8473,9 +8516,7 @@ const Map = () => {
                             mr: 1,
                           }}
                         >
-                          {place.category_group_code === "BK9"
-                            ? "[은행]"
-                            : "[편의점]"}
+                          {`[${getCategoryLabel(place.category_group_code)}]`}
                         </Typography>
                         {place.address_name}
                       </Box>
@@ -8906,11 +8947,11 @@ const Map = () => {
           [
             <MenuItem key="profile" onClick={() => { handleMenuClose(); navigate('/profile'); }}>
               <PersonIcon />
-              내 프로필
+              {t('profile')}
             </MenuItem>,
             <MenuItem key="settings" onClick={() => { handleMenuClose(); navigate('/settings'); }}>
               <SettingsIcon />
-              설정
+              {t('settings')}
             </MenuItem>,
             <Divider key="divider" />,
             <MenuItem 
@@ -8929,18 +8970,18 @@ const Map = () => {
               }}
             >
               <LogoutIcon />
-              로그아웃
+              {t('logout')}
             </MenuItem>
           ]
         ) : (
           [
             <MenuItem key="login" onClick={() => { handleMenuClose(); navigate('/login'); }}>
               <LoginIcon />
-              로그인
+              {t('login')}
             </MenuItem>,
             <MenuItem key="register" onClick={() => { handleMenuClose(); navigate('/register'); }}>
               <PersonAddIcon />
-              회원가입
+              {t('register')}
             </MenuItem>
           ]
         )}
@@ -8994,11 +9035,11 @@ const Map = () => {
       >
         <MenuItem onClick={() => changeLanguage('ko')}>
           <LanguageIcon />
-          한국어
+          {t('korean')}
         </MenuItem>
         <MenuItem onClick={() => changeLanguage('en')}>
           <LanguageIcon />
-          English
+          {t('english')}
         </MenuItem>
       </Menu>
 

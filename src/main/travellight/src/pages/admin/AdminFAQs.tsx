@@ -42,6 +42,7 @@ import {
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import api from '../../services/api';
+import { useTranslation } from 'react-i18next';
 
 // FAQ 인터페이스
 interface FAQ {
@@ -150,6 +151,7 @@ const erpTheme = createTheme({
 });
 
 const AdminFAQs: React.FC = () => {
+  const { t } = useTranslation();
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -215,7 +217,7 @@ const AdminFAQs: React.FC = () => {
       const response = await api.post('/faqs/admin', formData);
       
       if (response.data.success) {
-        setSuccess('FAQ가 성공적으로 생성되었습니다.');
+        setSuccess(t('faqCreatedSuccess'));
         setOpenDialog(false);
         resetForm();
         loadFaqs();
@@ -237,7 +239,7 @@ const AdminFAQs: React.FC = () => {
       const response = await api.put(`/faqs/admin/${selectedFaq.id}`, formData);
       
       if (response.data.success) {
-        setSuccess('FAQ가 성공적으로 수정되었습니다.');
+        setSuccess(t('faqUpdatedSuccess'));
         setOpenDialog(false);
         resetForm();
         loadFaqs();
@@ -251,15 +253,15 @@ const AdminFAQs: React.FC = () => {
 
   // FAQ 삭제
   const handleDelete = async (faqId: number) => {
-    if (!window.confirm('정말 이 FAQ를 삭제하시겠습니까?')) return;
-    
+    if (!window.confirm(t('confirmDeleteFaq'))) return;
+
     setLoading(true);
     setError(null);
     try {
       const response = await api.delete(`/faqs/admin/${faqId}`);
-      
+
       if (response.data.success) {
-        setSuccess('FAQ가 성공적으로 삭제되었습니다.');
+        setSuccess(t('faqDeletedSuccess'));
         loadFaqs();
       }
     } catch (err: any) {
@@ -342,10 +344,10 @@ const AdminFAQs: React.FC = () => {
         {/* 헤더 */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h4" sx={{ color: COLORS.textPrimary, mb: 1, fontWeight: 600 }}>
-            FAQ 관리
+            {t('faqManagement')}
           </Typography>
           <Typography variant="body2" sx={{ color: COLORS.textMuted }}>
-            자주 묻는 질문을 관리합니다
+            {t('manageFaqs')}
           </Typography>
         </Box>
 
@@ -372,7 +374,7 @@ const AdminFAQs: React.FC = () => {
               '&:hover': { bgcolor: COLORS.accentSecondary }
             }}
           >
-            FAQ 추가
+            {t('addFaq')}
           </Button>
           <Button
             variant="outlined"
@@ -387,7 +389,7 @@ const AdminFAQs: React.FC = () => {
               }
             }}
           >
-            새로고침
+            {t('refresh')}
           </Button>
         </Stack>
 
@@ -397,13 +399,13 @@ const AdminFAQs: React.FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell width="5%">순서</TableCell>
-                  <TableCell width="10%">카테고리</TableCell>
-                  <TableCell width="30%">질문</TableCell>
-                  <TableCell width="35%">답변</TableCell>
-                  <TableCell width="8%">조회수</TableCell>
-                  <TableCell width="8%">상태</TableCell>
-                  <TableCell width="4%" align="center">액션</TableCell>
+                  <TableCell width="5%">{t('order')}</TableCell>
+                  <TableCell width="10%">{t('category')}</TableCell>
+                  <TableCell width="30%">{t('question')}</TableCell>
+                  <TableCell width="35%">{t('answer')}</TableCell>
+                  <TableCell width="8%">{t('views')}</TableCell>
+                  <TableCell width="8%">{t('status')}</TableCell>
+                  <TableCell width="4%" align="center">{t('actions')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -416,7 +418,7 @@ const AdminFAQs: React.FC = () => {
                 ) : faqs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} align="center" sx={{ py: 8, color: COLORS.textMuted }}>
-                      FAQ가 없습니다
+                      {t('noFaqs')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -478,7 +480,7 @@ const AdminFAQs: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={faq.isActive ? '활성' : '비활성'}
+                          label={faq.isActive ? t('active') : t('inactive')}
                           size="small"
                           sx={{
                             bgcolor: faq.isActive ? `${COLORS.success}20` : `${COLORS.textMuted}20`,
@@ -490,7 +492,7 @@ const AdminFAQs: React.FC = () => {
                       </TableCell>
                       <TableCell align="center">
                         <Stack direction="row" spacing={0.5} justifyContent="center">
-                          <Tooltip title="수정">
+                          <Tooltip title={t('edit')}>
                             <IconButton
                               size="small"
                               onClick={() => openEditDialog(faq)}
@@ -499,7 +501,7 @@ const AdminFAQs: React.FC = () => {
                               <Edit fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title={faq.isActive ? '비활성화' : '활성화'}>
+                          <Tooltip title={faq.isActive ? t('deactivate') : t('activate')}>
                             <IconButton
                               size="small"
                               onClick={() => handleToggleActive(faq.id)}
@@ -508,7 +510,7 @@ const AdminFAQs: React.FC = () => {
                               <Visibility fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="삭제">
+                          <Tooltip title={t('delete')}>
                             <IconButton
                               size="small"
                               onClick={() => handleDelete(faq.id)}
@@ -541,16 +543,16 @@ const AdminFAQs: React.FC = () => {
           }}
         >
           <DialogTitle sx={{ color: COLORS.textPrimary }}>
-            {dialogMode === 'create' ? 'FAQ 추가' : 'FAQ 수정'}
+            {dialogMode === 'create' ? t('addFaq') : t('editFaq')}
           </DialogTitle>
           <DialogContent>
             <Stack spacing={3} sx={{ mt: 2 }}>
               <FormControl fullWidth>
-                <InputLabel sx={{ color: COLORS.textSecondary }}>카테고리</InputLabel>
+                <InputLabel sx={{ color: COLORS.textSecondary }}>{t('category')}</InputLabel>
                 <Select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  label="카테고리"
+                  label={t('category')}
                   sx={{
                     color: COLORS.textPrimary,
                     '& .MuiOutlinedInput-notchedOutline': {
@@ -558,17 +560,17 @@ const AdminFAQs: React.FC = () => {
                     }
                   }}
                 >
-                  <MenuItem value="RESERVATION">예약 및 결제</MenuItem>
-                  <MenuItem value="DELIVERY">배송 서비스</MenuItem>
-                  <MenuItem value="STORAGE">짐 보관</MenuItem>
-                  <MenuItem value="ACCOUNT">계정 관리</MenuItem>
-                  <MenuItem value="REFUND">환불 및 취소</MenuItem>
+                  <MenuItem value="RESERVATION">{t('reservationPayment')}</MenuItem>
+                  <MenuItem value="DELIVERY">{t('deliveryService')}</MenuItem>
+                  <MenuItem value="STORAGE">{t('luggageStorage')}</MenuItem>
+                  <MenuItem value="ACCOUNT">{t('accountManagement')}</MenuItem>
+                  <MenuItem value="REFUND">{t('refundCancellation')}</MenuItem>
                 </Select>
               </FormControl>
 
               <TextField
                 fullWidth
-                label="질문"
+                label={t('question')}
                 value={formData.question}
                 onChange={(e) => setFormData({ ...formData, question: e.target.value })}
                 required
@@ -582,7 +584,7 @@ const AdminFAQs: React.FC = () => {
 
               <TextField
                 fullWidth
-                label="답변"
+                label={t('answer')}
                 value={formData.answer}
                 onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
                 required
@@ -599,7 +601,7 @@ const AdminFAQs: React.FC = () => {
               <TextField
                 fullWidth
                 type="number"
-                label="정렬 순서"
+                label={t('sortOrder')}
                 value={formData.sortOrder}
                 onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
                 InputProps={{ inputProps: { min: 0 } }}
@@ -625,7 +627,7 @@ const AdminFAQs: React.FC = () => {
                     }}
                   />
                 }
-                label="활성화"
+                label={t('active')}
                 sx={{ color: COLORS.textSecondary }}
               />
             </Stack>
@@ -635,7 +637,7 @@ const AdminFAQs: React.FC = () => {
               onClick={() => setOpenDialog(false)}
               sx={{ color: COLORS.textSecondary }}
             >
-              취소
+              {t('cancel')}
             </Button>
             <Button
               onClick={dialogMode === 'create' ? handleCreate : handleUpdate}
@@ -646,7 +648,7 @@ const AdminFAQs: React.FC = () => {
                 '&:hover': { bgcolor: COLORS.accentSecondary }
               }}
             >
-              {loading ? <CircularProgress size={24} /> : dialogMode === 'create' ? '추가' : '수정'}
+              {loading ? <CircularProgress size={24} /> : dialogMode === 'create' ? t('add') : t('update')}
             </Button>
           </DialogActions>
         </Dialog>
