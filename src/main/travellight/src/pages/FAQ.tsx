@@ -165,6 +165,18 @@ const FAQPage = () => {
         }
     };
 
+    // 카테고리 코드를 번역 키로 매핑
+    const getCategoryName = (categoryCode: string) => {
+        const categoryMap: Record<string, string> = {
+            'RESERVATION': 'reservationPayment',
+            'DELIVERY': 'deliveryService',
+            'STORAGE': 'luggageStorage',
+            'ACCOUNT': 'accountManagement',
+            'REFUND': 'refundCancellation',
+        };
+        return categoryMap[categoryCode] ? t(categoryMap[categoryCode]) : categoryCode;
+    };
+
     const loadCategories = async () => {
         try {
             const response = await faqService.getAllCategories();
@@ -174,7 +186,7 @@ const FAQPage = () => {
                     name: cat.name,
                     count: cat.count
                 }));
-                setCategories([{ id: 'all', name: '전체' }, ...loadedCategories]);
+                setCategories([{ id: 'all', name: t('all') }, ...loadedCategories]);
             }
         } catch (err) {
             console.error('카테고리 로드 실패:', err);
@@ -255,8 +267,8 @@ const FAQPage = () => {
                         textAlign: 'center',
                         animation: `${fadeIn} 0.8s ease-out`
                     }}>
-                        <Typography 
-                            variant="h2" 
+                        <Typography
+                            variant="h2"
                             component="h1"
                             sx={{
                                 fontSize: { xs: '2rem', md: '2.5rem' },
@@ -266,9 +278,9 @@ const FAQPage = () => {
                                 letterSpacing: '-0.01em'
                             }}
                         >
-                            고객 지원 센터
+                            {t('customerSupportCenter')}
                         </Typography>
-                        <Typography 
+                        <Typography
                             variant="h6"
                             sx={{
                                 color: '#64748B',
@@ -279,7 +291,7 @@ const FAQPage = () => {
                                 lineHeight: 1.6
                             }}
                         >
-                            TravelLight 서비스 이용 방법과 자주 묻는 질문들을 확인하세요.
+                            {t('faqPageDescription')}
                         </Typography>
                     </Box>
 
@@ -296,39 +308,39 @@ const FAQPage = () => {
                         mb: 6,
                         animation: `${fadeIn} 0.6s ease-out 0.2s both`
                     }}>
-                        <Typography 
-                            variant="h4" 
-                            component="h2" 
-                            sx={{ 
-                                mb: 4, 
+                        <Typography
+                            variant="h4"
+                            component="h2"
+                            sx={{
+                                mb: 4,
                                 fontWeight: 600,
                                 color: '#1E293B',
                                 fontSize: { xs: '1.5rem', md: '1.75rem' }
                             }}
                         >
-                            서비스 이용 절차
+                            {t('serviceUsageProcess')}
                         </Typography>
                         <Grid container spacing={3}>
                             {[
-                                { 
-                                    step: '1', 
-                                    title: '회원가입 및 로그인', 
-                                    description: '홈페이지에서 간단한 정보를 입력하여 회원가입을 진행합니다.' 
+                                {
+                                    step: '1',
+                                    title: t('signupAndLogin'),
+                                    description: t('signupDescription')
                                 },
-                                { 
-                                    step: '2', 
-                                    title: '서비스 선택', 
-                                    description: '짐 보관, 배송 등 원하는 서비스를 선택합니다.' 
+                                {
+                                    step: '2',
+                                    title: t('selectService'),
+                                    description: t('selectServiceDescription')
                                 },
-                                { 
-                                    step: '3', 
-                                    title: '예약 및 결제', 
-                                    description: '날짜, 위치, 짐 정보를 입력하고 결제를 진행합니다.' 
+                                {
+                                    step: '3',
+                                    title: t('bookingAndPayment'),
+                                    description: t('bookingDescription')
                                 },
-                                { 
-                                    step: '4', 
-                                    title: '서비스 이용', 
-                                    description: '예약 확인서를 지참하여 해당 서비스를 이용합니다.' 
+                                {
+                                    step: '4',
+                                    title: t('useServiceStep'),
+                                    description: t('useServiceDescription')
                                 }
                             ].map((item, index) => (
                                 <Grid item xs={12} sm={6} key={index}>
@@ -398,7 +410,7 @@ const FAQPage = () => {
                                 variant="contained"
                                 component={RouterLink}
                                 to="/#services"
-                                sx={{ 
+                                sx={{
                                     backgroundColor: '#3B82F6',
                                     color: 'white',
                                     px: 4,
@@ -414,21 +426,21 @@ const FAQPage = () => {
                                     transition: 'all 0.3s ease'
                                 }}
                             >
-                                서비스 자세히 보기
+                                {t('viewServiceDetails')}
                             </Button>
                         </Box>
                     </StyledCard>
                     
                     {/* FAQ 섹션 타이틀 */}
-                    <Box sx={{ 
-                        mb: 6, 
+                    <Box sx={{
+                        mb: 6,
                         textAlign: 'center',
                         animation: `${fadeIn} 0.6s ease-out 0.4s both`
                     }}>
-                        <Typography 
-                            variant="h3" 
-                            component="h2" 
-                            sx={{ 
+                        <Typography
+                            variant="h3"
+                            component="h2"
+                            sx={{
                                 mb: 2,
                                 fontWeight: 700,
                                 color: '#0F172A',
@@ -436,9 +448,9 @@ const FAQPage = () => {
                                 letterSpacing: '-0.01em'
                             }}
                         >
-                            자주 묻는 질문
+                            {t('frequentlyAskedQuestions')}
                         </Typography>
-                        <Typography 
+                        <Typography
                             variant="body1"
                             sx={{
                                 color: '#64748B',
@@ -447,7 +459,7 @@ const FAQPage = () => {
                                 mx: 'auto'
                             }}
                         >
-                            궁금한 내용을 빠르게 찾아보세요
+                            {t('findAnswersQuickly')}
                         </Typography>
                     </Box>
 
@@ -480,8 +492,8 @@ const FAQPage = () => {
                             <SearchIcon />
                         </IconButton>
                         <InputBase
-                            sx={{ 
-                                flex: 1, 
+                            sx={{
+                                flex: 1,
                                 px: 1,
                                 py: 2,
                                 fontSize: '1rem',
@@ -490,25 +502,25 @@ const FAQPage = () => {
                                     color: '#94A3B8'
                                 }
                             }}
-                            placeholder="궁금한 내용을 검색해보세요"
+                            placeholder={t('searchYourQuestion')}
                             value={searchQuery}
                             onChange={handleSearchChange}
                         />
                     </Paper>
 
                     {/* 카테고리 선택 칩 */}
-                    <Box sx={{ 
-                        mb: 6, 
-                        display: 'flex', 
-                        flexWrap: 'wrap', 
-                        gap: 1.5, 
+                    <Box sx={{
+                        mb: 6,
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 1.5,
                         justifyContent: 'center',
                         animation: `${fadeIn} 0.6s ease-out 0.8s both`
                     }}>
                         {categories.map((category) => (
                             <CategoryChip
                                 key={category.id}
-                                label={category.name}
+                                label={category.id === 'all' ? category.name : getCategoryName(category.id)}
                                 onClick={() => handleCategoryChange(category.id)}
                                 selected={selectedCategory === category.id}
                                 sx={{ mb: 1 }}
@@ -588,42 +600,42 @@ const FAQPage = () => {
                             ))
                         ) : (
                             // 검색 결과가 없을 때 표시
-                            <StyledCard sx={{ 
-                                textAlign: 'center', 
+                            <StyledCard sx={{
+                                textAlign: 'center',
                                 py: 6,
                                 px: 4,
                                 backgroundColor: '#F8FAFC'
                             }}>
-                                <QuestionAnswerIcon sx={{ 
-                                    fontSize: 48, 
+                                <QuestionAnswerIcon sx={{
+                                    fontSize: 48,
                                     color: '#94A3B8',
                                     mb: 2
                                 }} />
-                                <Typography 
-                                    variant="h6" 
-                                    sx={{ 
+                                <Typography
+                                    variant="h6"
+                                    sx={{
                                         mb: 1,
                                         fontWeight: 600,
                                         color: '#475569'
                                     }}
                                 >
-                                    검색 결과가 없습니다
+                                    {t('noSearchResults')}
                                 </Typography>
-                                <Typography 
-                                    variant="body2" 
-                                    sx={{ 
+                                <Typography
+                                    variant="body2"
+                                    sx={{
                                         color: '#64748B',
                                         mb: 3,
                                         lineHeight: 1.6
                                     }}
                                 >
-                                    다른 키워드로 검색하시거나 1:1 문의를 이용해 주세요.
+                                    {t('tryDifferentKeyword')}
                                 </Typography>
                                 <Button
                                     component={RouterLink}
                                     to="/Inquiry"
                                     variant="contained"
-                                    sx={{ 
+                                    sx={{
                                         backgroundColor: '#3B82F6',
                                         color: 'white',
                                         px: 4,
@@ -637,7 +649,7 @@ const FAQPage = () => {
                                         }
                                     }}
                                 >
-                                    1:1 문의하기
+                                    {t('submitInquiry')}
                                 </Button>
                             </StyledCard>
                         )}
@@ -646,36 +658,36 @@ const FAQPage = () => {
                     {/* 하단 고객센터 안내 */}
                     <Grid container spacing={3} sx={{ mt: 8 }}>
                         <Grid item xs={12} md={6}>
-                            <StyledCard sx={{ 
+                            <StyledCard sx={{
                                 p: 4,
                                 textAlign: 'center',
                                 backgroundColor: '#F8FAFC',
                                 animation: `${fadeIn} 0.6s ease-out 1.4s both`
                             }}>
-                                <SupportAgentIcon sx={{ 
-                                    fontSize: 48, 
+                                <SupportAgentIcon sx={{
+                                    fontSize: 48,
                                     color: '#3B82F6',
                                     mb: 2
                                 }} />
-                                <Typography 
-                                    variant="h6" 
-                                    sx={{ 
+                                <Typography
+                                    variant="h6"
+                                    sx={{
                                         mb: 2,
                                         fontWeight: 600,
                                         color: '#1E293B'
                                     }}
                                 >
-                                    고객센터 문의
+                                    {t('customerCenterInquiry')}
                                 </Typography>
-                                <Typography 
-                                    variant="body2" 
-                                    sx={{ 
+                                <Typography
+                                    variant="body2"
+                                    sx={{
                                         color: '#64748B',
                                         mb: 2,
                                         lineHeight: 1.6
                                     }}
                                 >
-                                    평일 09:00 - 18:00 (공휴일 제외)
+                                    {t('businessHoursWeekdays')}
                                 </Typography>
                                 <Box sx={{ 
                                     display: 'flex', 
@@ -712,42 +724,42 @@ const FAQPage = () => {
                             </StyledCard>
                         </Grid>
                         <Grid item xs={12} md={6}>
-                            <StyledCard sx={{ 
+                            <StyledCard sx={{
                                 p: 4,
                                 textAlign: 'center',
                                 backgroundColor: '#3B82F6',
                                 color: 'white',
                                 animation: `${fadeIn} 0.6s ease-out 1.6s both`
                             }}>
-                                <QuestionAnswerIcon sx={{ 
-                                    fontSize: 48, 
+                                <QuestionAnswerIcon sx={{
+                                    fontSize: 48,
                                     color: 'white',
                                     mb: 2
                                 }} />
-                                <Typography 
-                                    variant="h6" 
-                                    sx={{ 
+                                <Typography
+                                    variant="h6"
+                                    sx={{
                                         mb: 2,
                                         fontWeight: 600
                                     }}
                                 >
-                                    1:1 문의하기
+                                    {t('oneOnOneInquiryTitle')}
                                 </Typography>
-                                <Typography 
-                                    variant="body2" 
-                                    sx={{ 
+                                <Typography
+                                    variant="body2"
+                                    sx={{
                                         mb: 3,
                                         opacity: 0.9,
                                         lineHeight: 1.6
                                     }}
                                 >
-                                    더 자세한 문의사항이 있으시면 1:1 문의를 통해 빠른 답변을 받아보세요.
+                                    {t('oneOnOneInquiryDescription')}
                                 </Typography>
                                 <Button
                                     component={RouterLink}
                                     to="/Inquiry"
                                     variant="contained"
-                                    sx={{ 
+                                    sx={{
                                         backgroundColor: 'white',
                                         color: '#3B82F6',
                                         px: 4,
@@ -763,7 +775,7 @@ const FAQPage = () => {
                                         transition: 'all 0.3s ease'
                                     }}
                                 >
-                                    문의하기
+                                    {t('inquire')}
                                 </Button>
                             </StyledCard>
                         </Grid>
@@ -771,11 +783,11 @@ const FAQPage = () => {
 
                     {/* 약관 및 정책 */}
                     <Box sx={{ mt: 10, mb: 6 }}>
-                        <Typography 
-                            variant="h4" 
-                            component="h2" 
-                            sx={{ 
-                                mb: 6, 
+                        <Typography
+                            variant="h4"
+                            component="h2"
+                            sx={{
+                                mb: 6,
                                 fontWeight: 600,
                                 color: '#1E293B',
                                 textAlign: 'center',
@@ -783,14 +795,14 @@ const FAQPage = () => {
                                 animation: `${fadeIn} 0.6s ease-out 1.8s both`
                             }}
                         >
-                            약관 및 정책
+                            {t('termsAndPolicies')}
                         </Typography>
                         <Grid container spacing={3}>
                             {[
-                                { title: '이용약관', description: '서비스 이용에 관한 기본 약관입니다.', link: '/terms' },
-                                { title: '개인정보 처리방침', description: '개인정보 수집 및 이용에 관한 안내입니다.', link: '/privacy' },
-                                { title: '환불 정책', description: '서비스 취소 및 환불에 관한 정책입니다.', link: '/refund' },
-                                { title: '위치기반 서비스 이용약관', description: '위치정보 수집 및 이용에 관한 약관입니다.', link: '/location-terms' }
+                                { title: t('termsOfService'), description: t('termsDescription'), link: '/terms' },
+                                { title: t('privacyPolicy'), description: t('privacyPolicyDescription'), link: '/privacy' },
+                                { title: t('refundPolicy'), description: t('refundPolicyDescription'), link: '/refund' },
+                                { title: t('locationBasedTerms'), description: t('locationBasedTermsDescription'), link: '/location-terms' }
                             ].map((item, index) => (
                                 <Grid item xs={12} sm={6} key={index}>
                                     <StyledCard
@@ -839,7 +851,7 @@ const FAQPage = () => {
                                                 }
                                             }}
                                         >
-                                            자세히 보기 →
+                                            {t('viewDetailsArrow')}
                                         </Button>
                                     </StyledCard>
                                 </Grid>
@@ -850,18 +862,18 @@ const FAQPage = () => {
                     {/* 내 문의 내역 */}
                     {isAuthenticated && (
                         <Box sx={{ mt: 10, mb: 6 }}>
-                            <Typography 
-                                variant="h4" 
-                                component="h2" 
-                                sx={{ 
-                                    mb: 6, 
+                            <Typography
+                                variant="h4"
+                                component="h2"
+                                sx={{
+                                    mb: 6,
                                     fontWeight: 600,
                                     color: '#1E293B',
                                     textAlign: 'center',
                                     fontSize: { xs: '1.5rem', md: '1.75rem' }
                                 }}
                             >
-                                내 문의 내역
+                                {t('myInquiryHistory')}
                             </Typography>
                             
                             {inquiriesLoading ? (
@@ -946,14 +958,14 @@ const FAQPage = () => {
                                                     >
                                                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                                                             <SupportAgentIcon sx={{ fontSize: 18, color: '#10B981' }} />
-                                                            <Typography 
-                                                                variant="subtitle2" 
-                                                                sx={{ 
+                                                            <Typography
+                                                                variant="subtitle2"
+                                                                sx={{
                                                                     fontWeight: 600,
                                                                     color: '#10B981'
                                                                 }}
                                                             >
-                                                                관리자 답변
+                                                                {t('adminReply')}
                                                             </Typography>
                                                         </Stack>
                                                         <Typography 
@@ -985,40 +997,40 @@ const FAQPage = () => {
                                     ))}
                                 </Grid>
                             ) : (
-                                <StyledCard sx={{ 
-                                    textAlign: 'center', 
+                                <StyledCard sx={{
+                                    textAlign: 'center',
                                     py: 6,
                                     px: 4
                                 }}>
-                                    <QuestionAnswerIcon sx={{ 
-                                        fontSize: 48, 
+                                    <QuestionAnswerIcon sx={{
+                                        fontSize: 48,
                                         color: '#94A3B8',
                                         mb: 2
                                     }} />
-                                    <Typography 
-                                        variant="h6" 
-                                        sx={{ 
+                                    <Typography
+                                        variant="h6"
+                                        sx={{
                                             mb: 1,
                                             fontWeight: 600,
                                             color: '#475569'
                                         }}
                                     >
-                                        문의 내역이 없습니다
+                                        {t('noInquiryHistory')}
                                     </Typography>
-                                    <Typography 
-                                        variant="body2" 
-                                        sx={{ 
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
                                             color: '#64748B',
                                             mb: 3
                                         }}
                                     >
-                                        궁금한 사항이 있으시면 1:1 문의를 이용해 주세요.
+                                        {t('noInquiryDescription')}
                                     </Typography>
                                     <Button
                                         component={RouterLink}
                                         to="/Inquiry"
                                         variant="contained"
-                                        sx={{ 
+                                        sx={{
                                             backgroundColor: '#3B82F6',
                                             color: 'white',
                                             px: 4,
@@ -1032,7 +1044,7 @@ const FAQPage = () => {
                                             }
                                         }}
                                     >
-                                        1:1 문의하기
+                                        {t('submitInquiry')}
                                     </Button>
                                 </StyledCard>
                             )}
@@ -1063,27 +1075,27 @@ const FAQPage = () => {
                             }}
                         />
                         <Box sx={{ position: 'relative', zIndex: 1, p: 4 }}>
-                            <Typography 
-                                variant="h5" 
-                                sx={{ 
-                                    fontWeight: 600, 
+                            <Typography
+                                variant="h5"
+                                sx={{
+                                    fontWeight: 600,
                                     mb: 2,
                                     fontSize: { xs: '1.25rem', md: '1.5rem' }
                                 }}
                             >
-                                TravelLight 서비스 이용 가이드
+                                {t('serviceGuideTitle')}
                             </Typography>
-                            <Typography 
-                                variant="body1" 
-                                sx={{ 
-                                    mb: 4, 
-                                    maxWidth: '600px', 
+                            <Typography
+                                variant="body1"
+                                sx={{
+                                    mb: 4,
+                                    maxWidth: '600px',
                                     mx: 'auto',
                                     opacity: 0.95,
                                     lineHeight: 1.6
                                 }}
                             >
-                                서비스 이용에 관한 모든 정보를 담은 가이드북을 다운로드하여 확인하세요.
+                                {t('serviceGuideDescription')}
                             </Typography>
                             <Button
                                 variant="contained"
@@ -1103,7 +1115,7 @@ const FAQPage = () => {
                                     transition: 'all 0.3s ease'
                                 }}
                             >
-                                이용 가이드 다운로드
+                                {t('downloadGuide')}
                             </Button>
                         </Box>
                     </StyledCard>
