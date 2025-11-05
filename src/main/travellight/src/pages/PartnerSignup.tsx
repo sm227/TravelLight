@@ -543,6 +543,9 @@ const PartnerSignup: React.FC = () => {
       
       setSuccess(true);
       setLoading(false);
+      
+      // 신청 완료 시 스크롤을 맨 위로 이동
+      window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch (err) {
       console.error('파트너 신청 오류:', err);
@@ -646,7 +649,7 @@ const PartnerSignup: React.FC = () => {
     return dayNames[day] || day;
   };
 
-  // 이미지 파일 업로드 핸들러 (Base64로 변환)
+  // 이미지 파일 업로드 핸들러 (서버에 업로드)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -664,32 +667,43 @@ const PartnerSignup: React.FC = () => {
     }
 
     setUploadingImage(true);
-    const reader = new FileReader();
     
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
+    try {
+      // 서버에 파일 업로드
+      const formData = new FormData();
+      formData.append('files', file);
+
+      const response = await fetch('/api/partnership/photos/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('이미지 업로드에 실패했습니다.');
+      }
+
+      const result = await response.json();
+      const uploadedPath = result.data[0]; // 업로드된 파일 경로 (uploads/partnerships/xxx.jpg)
+      const fileUrl = `/api/files/${uploadedPath}`;
       
       if (fieldName === 'storePictures') {
         setFormData(prev => ({
           ...prev,
-          storePictures: [...prev.storePictures, base64String]
+          storePictures: [...prev.storePictures, fileUrl]
         }));
       } else if (fieldName === 'businessRegistrationUrl') {
-        setFormData(prev => ({ ...prev, businessRegistrationUrl: base64String }));
+        setFormData(prev => ({ ...prev, businessRegistrationUrl: fileUrl }));
       } else if (fieldName === 'bankBookUrl') {
-        setFormData(prev => ({ ...prev, bankBookUrl: base64String }));
+        setFormData(prev => ({ ...prev, bankBookUrl: fileUrl }));
       }
       
       setUploadingImage(false);
       setError('');
-    };
-    
-    reader.onerror = () => {
+    } catch (error) {
+      console.error('이미지 업로드 오류:', error);
       setError('이미지 업로드 중 오류가 발생했습니다.');
       setUploadingImage(false);
-    };
-    
-    reader.readAsDataURL(file);
+    }
   };
 
   const renderStepContent = (step: number) => {

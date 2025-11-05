@@ -17,6 +17,7 @@ import {
   LocalOffer as CouponIcon
 } from '@mui/icons-material';
 import { UserCoupon, getAvailableUserCoupons } from '../services/couponService';
+import { useTranslation } from 'react-i18next';
 
 interface CouponSelectModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ const CouponSelectModal: React.FC<CouponSelectModalProps> = ({
   userId,
   purchaseAmount
 }) => {
+  const { t } = useTranslation();
   const [coupons, setCoupons] = useState<UserCoupon[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -56,7 +58,7 @@ const CouponSelectModal: React.FC<CouponSelectModalProps> = ({
 
       setCoupons(usableCoupons);
     } catch (err: any) {
-      setError(err.message || '쿠폰 목록을 불러오는데 실패했습니다.');
+      setError(err.message || t('couponLoadError'));
     } finally {
       setLoading(false);
     }
@@ -114,7 +116,7 @@ const CouponSelectModal: React.FC<CouponSelectModalProps> = ({
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <CouponIcon sx={{ color: '#3b82f6' }} />
-          <span style={{ fontSize: '18px', fontWeight: 600 }}>보유 쿠폰 선택</span>
+          <span style={{ fontSize: '18px', fontWeight: 600 }}>{t('selectMyCoupons')}</span>
         </Box>
         <IconButton
           onClick={onClose}
@@ -156,11 +158,10 @@ const CouponSelectModal: React.FC<CouponSelectModalProps> = ({
         ) : coupons.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography sx={{ color: '#64748b', fontSize: '14px' }}>
-              사용 가능한 쿠폰이 없습니다.
+              {t('noAvailableCoupons')}
             </Typography>
             <Typography sx={{ color: '#94a3b8', fontSize: '12px', mt: 1 }}>
-              현재 구매 금액으로 사용할 수 있는 쿠폰이 없거나,<br />
-              보유한 쿠폰이 없습니다.
+              {t('noAvailableCouponsDescription')}
             </Typography>
           </Box>
         ) : (
@@ -193,7 +194,7 @@ const CouponSelectModal: React.FC<CouponSelectModalProps> = ({
                       {coupon.name}
                     </Typography>
                     <Chip
-                      label={`-${discount.toLocaleString()}원`}
+                      label={t('couponDiscount', { amount: discount.toLocaleString() })}
                       size="small"
                       sx={{
                         backgroundColor: '#10b981',
@@ -225,23 +226,23 @@ const CouponSelectModal: React.FC<CouponSelectModalProps> = ({
                   {/* 쿠폰 상세 정보 */}
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, fontSize: '12px', color: '#64748b' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>할인</span>
+                      <span>{t('discount')}</span>
                       <span style={{ color: '#1e293b', fontWeight: '500' }}>
                         {coupon.discountType === 'PERCENTAGE'
-                          ? `${coupon.discountValue}%${coupon.maxDiscountAmount ? ` (최대 ${coupon.maxDiscountAmount.toLocaleString()}원)` : ''}`
-                          : `${coupon.discountValue.toLocaleString()}원`}
+                          ? `${coupon.discountValue}%${coupon.maxDiscountAmount ? ` (${t('maxDiscount')} ${coupon.maxDiscountAmount.toLocaleString()}${t('won')})` : ''}`
+                          : `${coupon.discountValue.toLocaleString()}${t('won')}`}
                       </span>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>최소 구매 금액</span>
+                      <span>{t('minPurchaseAmount')}</span>
                       <span style={{ color: '#1e293b', fontWeight: '500' }}>
-                        {coupon.minPurchaseAmount.toLocaleString()}원
+                        {coupon.minPurchaseAmount.toLocaleString()}{t('won')}
                       </span>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>유효 기간</span>
+                      <span>{t('validUntil')}</span>
                       <span style={{ color: '#1e293b', fontWeight: '500' }}>
-                        {formatDate(coupon.endDate)}까지
+                        {formatDate(coupon.endDate)} {t('until')}
                       </span>
                     </Box>
                   </Box>
@@ -285,7 +286,7 @@ const CouponSelectModal: React.FC<CouponSelectModalProps> = ({
             }
           }}
         >
-          닫기
+          {t('close')}
         </Button>
       </DialogActions>
     </Dialog>

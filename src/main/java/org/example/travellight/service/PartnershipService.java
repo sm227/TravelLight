@@ -8,7 +8,15 @@ import org.example.travellight.repository.ReservationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +25,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class PartnershipService {
+
+    private static final Logger log = LoggerFactory.getLogger(PartnershipService.class);
+    private static final String UPLOAD_DIR = "uploads/partnerships";
 
     @Autowired
     private PartnershipRepository partnershipRepository;
@@ -464,5 +475,51 @@ public class PartnershipService {
         }
         
         return partnershipRepository.save(partnership);
+    }
+
+    /**
+     * 파트너십 이미지 업로드
+     * 
+     * @param files 업로드할 파일 리스트
+     * @return 업로드된 파일 경로 리스트 (uploads/partnerships/파일명)
+     */
+    public List<String> uploadPartnershipPhotos(List<MultipartFile> files) {
+        List<String> uploadedFilePaths = new ArrayList<>();
+        
+        // 업로드 디렉토리 생성
+        try {
+            Path uploadPath = Paths.get(UPLOAD_DIR);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+        } catch (IOException e) {
+            log.error("업로드 디렉토리 생성 실패", e);
+            throw new RuntimeException("업로드 디렉토리 생성에 실패했습니다.");
+        }
+        
+        for (MultipartFile file : files) {
+            if (file.isEmpty()) continue;
+            
+            try {
+                // 파일명 생성 (중복 방지를 위해 UUID 추가)
+                String originalFilename = file.getOriginalFilename();
+                String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+                String newFilename = System.currentTimeMillis() + "_" + UUID.randomUUID().toString() + extension;
+                
+                // 파일 저장
+                Path filePath = Paths.get(UPLOAD_DIR, newFilename);
+                Files.copy(file.getInputStream(), filePath);
+                
+                // 전체 경로 반환 (uploads/partnerships/파일명)
+                uploadedFilePaths.add(UPLOAD_DIR + "/" + newFilename);
+                log.info("파일 업로드 성공: {}/{}", UPLOAD_DIR, newFilename);
+                
+            } catch (IOException e) {
+                log.error("파일 업로드 실패: {}", file.getOriginalFilename(), e);
+                throw new RuntimeException("파일 업로드에 실패했습니다: " + file.getOriginalFilename());
+            }
+        }
+        
+        return uploadedFilePaths;
     }
 }

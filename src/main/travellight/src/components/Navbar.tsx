@@ -257,7 +257,7 @@ const Navbar: React.FC = () => {
           navigate("/map", { state: { showReservations: true } });
         }}
       >
-        <BookmarkIcon />내 예약
+        <BookmarkIcon />{t("myReservations")}
       </MenuItem>
       <MenuItem
         onClick={() => {
@@ -266,7 +266,7 @@ const Navbar: React.FC = () => {
         }}
       >
         <PersonIcon />
-        내 프로필
+        {t("profile")}
       </MenuItem>
       <MenuItem
         onClick={() => {
@@ -613,34 +613,34 @@ const Navbar: React.FC = () => {
               {/* 데스크톱용 기존 레이아웃 (간소화) */}
               {[
                 {
-                  title: "서비스 이용",
+                  title: t("serviceUsage"),
                   items: [
                     { text: t("services"), href: "/#services" },
                     { text: t("pricing"), href: "/#pricing" },
                   ],
                 },
                 {
-                  title: "고객 지원",
+                  title: t("customerSupport"),
                   items: [
                     { text: t("howItWorks"), onClick: navigateToFAQ },
-                    { text: "자주 묻는 질문", href: "/faq" },
-                    { text: "고객센터", href: "/support" },
+                    { text: t("frequentlyAskedQuestions"), href: "/faq" },
+                    { text: t("customerService"), href: "/support" },
                   ],
                 },
                 {
-                  title: "파트너쉽",
+                  title: t("partnership"),
                   items: [
                     { text: t("partner"), onClick: navigateToPartner },
                     { text: t("eventStorage"), onClick: navigateToEventStorage },
-                    { text: "1:1 문의", onClick: navigateToInquiry },
+                    { text: t("oneOnOneInquiry"), onClick: navigateToInquiry },
                   ],
                 },
                 {
-                  title: "트래블라이트",
+                  title: t("aboutTravelight"),
                   items: [
-                    { text: "회사소개", href: "/about" },
-                    { text: "채용", href: "/careers" },
-                    { text: "뉴스", href: "/news" },
+                    { text: t("aboutCompany"), href: "/about" },
+                    { text: t("recruiting"), href: "/careers" },
+                    { text: t("news"), href: "/news" },
                   ],
                 },
               ].map((section, index) => (
@@ -723,10 +723,10 @@ const Navbar: React.FC = () => {
                 // 메인 화면: 4개 카테고리
                 <>
                   {[
-                    { key: "service", title: "서비스 이용" },
-                    { key: "support", title: "고객 지원" },
-                    { key: "partner", title: "파트너쉽" },
-                    { key: "company", title: "트래블라이트" },
+                    { key: "service", title: t("serviceUsage") },
+                    { key: "support", title: t("customerSupport") },
+                    { key: "partner", title: t("partnership") },
+                    { key: "company", title: t("aboutTravelight") },
                   ].map((section, index) => (
                     <Button
                       key={section.key}
@@ -804,34 +804,34 @@ const Navbar: React.FC = () => {
                   {(() => {
                     const sections = {
                       service: {
-                        title: "서비스 이용",
+                        title: t("serviceUsage"),
                         items: [
                           { text: t("services"), href: "/#services" },
                           { text: t("pricing"), href: "/#pricing" },
                         ],
                       },
                       support: {
-                        title: "고객 지원",
+                        title: t("customerSupport"),
                         items: [
                           { text: t("howItWorks"), onClick: navigateToFAQ },
-                          { text: "자주 묻는 질문", href: "/faq" },
-                          { text: "고객센터", href: "/support" },
+                          { text: t("frequentlyAskedQuestions"), href: "/faq" },
+                          { text: t("customerService"), href: "/support" },
                         ],
                       },
                       partner: {
-                        title: "파트너쉽",
+                        title: t("partnership"),
                         items: [
                           { text: t("partner"), onClick: navigateToPartner },
                           { text: t("eventStorage"), onClick: navigateToEventStorage },
-                          { text: "1:1 문의", onClick: navigateToInquiry },
+                          { text: t("oneOnOneInquiry"), onClick: navigateToInquiry },
                         ],
                       },
                       company: {
-                        title: "트래블라이트",
+                        title: t("aboutTravelight"),
                         items: [
-                          { text: "회사소개", href: "/about" },
-                          { text: "채용", href: "/careers" },
-                          { text: "뉴스", href: "/news" },
+                          { text: t("aboutCompany"), href: "/about" },
+                          { text: t("recruiting"), href: "/careers" },
+                          { text: t("news"), href: "/news" },
                         ],
                       },
                     };
