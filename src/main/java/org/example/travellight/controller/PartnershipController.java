@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -392,6 +393,28 @@ public class PartnershipController {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonApiResponse.error("제휴점 해제 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "제휴점 사진 업로드", description = "제휴점의 매장 사진을 업로드합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "업로드 성공", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class))),
+        @ApiResponse(responseCode = "500", description = "서버 오류", 
+            content = @Content(schema = @Schema(implementation = CommonApiResponse.class)))
+    })
+    @PostMapping("/photos/upload")
+    public ResponseEntity<?> uploadPhotos(
+            @Parameter(description = "업로드할 사진 파일들", required = true)
+            @RequestParam("files") List<MultipartFile> files) {
+        try {
+            List<String> uploadedPaths = partnershipService.uploadPartnershipPhotos(files);
+            return ResponseEntity.ok(CommonApiResponse.success("사진이 성공적으로 업로드되었습니다.", uploadedPaths));
+        } catch (Exception e) {
+            System.err.println("사진 업로드 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonApiResponse.error("사진 업로드 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 }

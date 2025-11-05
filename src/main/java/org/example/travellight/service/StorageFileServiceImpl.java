@@ -3,7 +3,6 @@ package org.example.travellight.service;
 import org.example.travellight.dto.StorageItemDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,7 +15,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 import java.util.UUID;
 
 @Service
@@ -57,41 +55,6 @@ public class StorageFileServiceImpl implements StorageFileService {
 
         } catch (Exception e) {
             logger.error("이미지 파일 업로드 실패: reservationNumber = {}", reservationNumber, e);
-            throw new RuntimeException("이미지 업로드 중 오류가 발생했습니다: " + e.getMessage());
-        }
-    }
-
-    @Override
-    public StorageItemDto.PhotoUploadResponse uploadPhotoFromBase64(StorageItemDto.PhotoUploadRequest request) {
-        logger.info("Base64 이미지 업로드 시작: reservationNumber = {}", request.getReservationNumber());
-
-        try {
-            // Base64 디코딩
-            byte[] imageBytes = Base64.getDecoder().decode(request.getBase64Data());
-
-            // 파일 크기 검증
-            if (imageBytes.length > MAX_FILE_SIZE) {
-                throw new IllegalArgumentException("파일 크기가 너무 큽니다. 최대 10MB까지 업로드 가능합니다.");
-            }
-
-            // 파일명 생성
-            String fileName = generateFileName(request.getFileName(), request.getReservationNumber());
-            String filePath = saveBase64File(imageBytes, fileName);
-
-            // 썸네일 생성
-            String thumbnailPath = createThumbnail(filePath);
-
-            logger.info("Base64 이미지 업로드 성공: filePath = {}", filePath);
-
-            return StorageItemDto.PhotoUploadResponse.builder()
-                    .fileName(fileName)
-                    .filePath(filePath)
-                    .thumbnailPath(thumbnailPath)
-                    .fileSize((long) imageBytes.length)
-                    .build();
-
-        } catch (Exception e) {
-            logger.error("Base64 이미지 업로드 실패: reservationNumber = {}", request.getReservationNumber(), e);
             throw new RuntimeException("이미지 업로드 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
@@ -227,15 +190,6 @@ public class StorageFileServiceImpl implements StorageFileService {
 
         Path filePath = Paths.get(UPLOAD_DIR, fileName);
         Files.copy(file.getInputStream(), filePath);
-
-        return filePath.toString();
-    }
-
-    private String saveBase64File(byte[] imageBytes, String fileName) throws IOException {
-        createDirectoryIfNotExists(UPLOAD_DIR);
-
-        Path filePath = Paths.get(UPLOAD_DIR, fileName);
-        Files.write(filePath, imageBytes);
 
         return filePath.toString();
     }

@@ -6094,7 +6094,7 @@ const Map = () => {
                       }}>
                         <Box
                           component="img"
-                          src={selectedPlace.storePictures[0]}
+                          src={selectedPlace.storePictures[0].startsWith('/api/files/') ? selectedPlace.storePictures[0] : `/api/files/${selectedPlace.storePictures[0].replace(/^\//, '')}`}
                           alt={selectedPlace.place_name}
                           sx={{
                             width: '100%',
@@ -8480,6 +8480,7 @@ const Map = () => {
                         {place.address_name}
                       </Box>
                     }
+                    secondaryTypographyProps={{ component: 'div' }}
                   />
                 </ListItem>
               ))}

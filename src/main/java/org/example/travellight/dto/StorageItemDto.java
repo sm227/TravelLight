@@ -95,7 +95,6 @@ public class StorageItemDto {
     public static class PhotoUploadRequest {
         private String reservationNumber;
         private String fileName;
-        private String base64Data; // Base64 인코딩된 이미지 데이터
     }
 
     @Data
