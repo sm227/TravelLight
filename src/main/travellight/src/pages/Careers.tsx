@@ -121,7 +121,7 @@ const Careers: React.FC = () => {
   ];
 
   const getJobIcon = (iconName: string) => {
-    const iconProps = { fontSize: 40, color: "#2E7DF1" };
+    const iconProps = { fontSize: 36, color: "#2E7DF1" };
     switch (iconName) {
       case "TrendingUp":
         return <TrendingUp sx={iconProps} />;
@@ -208,13 +208,13 @@ const Careers: React.FC = () => {
                 fontWeight: 800,
                 color: "#1a1a1a",
                 mb: 3,
-                fontSize: { xs: "2.5rem", md: "3.75rem" },
+                fontSize: { xs: "2rem", md: "2.75rem" },
               }}
             >
               함께 성장할 팀원을 찾습니다
             </Typography>
             <Typography
-              variant="h5"
+              variant="h6"
               color="text.secondary"
               sx={{
                 mb: 8,
@@ -222,6 +222,7 @@ const Careers: React.FC = () => {
                 mx: "auto",
                 lineHeight: 1.6,
                 fontWeight: 400,
+                fontSize: { xs: "1rem", md: "1.1rem" },
               }}
             >
               여행 산업의 혁신을 함께 만들어갈 열정적인 팀원을 기다립니다
@@ -234,9 +235,9 @@ const Careers: React.FC = () => {
               justifyContent="center"
             >
               <StatCard>
-                <Speed sx={{ fontSize: 32, color: "#2E7DF1", mb: 1 }} />
+                <Speed sx={{ fontSize: 28, color: "#2E7DF1", mb: 1 }} />
                 <Typography
-                  variant="h6"
+                  variant="subtitle1"
                   sx={{ fontWeight: 600, color: "#1a1a1a" }}
                 >
                   Early Stage
@@ -246,9 +247,9 @@ const Careers: React.FC = () => {
                 </Typography>
               </StatCard>
               <StatCard>
-                <Security sx={{ fontSize: 32, color: "#2E7DF1", mb: 1 }} />
+                <Security sx={{ fontSize: 28, color: "#2E7DF1", mb: 1 }} />
                 <Typography
-                  variant="h6"
+                  variant="subtitle1"
                   sx={{ fontWeight: 600, color: "#1a1a1a" }}
                 >
                   Big Dream
@@ -258,9 +259,9 @@ const Careers: React.FC = () => {
                 </Typography>
               </StatCard>
               <StatCard>
-                <People sx={{ fontSize: 32, color: "#2E7DF1", mb: 1 }} />
+                <People sx={{ fontSize: 28, color: "#2E7DF1", mb: 1 }} />
                 <Typography
-                  variant="h6"
+                  variant="subtitle1"
                   sx={{ fontWeight: 600, color: "#1a1a1a" }}
                 >
                   Together
@@ -277,7 +278,7 @@ const Careers: React.FC = () => {
           {/* Job Positions */}
           <Box sx={{ mb: 12 }}>
             <Typography
-              variant="h4"
+              variant="h5"
               component="h2"
               gutterBottom
               sx={{
@@ -290,7 +291,7 @@ const Careers: React.FC = () => {
               현재 모집중인 포지션
             </Typography>
             <Typography
-              variant="h6"
+              variant="body1"
               color="text.secondary"
               sx={{
                 textAlign: "center",
@@ -319,12 +320,13 @@ const Careers: React.FC = () => {
                           {getJobIcon(job.iconName)}
                           <Box sx={{ ml: 2 }}>
                             <Typography
-                              variant="h6"
+                              variant="subtitle1"
                               component="h3"
                               sx={{
                                 fontWeight: 600,
                                 color: "#1a1a1a",
                                 mb: 0.5,
+                                fontSize: "1.1rem",
                               }}
                             >
                               {job.title}
@@ -346,6 +348,7 @@ const Careers: React.FC = () => {
                           sx={{
                             mb: 3,
                             lineHeight: 1.5,
+                            fontSize: { xs: "0.875rem", md: "0.95rem" },
                           }}
                         >
                           {job.description}
@@ -413,17 +416,19 @@ const Careers: React.FC = () => {
                     textAlign: 'center'
                   }}>
                     <Box sx={{ flexGrow: 1 }}>
-                      <PersonAdd sx={{ fontSize: 60, color: "#2E7DF1", mb: 2 }} />
-                      <Typography variant="h6" component="h3" gutterBottom sx={{ 
+                      <PersonAdd sx={{ fontSize: 50, color: "#2E7DF1", mb: 2 }} />
+                      <Typography variant="subtitle1" component="h3" gutterBottom sx={{
                         fontWeight: 600,
                         color: "#1a1a1a",
-                        mb: 2
+                        mb: 2,
+                        fontSize: "1.1rem"
                       }}>
                         인재풀 등록
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ 
+                      <Typography variant="body2" color="text.secondary" sx={{
                         mb: 3,
-                        lineHeight: 1.5
+                        lineHeight: 1.5,
+                        fontSize: { xs: "0.875rem", md: "0.95rem" },
                       }}>
                         원하시는 포지션이 없나요? 인재풀에 등록하시면 향후 적합한 기회가 생겼을 때 연락드리겠습니다.
                       </Typography>
@@ -455,7 +460,7 @@ const Careers: React.FC = () => {
           {/* Company Benefits */}
           <Box sx={{ mb: 12 }}>
             <Typography
-              variant="h4"
+              variant="h5"
               component="h2"
               gutterBottom
               sx={{
@@ -468,7 +473,7 @@ const Careers: React.FC = () => {
               Travelight에서 누릴 수 있는 혜택
             </Typography>
             <Typography
-              variant="h6"
+              variant="body1"
               color="text.secondary"
               sx={{
                 textAlign: "center",
@@ -483,18 +488,19 @@ const Careers: React.FC = () => {
                 <Grid item xs={12} sm={6} md={4} key={index}>
                   <BenefitCard>
                     <Typography
-                      variant="h6"
+                      variant="subtitle1"
                       component="h3"
                       gutterBottom
                       sx={{
                         fontWeight: 600,
                         color: "#1a1a1a",
+                        fontSize: "1.1rem",
                       }}
                     >
                       {benefit.title}
                     </Typography>
                     <Typography
-                      variant="body1"
+                      variant="body2"
                       color="text.secondary"
                       sx={{ lineHeight: 1.5 }}
                     >
@@ -509,7 +515,7 @@ const Careers: React.FC = () => {
           {/* Contact Section */}
           <Box sx={{ textAlign: "center", py: 12 }}>
             <Typography
-              variant="h4"
+              variant="h5"
               component="h2"
               gutterBottom
               sx={{
@@ -521,7 +527,7 @@ const Careers: React.FC = () => {
               함께할 준비가 되셨나요?
             </Typography>
             <Typography
-              variant="h6"
+              variant="body1"
               color="text.secondary"
               sx={{
                 mb: 6,
@@ -542,7 +548,7 @@ const Careers: React.FC = () => {
             >
               <Box sx={{ textAlign: "center" }}>
                 <Typography
-                  variant="h6"
+                  variant="subtitle1"
                   sx={{
                     fontWeight: 600,
                     color: "#1a1a1a",
@@ -551,13 +557,13 @@ const Careers: React.FC = () => {
                 >
                   이메일
                 </Typography>
-                <Typography variant="body1" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   hamsm3184@gmail.com
                 </Typography>
               </Box>
               <Box sx={{ textAlign: "center" }}>
                 <Typography
-                  variant="h6"
+                  variant="subtitle1"
                   sx={{
                     fontWeight: 600,
                     color: "#1a1a1a",
@@ -566,7 +572,7 @@ const Careers: React.FC = () => {
                 >
                   전화
                 </Typography>
-                <Typography variant="body1" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   010-3373-9651
                 </Typography>
               </Box>
@@ -612,15 +618,15 @@ const Careers: React.FC = () => {
       >
         <DialogTitle sx={{ pb: 2, borderBottom: '1px solid #f0f0f0' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <PersonAdd sx={{ fontSize: 32, color: '#2E7DF1', mr: 2 }} />
-            <Typography variant="h5" component="h2" sx={{ 
+            <PersonAdd sx={{ fontSize: 28, color: '#2E7DF1', mr: 2 }} />
+            <Typography variant="h6" component="h2" sx={{
               fontWeight: 600,
               color: '#1a1a1a'
             }}>
               인재풀 등록
             </Typography>
           </Box>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body2" color="text.secondary">
             TravelLight에 관심을 가져주셔서 감사합니다. 향후 적합한 포지션이 생기면 연락드리겠습니다.
           </Typography>
         </DialogTitle>
