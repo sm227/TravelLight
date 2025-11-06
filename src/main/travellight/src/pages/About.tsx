@@ -17,6 +17,8 @@ import kbhImage from "../assets/images/kbh.png";
 import kshImage from "../assets/images/ksh.jpg";
 import yswImage from "../assets/images/ysw.jpg";
 import hymImage from "../assets/images/hym.jpg";
+import logo1Image from "../assets/images/achievements/logo1.jpg";
+import logo2Image from "../assets/images/achievements/logo2.png";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { styled } from "@mui/material/styles";
@@ -27,6 +29,7 @@ import {
   TrendingUp,
   People,
   Public,
+  EmojiEvents,
 } from "@mui/icons-material";
 
 const SimpleCard = styled(Card)(({ theme }) => ({
@@ -59,7 +62,57 @@ const StatCard = styled(Box)(({ theme }) => ({
   border: "1px solid #e0e0e0",
 }));
 
+const AchievementItem = styled(Box)(({ theme }) => ({
+  position: "relative",
+  paddingLeft: theme.spacing(4),
+  paddingBottom: theme.spacing(4),
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    left: "15px",
+    top: "24px",
+    bottom: 0,
+    width: "2px",
+    backgroundColor: "#e0e0e0",
+  },
+  "&:last-child::before": {
+    display: "none",
+  },
+}));
+
+const AchievementDot = styled(Box)({
+  position: "absolute",
+  left: "7px",
+  top: "8px",
+  width: "18px",
+  height: "18px",
+  borderRadius: "50%",
+  backgroundColor: "#2E7DF1",
+  border: "3px solid #fff",
+  boxShadow: "0 0 0 2px #2E7DF1",
+  zIndex: 1,
+});
+
+const AchievementCard = styled(Card)(({ theme }) => ({
+  padding: theme.spacing(3),
+  border: "1px solid #f0f0f0",
+  boxShadow: "none",
+}));
+
 const About: React.FC = () => {
+  const achievements = [
+    {
+      date: "2025.08",
+      title: "학생창업유망팀 300 성장트랙 최종선정",
+      logo: logo1Image,
+    },
+    {
+      date: "2025.05",
+      title: "북부권역 지역연계 강화 창업경진대회 최종 선발",
+      logo: logo2Image,
+    },
+  ];
+
   const features = [
     {
       icon: <Security sx={{ fontSize: 48, color: "#2E7DF1" }} />,
@@ -83,7 +136,7 @@ const About: React.FC = () => {
     name: "함승민",
     position: "CEO & Founder",
     description:
-      "여행과 기술을 결합한 혁신적인 서비스를 통해 사람들의 여행 경험을 개선하고자 합니다. TravelLight의 비전을 현실로 만들어가고 있습니다.",
+      "여행과 기술을 결합한 혁신적인 서비스를 통해 사람들의 여행 경험을 개선하고자 합니다. Travelight의 비전을 현실로 만들어가고 있습니다.",
     skills: ["Strategy", "Product", "Leadership"],
   };
 
@@ -163,7 +216,7 @@ const About: React.FC = () => {
                 fontWeight: 400,
               }}
             >
-              TravelLight는 여행자들의 짐 보관과 배송을 혁신하는 스타트업입니다
+              Travelight는 여행자들의 짐 보관과 배송을 혁신하는 스타트업입니다
             </Typography>
 
             {/* Stats */}
@@ -273,6 +326,76 @@ const About: React.FC = () => {
             </Stack>
           </Box>
 
+          {/* Achievements Section */}
+          <Box sx={{ mb: 12 }}>
+            <Typography
+              variant="h4"
+              component="h2"
+              gutterBottom
+              sx={{
+                textAlign: "center",
+                mb: 6,
+                fontWeight: 700,
+                color: "#1a1a1a",
+              }}
+            >
+              주요 성과
+            </Typography>
+            <Box sx={{ maxWidth: 800, mx: "auto" }}>
+              {achievements.map((achievement, index) => (
+                <AchievementItem key={index}>
+                  <AchievementDot />
+                  <AchievementCard>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 2,
+                      }}
+                    >
+                      {achievement.logo ? (
+                        <img
+                          src={achievement.logo}
+                          alt={`Achievement ${index + 1}`}
+                          style={{
+                            width: "80px",
+                            height: "80px",
+                            objectFit: "contain",
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <EmojiEvents sx={{ color: "#2E7DF1", fontSize: 80 }} />
+                      )}
+                      <Box sx={{ flex: 1 }}>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            color: "#2E7DF1",
+                            fontWeight: 600,
+                            mb: 1,
+                          }}
+                        >
+                          {achievement.date}
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            color: "#1a1a1a",
+                            fontWeight: 500,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          {achievement.title}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </AchievementCard>
+                </AchievementItem>
+              ))}
+            </Box>
+          </Box>
+
           {/* Features Section */}
           <Box sx={{ mb: 12 }}>
             <Typography
@@ -286,7 +409,7 @@ const About: React.FC = () => {
                 color: "#1a1a1a",
               }}
             >
-              왜 TravelLight를 선택해야 할까요?
+              왜 Travelight를 선택해야 할까요?
             </Typography>
             <Grid container spacing={4}>
               {features.map((feature, index) => (
@@ -453,7 +576,7 @@ const About: React.FC = () => {
                         lineHeight: 1.7,
                       }}
                     >
-                      TravelLight를 통해 모든 여행자들이 짐에 대한 걱정 없이
+                      Travelight를 통해 모든 여행자들이 짐에 대한 걱정 없이
                       순수하게 여행 자체를 즐길 수 있는 세상을 만들어가고
                       싶습니다.
                     </Typography>
