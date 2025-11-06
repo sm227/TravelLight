@@ -465,7 +465,7 @@ const Careers: React.FC = () => {
                 color: "#1a1a1a",
               }}
             >
-              TravelLight에서 누릴 수 있는 혜택
+              Travelight에서 누릴 수 있는 혜택
             </Typography>
             <Typography
               variant="h6"
