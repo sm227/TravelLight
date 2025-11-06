@@ -23,8 +23,6 @@ import {
   Work,
   CheckCircle,
   Send,
-  TrendingUp,
-  DesignServices,
 } from "@mui/icons-material";
 import { jobPositions, JobPosition } from "../data/jobPositions";
 import Navbar from "../components/Navbar";
@@ -130,18 +128,6 @@ const CareerDetail: React.FC = () => {
     }
   };
 
-  const getJobIcon = (iconName: string) => {
-    const iconProps = { fontSize: 40, color: "#2E7DF1" };
-    switch (iconName) {
-      case "TrendingUp":
-        return <TrendingUp sx={iconProps} />;
-      case "DesignServices":
-        return <DesignServices sx={iconProps} />;
-      default:
-        return <TrendingUp sx={iconProps} />;
-    }
-  };
-
   const scrollToApplicationForm = () => {
     setShowApplicationForm(true);
     // 폼이 렌더링된 후 스크롤
@@ -188,26 +174,39 @@ const CareerDetail: React.FC = () => {
           }}
         >
           <Box sx={{ flex: 1 }}>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-              {getJobIcon(job.iconName)}
-              <Typography variant="h3" fontWeight="bold" sx={{ ml: 2 }}>
-                {job.title}
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+            <Typography
+              variant="h4"
+              fontWeight="bold"
+              sx={{
+                mb: 2,
+                fontSize: { xs: "1.75rem", md: "2rem" }
+              }}
+            >
+              {job.title}
+            </Typography>
+            <Stack
+              direction="row"
+              spacing={1}
+              flexWrap="wrap"
+              useFlexGap
+              sx={{ gap: 1 }}
+            >
               <Chip
                 icon={<Work />}
                 label={job.department}
+                size="small"
                 sx={{ backgroundColor: "#f0f7ff", color: "#2E7DF1" }}
               />
               <Chip
                 icon={<LocationOn />}
                 label={job.location}
+                size="small"
                 sx={{ backgroundColor: "#f0f7ff", color: "#2E7DF1" }}
               />
               <Chip
                 icon={<Schedule />}
                 label={job.type}
+                size="small"
                 sx={{ backgroundColor: "#f0f7ff", color: "#2E7DF1" }}
               />
             </Stack>
@@ -225,7 +224,7 @@ const CareerDetail: React.FC = () => {
                 color: "white",
                 px: 4,
                 py: 1.5,
-                fontSize: "1rem",
+                fontSize: { xs: "0.9rem", md: "1rem" },
                 fontWeight: 600,
                 minWidth: "140px",
                 whiteSpace: "nowrap",
@@ -241,10 +240,23 @@ const CareerDetail: React.FC = () => {
 
         {/* 포지션 설명 */}
         <Box sx={{ mb: 6 }}>
-          <Typography variant="h5" fontWeight="bold" gutterBottom>
+          <Typography
+            variant="h6"
+            fontWeight="bold"
+            gutterBottom
+            sx={{ fontSize: { xs: "1.1rem", md: "1.25rem" } }}
+          >
             포지션 소개
           </Typography>
-          <Typography variant="body1" sx={{ mt: 2, lineHeight: 1.8, color: "#666" }}>
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 2,
+              lineHeight: 1.8,
+              color: "#666",
+              fontSize: { xs: "0.875rem", md: "1rem" }
+            }}
+          >
             {job.description}
           </Typography>
         </Box>
@@ -253,19 +265,24 @@ const CareerDetail: React.FC = () => {
 
         {/* 주요 업무 */}
         <Box sx={{ mb: 6 }}>
-          <Typography variant="h5" fontWeight="bold" gutterBottom>
+          <Typography
+            variant="h6"
+            fontWeight="bold"
+            gutterBottom
+            sx={{ fontSize: { xs: "1.1rem", md: "1.25rem" } }}
+          >
             주요 업무
           </Typography>
           <List>
             {job.responsibilities.map((responsibility, index) => (
               <ListItem key={index} sx={{ py: 1 }}>
                 <ListItemIcon>
-                  <CheckCircle sx={{ color: "#2E7DF1" }} />
+                  <CheckCircle sx={{ color: "#2E7DF1", fontSize: 20 }} />
                 </ListItemIcon>
                 <ListItemText
                   primary={responsibility}
                   primaryTypographyProps={{
-                    fontSize: "1rem",
+                    fontSize: { xs: "0.9rem", md: "1rem" },
                     color: "#666",
                   }}
                 />
@@ -278,19 +295,24 @@ const CareerDetail: React.FC = () => {
 
         {/* 지원 자격 */}
         <Box sx={{ mb: 6 }}>
-          <Typography variant="h5" fontWeight="bold" gutterBottom>
+          <Typography
+            variant="h6"
+            fontWeight="bold"
+            gutterBottom
+            sx={{ fontSize: { xs: "1.1rem", md: "1.25rem" } }}
+          >
             지원 자격
           </Typography>
           <List>
             {job.requirements.map((requirement, index) => (
               <ListItem key={index} sx={{ py: 1 }}>
                 <ListItemIcon>
-                  <CheckCircle sx={{ color: "#2E7DF1" }} />
+                  <CheckCircle sx={{ color: "#2E7DF1", fontSize: 20 }} />
                 </ListItemIcon>
                 <ListItemText
                   primary={requirement}
                   primaryTypographyProps={{
-                    fontSize: "1rem",
+                    fontSize: { xs: "0.9rem", md: "1rem" },
                     color: "#666",
                   }}
                 />
@@ -303,19 +325,24 @@ const CareerDetail: React.FC = () => {
 
         {/* 혜택 */}
         <Box sx={{ mb: 6 }}>
-          <Typography variant="h5" fontWeight="bold" gutterBottom>
+          <Typography
+            variant="h6"
+            fontWeight="bold"
+            gutterBottom
+            sx={{ fontSize: { xs: "1.1rem", md: "1.25rem" } }}
+          >
             혜택
           </Typography>
           <List>
             {job.benefits.map((benefit, index) => (
               <ListItem key={index} sx={{ py: 1 }}>
                 <ListItemIcon>
-                  <CheckCircle sx={{ color: "#2E7DF1" }} />
+                  <CheckCircle sx={{ color: "#2E7DF1", fontSize: 20 }} />
                 </ListItemIcon>
                 <ListItemText
                   primary={benefit}
                   primaryTypographyProps={{
-                    fontSize: "1rem",
+                    fontSize: { xs: "0.9rem", md: "1rem" },
                     color: "#666",
                   }}
                 />
@@ -344,7 +371,12 @@ const CareerDetail: React.FC = () => {
                 borderRadius: 2,
               }}
             >
-              <Typography variant="h5" fontWeight="bold" gutterBottom>
+              <Typography
+                variant="h6"
+                fontWeight="bold"
+                gutterBottom
+                sx={{ fontSize: { xs: "1.1rem", md: "1.25rem" } }}
+              >
                 지원서 작성
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -455,10 +487,14 @@ const CareerDetail: React.FC = () => {
             alignItems="center"
           >
             <Box>
-              <Typography variant="h6" fontWeight="bold">
+              <Typography
+                variant="subtitle1"
+                fontWeight="bold"
+                sx={{ fontSize: { xs: "1rem", md: "1.1rem" } }}
+              >
                 {job.title}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.85rem" }}>
                 {job.department} · {job.location}
               </Typography>
             </Box>
