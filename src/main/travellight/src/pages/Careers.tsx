@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Typography,
@@ -13,10 +14,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   Divider,
   Alert,
   Stack,
@@ -25,22 +22,18 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { styled } from "@mui/material/styles";
 import {
-  Work,
   LocationOn,
   Schedule,
-  CheckCircle,
-  Code,
-  DesignServices,
-  TrendingUp,
-  Engineering,
-  Psychology,
   Send,
   Speed,
   Security,
   People,
   PersonAdd,
-  Email
+  Email,
+  TrendingUp,
+  DesignServices
 } from "@mui/icons-material";
+import { jobPositions } from "../data/jobPositions";
 
 const JobCard = styled(Card)(({ theme }) => ({
   height: "100%",
@@ -87,29 +80,8 @@ const TalentPoolCard = styled(Card)(({ theme }) => ({
   },
 }));
 
-interface JobPosition {
-  id: number;
-  title: string;
-  department: string;
-  location: string;
-  type: string;
-  icon: React.ReactElement;
-  description: string;
-  requirements: string[];
-  responsibilities: string[];
-  benefits: string[];
-}
-
 const Careers: React.FC = () => {
-  const [selectedJob, setSelectedJob] = useState<JobPosition | null>(null);
-  const [applicationForm, setApplicationForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    coverLetter: "",
-  });
-  const [showApplicationForm, setShowApplicationForm] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const navigate = useNavigate();
   const [showTalentPoolForm, setShowTalentPoolForm] = useState(false);
   const [talentPoolForm, setTalentPoolForm] = useState({
     name: "",
@@ -120,71 +92,6 @@ const Careers: React.FC = () => {
     introduction: "",
   });
   const [talentPoolSubmitted, setTalentPoolSubmitted] = useState(false);
-
-  const jobPositions: JobPosition[] = [
-    {
-      id: 1,
-      title: "경영관리 팀원",
-      department: "Business",
-      location: "재택근무",
-      type: "정규직",
-      icon: <TrendingUp sx={{ fontSize: 40, color: "#2E7DF1" }} />,
-      description:
-        "스타트업의 전반적인 경영 업무를 담당할 경영관리 팀원을 찾습니다. 사업 전략 수립, 운영 관리, 파트너십 등 다양한 경영 업무를 경험할 수 있습니다.",
-      requirements: [
-        "경영학, 경제학 전공 또는 관련 업무 경험",
-        "사업 계획서 작성 및 전략 수립 능력",
-        "스타트업 환경에 대한 이해와 적응력",
-        "데이터 분석 및 보고서 작성 능력",
-        "원활한 커뮤니케이션 및 협상 능력",
-      ],
-      responsibilities: [
-        "사업 전략 및 계획 수립 참여",
-        "운영 프로세스 개선 및 관리",
-        "파트너십 발굴 및 관리",
-        "재무 관리 및 투자 유치 지원",
-        "법무 업무 및 컴플라이언스 관리",
-      ],
-      benefits: [
-        "사업 성과에 따른 보상 시스템",
-        "스타트업 경영 전반의 경험",
-        "창업과 사업 운영의 실무 학습",
-        "수평적 조직문화",
-        "성공 시 보상 논의 가능",
-      ],
-    },
-    {
-      id: 2,
-      title: "디자인 팀원",
-      department: "Design",
-      location: "재택근무",
-      type: "정규직",
-      icon: <DesignServices sx={{ fontSize: 40, color: "#2E7DF1" }} />,
-      description:
-        "사용자 경험을 중심으로 한 프로덕트 디자인을 담당할 디자인 팀원을 찾습니다. 함께 세상을 바꿀 서비스를 만들어보세요.",
-      requirements: [
-        "UI/UX 디자인 기본기",
-        "사용자 중심 사고",
-        "스타트업 환경에서의 업무 의욕",
-        "빠른 실행력과 피드백 수용",
-        "제약 조건에서 창의적 해결책 도출",
-      ],
-      responsibilities: [
-        "프로덕트 디자인 방향 기여",
-        "사용자 경험(UX) 설계",
-        "디자인 시스템 구축 참여",
-        "프로토타입 제작 및 테스트",
-        "개발팀과 긴밀한 협업",
-      ],
-      benefits: [
-        "사업 성과에 따른 보상 시스템",
-        "디자인 업무에 대한 자율성",
-        "프로덕트 전체 디자인 참여",
-        "다양한 분야 경험 가능",
-        "성공 시 보상 논의 가능",
-      ],
-    },
-  ];
 
   const companyBenefits = [
     {
@@ -213,65 +120,20 @@ const Careers: React.FC = () => {
     },
   ];
 
-  const handleJobClick = (job: JobPosition) => {
-    setSelectedJob(job);
-  };
-
-  const handleCloseDialog = () => {
-    setSelectedJob(null);
-    setShowApplicationForm(false);
-    setSubmitted(false);
-  };
-
-  const handleApplyClick = () => {
-    setShowApplicationForm(true);
-  };
-
-  const handleSubmitApplication = async () => {
-    if (!selectedJob) return;
-    
-    try {
-      const applicationData = {
-        positionTitle: selectedJob.title,
-        department: selectedJob.department,
-        applicantName: applicationForm.name,
-        email: applicationForm.email,
-        phone: applicationForm.phone,
-        coverLetter: applicationForm.coverLetter
-      };
-
-      const response = await fetch('/api/hr/applications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(applicationData)
-      });
-
-      if (response.ok) {
-        setSubmitted(true);
-        setTimeout(() => {
-          handleCloseDialog();
-          setApplicationForm({
-            name: "",
-            email: "",
-            phone: "",
-            coverLetter: "",
-          });
-        }, 3000);
-      } else {
-        console.error('지원서 제출 실패');
-      }
-    } catch (error) {
-      console.error('지원서 제출 중 오류:', error);
+  const getJobIcon = (iconName: string) => {
+    const iconProps = { fontSize: 40, color: "#2E7DF1" };
+    switch (iconName) {
+      case "TrendingUp":
+        return <TrendingUp sx={iconProps} />;
+      case "DesignServices":
+        return <DesignServices sx={iconProps} />;
+      default:
+        return <TrendingUp sx={iconProps} />;
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setApplicationForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  const handleJobClick = (jobId: number) => {
+    navigate(`/careers/${jobId}`);
   };
 
   const handleTalentPoolClick = () => {
@@ -441,7 +303,7 @@ const Careers: React.FC = () => {
             <Grid container spacing={4}>
               {jobPositions.map((job) => (
                 <Grid item xs={12} md={6} lg={4} key={job.id}>
-                  <JobCard onClick={() => handleJobClick(job)}>
+                  <JobCard onClick={() => handleJobClick(job.id)}>
                     <CardContent
                       sx={{
                         flexGrow: 1,
@@ -454,7 +316,7 @@ const Careers: React.FC = () => {
                         <Box
                           sx={{ display: "flex", alignItems: "center", mb: 3 }}
                         >
-                          {job.icon}
+                          {getJobIcon(job.iconName)}
                           <Box sx={{ ml: 2 }}>
                             <Typography
                               variant="h6"
@@ -733,278 +595,6 @@ const Careers: React.FC = () => {
         </Container>
       </Box>
       <Footer />
-
-      {/* Job Detail Dialog */}
-      <Dialog
-        open={!!selectedJob}
-        onClose={handleCloseDialog}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            maxHeight: "90vh",
-            border: "1px solid #f0f0f0",
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
-          },
-        }}
-      >
-        {selectedJob && (
-          <>
-            <DialogTitle sx={{ pb: 2, borderBottom: "1px solid #f0f0f0" }}>
-              <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                {selectedJob.icon}
-                <Box sx={{ ml: 2 }}>
-                  <Typography
-                    variant="h5"
-                    component="h2"
-                    sx={{
-                      fontWeight: 600,
-                      color: "#1a1a1a",
-                    }}
-                  >
-                    {selectedJob.title}
-                  </Typography>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    {selectedJob.department} • {selectedJob.location} •{" "}
-                    {selectedJob.type}
-                  </Typography>
-                </Box>
-              </Box>
-            </DialogTitle>
-            <DialogContent sx={{ py: 3 }}>
-              {!showApplicationForm ? (
-                <>
-                  <Typography
-                    variant="body1"
-                    paragraph
-                    sx={{ lineHeight: 1.6 }}
-                  >
-                    {selectedJob.description}
-                  </Typography>
-
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{
-                      fontWeight: 600,
-                      mt: 4,
-                      color: "#1a1a1a",
-                    }}
-                  >
-                    주요 업무
-                  </Typography>
-                  <List dense>
-                    {selectedJob.responsibilities.map((item, index) => (
-                      <ListItem key={index} sx={{ py: 0.5 }}>
-                        <ListItemIcon sx={{ minWidth: 36 }}>
-                          <CheckCircle
-                            sx={{ color: "#2E7DF1", fontSize: 20 }}
-                          />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item}
-                          primaryTypographyProps={{
-                            fontSize: "0.95rem",
-                            color: "#1a1a1a",
-                          }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{
-                      fontWeight: 600,
-                      mt: 4,
-                      color: "#1a1a1a",
-                    }}
-                  >
-                    지원 자격
-                  </Typography>
-                  <List dense>
-                    {selectedJob.requirements.map((item, index) => (
-                      <ListItem key={index} sx={{ py: 0.5 }}>
-                        <ListItemIcon sx={{ minWidth: 36 }}>
-                          <CheckCircle
-                            sx={{ color: "#2E7DF1", fontSize: 20 }}
-                          />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item}
-                          primaryTypographyProps={{
-                            fontSize: "0.95rem",
-                            color: "#1a1a1a",
-                          }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{
-                      fontWeight: 600,
-                      mt: 4,
-                      color: "#1a1a1a",
-                    }}
-                  >
-                    혜택 및 복리후생
-                  </Typography>
-                  <List dense>
-                    {selectedJob.benefits.map((item, index) => (
-                      <ListItem key={index} sx={{ py: 0.5 }}>
-                        <ListItemIcon sx={{ minWidth: 36 }}>
-                          <CheckCircle
-                            sx={{ color: "#2E7DF1", fontSize: 20 }}
-                          />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item}
-                          primaryTypographyProps={{
-                            fontSize: "0.95rem",
-                            color: "#1a1a1a",
-                          }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                </>
-              ) : (
-                <Box>
-                  {submitted ? (
-                    <Alert
-                      severity="success"
-                      sx={{
-                        mb: 2,
-                        border: "1px solid #4caf50",
-                        borderRadius: 1,
-                      }}
-                    >
-                      지원서가 성공적으로 제출되었습니다! 빠른 시일 내에
-                      연락드리겠습니다.
-                    </Alert>
-                  ) : (
-                    <>
-                      <Typography
-                        variant="h6"
-                        gutterBottom
-                        sx={{
-                          fontWeight: 600,
-                          mb: 3,
-                          color: "#1a1a1a",
-                        }}
-                      >
-                        {selectedJob.title} 지원하기
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        label="이름"
-                        value={applicationForm.name}
-                        onChange={(e) =>
-                          handleInputChange("name", e.target.value)
-                        }
-                        sx={{ mb: 3 }}
-                        required
-                      />
-                      <TextField
-                        fullWidth
-                        label="이메일"
-                        type="email"
-                        value={applicationForm.email}
-                        onChange={(e) =>
-                          handleInputChange("email", e.target.value)
-                        }
-                        sx={{ mb: 3 }}
-                        required
-                      />
-                      <TextField
-                        fullWidth
-                        label="연락처"
-                        value={applicationForm.phone}
-                        onChange={(e) =>
-                          handleInputChange("phone", e.target.value)
-                        }
-                        sx={{ mb: 3 }}
-                        required
-                      />
-                      <TextField
-                        fullWidth
-                        label="자기소개서"
-                        multiline
-                        rows={6}
-                        value={applicationForm.coverLetter}
-                        onChange={(e) =>
-                          handleInputChange("coverLetter", e.target.value)
-                        }
-                        placeholder="지원 동기와 본인의 강점을 자유롭게 작성해주세요..."
-                        required
-                      />
-                    </>
-                  )}
-                </Box>
-              )}
-            </DialogContent>
-            <DialogActions
-              sx={{ px: 3, pb: 3, borderTop: "1px solid #f0f0f0" }}
-            >
-              <Button
-                onClick={handleCloseDialog}
-                sx={{
-                  color: "#666",
-                  textTransform: "none",
-                }}
-              >
-                {submitted ? "닫기" : "취소"}
-              </Button>
-              {!showApplicationForm && (
-                <Button
-                  onClick={handleApplyClick}
-                  variant="contained"
-                  startIcon={<Work />}
-                  sx={{
-                    bgcolor: "#2E7DF1",
-                    color: "white",
-                    fontWeight: 500,
-                    textTransform: "none",
-                    "&:hover": {
-                      bgcolor: "#1e6bd8",
-                    },
-                  }}
-                >
-                  지원하기
-                </Button>
-              )}
-              {showApplicationForm && !submitted && (
-                <Button
-                  onClick={handleSubmitApplication}
-                  variant="contained"
-                  startIcon={<Send />}
-                  disabled={
-                    !applicationForm.name ||
-                    !applicationForm.email ||
-                    !applicationForm.phone ||
-                    !applicationForm.coverLetter
-                  }
-                  sx={{
-                    bgcolor: "#2E7DF1",
-                    color: "white",
-                    fontWeight: 500,
-                    textTransform: "none",
-                    "&:hover": {
-                      bgcolor: "#1e6bd8",
-                    },
-                  }}
-                >
-                  지원서 제출
-                </Button>
-              )}
-            </DialogActions>
-          </>
-        )}
-      </Dialog>
 
       {/* Talent Pool Dialog */}
       <Dialog 

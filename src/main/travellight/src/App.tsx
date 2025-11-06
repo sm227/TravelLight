@@ -43,6 +43,7 @@ import NotFound from './pages/NotFound';
 import PaymentComplete from './pages/PaymentComplete';
 import About from './pages/About';
 import Careers from './pages/Careers';
+import CareerDetail from './pages/CareerDetail';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Refund from './pages/Refund';
@@ -310,7 +311,8 @@ function App() {
             <Route path="/payment-complete" element={<PaymentComplete />} />
             <Route path="/about" element={<About />} />
             <Route path="/careers" element={<Careers />} />
-            
+            <Route path="/careers/:id" element={<CareerDetail />} />
+
             {/* 약관 및 정책 페이지들 */}
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
