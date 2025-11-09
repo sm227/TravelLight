@@ -83,7 +83,7 @@ export const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({ onClose 
     const welcomeMessage: ChatMessage = {
       id: `welcome-${Date.now()}`,
       type: 'assistant',
-      content: '안녕하세요! TravelLight 데이터 분석 어시스턴트입니다. 궁금한 점을 자연어로 물어보세요.',
+      content: '안녕하세요! 저는 트래비입니다. TravelLight 데이터 분석을 도와드릴게요. 궁금한 점을 자연어로 물어보세요.',
       timestamp: new Date()
     };
     setMessages([welcomeMessage]);
@@ -207,7 +207,7 @@ export const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({ onClose 
             fontWeight: 600,
             fontSize: '1rem'
           }}>
-            데이터 분석 어시스턴트
+            트래비 - 데이터 분석 어시스턴트
           </Typography>
         </Box>
         <Box>
@@ -328,7 +328,7 @@ export const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({ onClose 
                     display: 'block',
                     mb: 0.5
                   }}>
-                    {message.type === 'user' ? '사용자' : 'AI 어시스턴트'} • {message.timestamp.toLocaleTimeString()}
+                    {message.type === 'user' ? '사용자' : '트래비'} • {message.timestamp.toLocaleTimeString()}
                   </Typography>
 
                   <Paper sx={{
