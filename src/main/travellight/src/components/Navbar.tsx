@@ -30,6 +30,7 @@ import LoginIcon from "@mui/icons-material/Login";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import LanguageIcon from "@mui/icons-material/Language";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { Link as RouterLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../services/AuthContext";
 import { useTranslation } from "react-i18next";
@@ -97,6 +98,9 @@ const Navbar: React.FC = () => {
   const [langMenuAnchorEl, setLangMenuAnchorEl] = useState<null | HTMLElement>(
     null
   );
+  const [mobileLangMenuAnchorEl, setMobileLangMenuAnchorEl] = useState<null | HTMLElement>(
+    null
+  );
   const [menuStep, setMenuStep] = useState<'main' | string>('main');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -148,9 +152,19 @@ const Navbar: React.FC = () => {
     setLangMenuAnchorEl(null);
   };
 
+  const handleMobileLangMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setMobileLangMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMobileLangMenuClose = () => {
+    setMobileLangMenuAnchorEl(null);
+  };
+
   const changeLanguage = (lng: string) => {
     localStorage.setItem("preferredLanguage", lng);
     handleLangMenuClose();
+    handleMobileLangMenuClose();
+    handleMenuClose();
     // React Router를 사용하여 현재 페이지를 새로고침 (로그인 상태 유지)
     setTimeout(() => {
       window.location.reload();
@@ -277,6 +291,22 @@ const Navbar: React.FC = () => {
         <SettingsIcon />
         {t("settings")}
       </MenuItem>
+      {/* 모바일에서만 표시되는 다국어 메뉴 */}
+      <Box sx={{ display: { xs: "block", md: "none" } }}>
+        <Divider />
+        <MenuItem
+          onClick={handleMobileLangMenuOpen}
+          sx={{
+            justifyContent: "space-between",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <LanguageIcon />
+            {t("language")}
+          </Box>
+          <ChevronRightIcon sx={{ fontSize: "18px", opacity: 0.6 }} />
+        </MenuItem>
+      </Box>
       <Divider />
       <MenuItem onClick={handleLogout} sx={logoutMenuItemStyles}>
         <LogoutIcon />
@@ -341,7 +371,7 @@ const Navbar: React.FC = () => {
             </Typography>
 
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              {/* 번역 아이콘 버튼 */}
+              {/* 번역 아이콘 버튼 - 데스크톱에서만 표시 */}
               <IconButton
                 aria-label={t("language")}
                 aria-controls={isLangMenuOpen ? "language-menu" : undefined}
@@ -352,6 +382,7 @@ const Navbar: React.FC = () => {
                 sx={{
                   mx: 1,
                   fontSize: "1.5rem",
+                  display: { xs: "none", md: "inline-flex" }, // 모바일에서는 숨김
                   "&:hover": {
                     backgroundColor: "rgba(37, 99, 235, 0.04)", // 호버 효과
                   },
@@ -550,6 +581,48 @@ const Navbar: React.FC = () => {
           >
             <PersonAddIcon />
             {t("register")}
+          </MenuItem>
+          {/* 모바일에서만 표시되는 다국어 메뉴 */}
+          <Box sx={{ display: { xs: "block", md: "none" } }}>
+            <Divider />
+            <MenuItem
+              onClick={handleMobileLangMenuOpen}
+              sx={{
+                justifyContent: "space-between",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <LanguageIcon />
+                {t("language")}
+              </Box>
+              <ChevronRightIcon sx={{ fontSize: "18px", opacity: 0.6 }} />
+            </MenuItem>
+          </Box>
+        </Menu>
+
+        {/* 모바일 다국어 서브메뉴 */}
+        <Menu
+          id="mobile-language-menu"
+          anchorEl={mobileLangMenuAnchorEl}
+          open={Boolean(mobileLangMenuAnchorEl)}
+          onClose={handleMobileLangMenuClose}
+          anchorOrigin={{
+            vertical: "top",
+            horizontal: "right",
+          }}
+          transformOrigin={{
+            vertical: "top",
+            horizontal: "left",
+          }}
+          sx={menuStyles}
+        >
+          <MenuItem onClick={() => changeLanguage("ko")}>
+            <LanguageIcon />
+            {t("korean")}
+          </MenuItem>
+          <MenuItem onClick={() => changeLanguage("en")}>
+            <LanguageIcon />
+            {t("english")}
           </MenuItem>
         </Menu>
       </AppBar>
