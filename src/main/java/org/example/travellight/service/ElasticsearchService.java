@@ -15,6 +15,7 @@ import org.example.travellight.dto.ActivityLogDto;
 import org.example.travellight.dto.ActivityLogSearchRequest;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -201,6 +202,44 @@ public class ElasticsearchService {
         }
 
         return builder.build();
+    }
+
+    /**
+     * 오늘 기록된 로그 수 조회 (ESG 지표용)
+     *
+     * @return 오늘 기록된 로그 수
+     */
+    public long countTodayLogs() {
+        try {
+            LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+            LocalDateTime endOfDay = startOfDay.plusDays(1);
+
+            // 오늘 범위의 로그만 조회
+            RangeQuery.Builder rangeQuery = new RangeQuery.Builder()
+                    .field("@timestamp")
+                    .gte(JsonData.of(startOfDay.format(ISO_FORMATTER)))
+                    .lt(JsonData.of(endOfDay.format(ISO_FORMATTER)));
+
+            BoolQuery.Builder boolQuery = new BoolQuery.Builder()
+                    .must(Query.of(q -> q.exists(e -> e.field("action"))))
+                    .must(Query.of(q -> q.range(rangeQuery.build())));
+
+            SearchRequest searchRequest = SearchRequest.of(s -> s
+                    .index(INDEX_PATTERN)
+                    .query(q -> q.bool(boolQuery.build()))
+                    .size(0) // 카운트만 필요하므로 결과는 가져오지 않음
+            );
+
+            SearchResponse<Map> response = elasticsearchClient.search(searchRequest, Map.class);
+            long count = response.hits().total().value();
+
+            log.info("오늘({}) 기록된 로그 수: {} 건", LocalDate.now(), count);
+            return count;
+
+        } catch (Exception e) {
+            log.error("오늘 로그 수 조회 중 오류 발생", e);
+            return 0L;
+        }
     }
 
     /**

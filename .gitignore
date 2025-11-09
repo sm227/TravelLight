@@ -48,3 +48,5 @@ api-docs.yaml
 
 /logs
 nul
+
+src/main/resources/db/migration
