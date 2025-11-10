@@ -161,7 +161,7 @@ const AdminLogin = () => {
             letterSpacing: '0.15em',
             fontFamily: 'monospace'
           }}>
-            TRAVELLIGHT
+            TRAVELIGHT
           </Typography>
           <Typography variant="h6" sx={{ 
             color: COLORS.textMuted,
