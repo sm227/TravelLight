@@ -138,6 +138,30 @@ interface StorageUsageData {
   };
 }
 
+interface ESGScoreData {
+  totalScore: number;
+  environmentScore: number;
+  socialScore: number;
+  governanceScore: number;
+  calculationDate: string;
+  details: {
+    environment: {
+      spaceUtilization: number;
+      description: string;
+    };
+    social: {
+      customerSatisfaction: number;
+      claimResolutionRate: number;
+      description: string;
+    };
+    governance: {
+      systemUptime: number;
+      activityLogRate: number;
+      description: string;
+    };
+  };
+}
+
 const AdminDashboard = () => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -157,6 +181,10 @@ const AdminDashboard = () => {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // ESG 점수 상태
+  const [esgScore, setEsgScore] = useState<ESGScoreData | null>(null);
+  const [esgLoading, setEsgLoading] = useState(false);
 
   // 실제 예약 데이터 로드
   useEffect(() => {
@@ -250,6 +278,25 @@ const AdminDashboard = () => {
     }
   }, [partnerships]);
 
+  // ESG 점수 데이터 로드
+  useEffect(() => {
+    const loadESGScore = async () => {
+      try {
+        setEsgLoading(true);
+        const response = await fetch('/api/admin/esg/current');
+        const data = await response.json();
+        if (data.success && data.data) {
+          setEsgScore(data.data);
+        }
+      } catch (error) {
+        console.error('ESG 점수 데이터 로드 실패:', error);
+      } finally {
+        setEsgLoading(false);
+      }
+    };
+
+    loadESGScore();
+  }, []);
 
   // 통합 검색 디바운스
   useEffect(() => {
@@ -738,6 +785,255 @@ const AdminDashboard = () => {
           </Grid>
         ))}
       </Grid>
+
+      {/* ESG 점수 카드 섹션 */}
+      {esgScore && !esgLoading && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" sx={{
+            color: COLORS.textPrimary,
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            mb: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}>
+            <CheckCircle sx={{ fontSize: '1rem', color: COLORS.success }} />
+            ESG 모니터링
+          </Typography>
+          <Grid container spacing={1.5}>
+            {/* E (환경) 점수 */}
+            <Grid item xs={12} sm={6} lg={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: 1,
+                  bgcolor: COLORS.backgroundCard,
+                  border: `1px solid ${COLORS.borderPrimary}`,
+                  transition: 'all 0.15s ease',
+                  '&:hover': {
+                    bgcolor: COLORS.backgroundSurface,
+                    transform: 'translateY(-1px)',
+                  }
+                }}
+              >
+                <Typography variant="caption" sx={{
+                  color: COLORS.textMuted,
+                  fontSize: '0.625rem',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.025em',
+                  display: 'block',
+                  mb: 1
+                }}>
+                  E (환경)
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Box>
+                    <Typography variant="h5" sx={{
+                      color: COLORS.success,
+                      fontWeight: 700,
+                      fontSize: '1.5rem',
+                      lineHeight: 1.2,
+                      mb: 0.5
+                    }}>
+                      {esgScore.environmentScore.toFixed(1)}
+                    </Typography>
+                    <Typography variant="caption" sx={{
+                      color: COLORS.textSecondary,
+                      fontSize: '0.6875rem',
+                      display: 'block'
+                    }}>
+                      공간 활용 효율성
+                    </Typography>
+                  </Box>
+                  <Typography variant="h6" sx={{
+                    color: COLORS.textPrimary,
+                    fontSize: '1.25rem',
+                    fontWeight: 600
+                  }}>
+                    {esgScore.details.environment.spaceUtilization.toFixed(1)}%
+                  </Typography>
+                </Box>
+              </Paper>
+            </Grid>
+
+            {/* S (사회) 점수 */}
+            <Grid item xs={12} sm={6} lg={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: 1,
+                  bgcolor: COLORS.backgroundCard,
+                  border: `1px solid ${COLORS.borderPrimary}`,
+                  transition: 'all 0.15s ease',
+                  '&:hover': {
+                    bgcolor: COLORS.backgroundSurface,
+                    transform: 'translateY(-1px)',
+                  }
+                }}
+              >
+                <Typography variant="caption" sx={{
+                  color: COLORS.textMuted,
+                  fontSize: '0.625rem',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.025em',
+                  display: 'block',
+                  mb: 1
+                }}>
+                  S (사회)
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Box>
+                    <Typography variant="h5" sx={{
+                      color: COLORS.accentPrimary,
+                      fontWeight: 700,
+                      fontSize: '1.5rem',
+                      lineHeight: 1.2,
+                      mb: 0.5
+                    }}>
+                      {esgScore.socialScore.toFixed(1)}
+                    </Typography>
+                    <Typography variant="caption" sx={{
+                      color: COLORS.textSecondary,
+                      fontSize: '0.6875rem',
+                      display: 'block'
+                    }}>
+                      고객 만족도 / 클레임 해결률
+                    </Typography>
+                  </Box>
+                  <Typography variant="h6" sx={{
+                    color: COLORS.textPrimary,
+                    fontSize: '1.125rem',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {esgScore.details.social.customerSatisfaction.toFixed(1)}/5.0 · {esgScore.details.social.claimResolutionRate.toFixed(1)}%
+                  </Typography>
+                </Box>
+              </Paper>
+            </Grid>
+
+            {/* G (지배구조) 점수 */}
+            <Grid item xs={12} sm={6} lg={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: 1,
+                  bgcolor: COLORS.backgroundCard,
+                  border: `1px solid ${COLORS.borderPrimary}`,
+                  transition: 'all 0.15s ease',
+                  '&:hover': {
+                    bgcolor: COLORS.backgroundSurface,
+                    transform: 'translateY(-1px)',
+                  }
+                }}
+              >
+                <Typography variant="caption" sx={{
+                  color: COLORS.textMuted,
+                  fontSize: '0.625rem',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.025em',
+                  display: 'block',
+                  mb: 1
+                }}>
+                  G (지배구조)
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Box>
+                    <Typography variant="h5" sx={{
+                      color: COLORS.accentSecondary,
+                      fontWeight: 700,
+                      fontSize: '1.5rem',
+                      lineHeight: 1.2,
+                      mb: 0.5
+                    }}>
+                      {esgScore.governanceScore.toFixed(1)}
+                    </Typography>
+                    <Typography variant="caption" sx={{
+                      color: COLORS.textSecondary,
+                      fontSize: '0.6875rem',
+                      display: 'block'
+                    }}>
+                      시스템 안정성 / 로그 기록률
+                    </Typography>
+                  </Box>
+                  <Typography variant="h6" sx={{
+                    color: COLORS.textPrimary,
+                    fontSize: '1.125rem',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {esgScore.details.governance.systemUptime.toFixed(1)}% · {esgScore.details.governance.activityLogRate.toFixed(1)}%
+                  </Typography>
+                </Box>
+              </Paper>
+            </Grid>
+
+            {/* 종합 점수 */}
+            <Grid item xs={12} sm={6} lg={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: 1,
+                  bgcolor: COLORS.backgroundCard,
+                  border: `2px solid ${COLORS.success}`,
+                  transition: 'all 0.15s ease',
+                  '&:hover': {
+                    bgcolor: COLORS.backgroundSurface,
+                    transform: 'translateY(-1px)',
+                  }
+                }}
+              >
+                <Typography variant="caption" sx={{
+                  color: COLORS.textMuted,
+                  fontSize: '0.625rem',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.025em',
+                  display: 'block',
+                  mb: 1
+                }}>
+                  종합 ESG 점수
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Box>
+                    <Typography variant="h5" sx={{
+                      color: COLORS.success,
+                      fontWeight: 700,
+                      fontSize: '1.5rem',
+                      lineHeight: 1.2,
+                      mb: 0.5
+                    }}>
+                      {esgScore.totalScore.toFixed(1)}
+                    </Typography>
+                    <Typography variant="caption" sx={{
+                      color: COLORS.textSecondary,
+                      fontSize: '0.6875rem',
+                      display: 'block'
+                    }}>
+                      계산 날짜
+                    </Typography>
+                  </Box>
+                  <Typography variant="h6" sx={{
+                    color: COLORS.textPrimary,
+                    fontSize: '1rem',
+                    fontWeight: 600
+                  }}>
+                    {esgScore.calculationDate}
+                  </Typography>
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
+        </Box>
+      )}
 
       {/* 통계 차트 섹션 */}
       <Grid container spacing={2} sx={{ mb: 2 }}>
