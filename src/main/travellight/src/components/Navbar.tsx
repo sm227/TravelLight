@@ -520,6 +520,10 @@ const Navbar: React.FC = () => {
             <LanguageIcon />
             {t("english")}
           </MenuItem>
+          <MenuItem onClick={() => changeLanguage("ja")}>
+            <LanguageIcon />
+            {t("japanese")}
+          </MenuItem>
         </Menu>
 
         {/* 로그인하지 않은 사용자를 위한 계정 메뉴 */}
