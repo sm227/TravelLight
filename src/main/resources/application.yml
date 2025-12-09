@@ -91,7 +91,7 @@ naver:
 # Google Gemini API 설정
 gemini:
   model:
-    name: ${GEMINI_MODEL_NAME:gemini-2.0-flash-exp}
+    name: ${GEMINI_MODEL_NAME:gemini-2.5-flash}
 
 # Swagger 설정
 springdoc:

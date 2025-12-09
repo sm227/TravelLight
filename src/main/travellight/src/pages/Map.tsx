@@ -9041,6 +9041,10 @@ const Map = () => {
           <LanguageIcon />
           {t('english')}
         </MenuItem>
+        <MenuItem onClick={() => changeLanguage('ja')}>
+          <LanguageIcon />
+          {t('japanese')}
+        </MenuItem>
       </Menu>
 
       {/* 배달 신청 모달 */}
