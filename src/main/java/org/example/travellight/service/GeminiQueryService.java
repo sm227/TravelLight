@@ -17,7 +17,7 @@ public class GeminiQueryService {
     @Value("${gemini.api.key:}")
     private String geminiApiKey;
 
-    @Value("${gemini.model.name:gemini-2.0-flash-exp}")
+    @Value("${gemini.model.name:gemini-2.5-flash}")
     private String modelName;
 
     private final DatabaseSchemaService databaseSchemaService;
