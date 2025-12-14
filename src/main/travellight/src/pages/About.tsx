@@ -29,7 +29,6 @@ import {
   TrendingUp,
   People,
   Public,
-  EmojiEvents,
 } from "@mui/icons-material";
 
 const SimpleCard = styled(Card)(({ theme }) => ({
@@ -102,12 +101,27 @@ const AchievementCard = styled(Card)(({ theme }) => ({
 const About: React.FC = () => {
   const achievements = [
     {
+      date: "2025.12",
+      title: "창업 두드림 경진대회 동상",
+      logo: null,
+    },
+    {
+      date: "2025.11",
+      title: "제 11회 수도권/강원권 START-UP ESG 창업아이디어 경진대회 은상",
+      logo: null,
+    },
+    {
+      date: "2025.11",
+      title: "2025년 경기 GRAND-RISE 동반성장 페스타 창업경진대회 금상",
+      logo: null,
+    },
+    {
       date: "2025.08",
       title: "학생창업유망팀 300 성장트랙 최종선정",
       logo: logo1Image,
     },
     {
-      date: "2025.05",
+      date: "2025.03",
       title: "북부권역 지역연계 강화 창업경진대회 최종 선발",
       logo: logo2Image,
     },
@@ -353,7 +367,7 @@ const About: React.FC = () => {
                         gap: 2,
                       }}
                     >
-                      {achievement.logo ? (
+                      {achievement.logo && (
                         <img
                           src={achievement.logo}
                           alt={`Achievement ${index + 1}`}
@@ -364,8 +378,6 @@ const About: React.FC = () => {
                             flexShrink: 0,
                           }}
                         />
-                      ) : (
-                        <EmojiEvents sx={{ color: "#2E7DF1", fontSize: 80 }} />
                       )}
                       <Box sx={{ flex: 1 }}>
                         <Typography

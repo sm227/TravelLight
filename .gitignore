@@ -50,3 +50,4 @@ api-docs.yaml
 nul
 
 src/main/resources/db/migration
+.env
